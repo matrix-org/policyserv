@@ -2,10 +2,13 @@ package homeserver
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
+	"os"
 	"strings"
 	"time"
 
@@ -37,7 +40,11 @@ func (h *Homeserver) scheduleStateLearning() {
 			log.Fatalf("Error subscribing to %s: %v", pubsub.TopicNewStateToLearn, err)
 			return
 		}
-		ticker := time.NewTicker(10 * time.Minute)
+		duration := 1 * time.Hour
+		if os.Getenv("PS_DEVELOPER_TIMERS") == "true" { // TODO: Document, somehow (and maybe make a real config var??)
+			duration = 1 * time.Minute
+		}
+		ticker := time.NewTicker(duration)
 		defer ticker.Stop()
 		workFn := func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -78,7 +85,17 @@ func (h *Homeserver) scheduleStateLearning() {
 				}
 				log.Printf("State learn notification: %s", val)
 			case <-ticker.C:
-				log.Printf("State learn timer")
+				// Add some jitter to avoid thundering herds
+				log.Printf("State learn timer fired, but adding jitter")
+				n, err := rand.Int(rand.Reader, big.NewInt(int64(duration.Seconds())/10))
+				if err != nil {
+					log.Printf("Non-fatal error generating jitter for state learning: %v", err)
+					n = big.NewInt(4) // https://xkcd.com/221
+				}
+				<-time.After(time.Duration(n.Int64()) * time.Second)
+
+				// Now do the normal work (fallthrough to workFn)
+				log.Printf("State learn timer starting")
 			}
 
 			workFn()
