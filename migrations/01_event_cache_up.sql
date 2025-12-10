@@ -1,0 +1,1 @@
+CREATE TABLE events (event_id TEXT NOT NULL PRIMARY KEY, codes_csv TEXT NOT NULL, reasons_csv TEXT NOT NULL);

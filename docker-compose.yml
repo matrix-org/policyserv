@@ -1,0 +1,128 @@
+networks:
+  policyserv:
+
+
+services:
+  policyservhttp:
+    build:
+      context: .
+      dockerfile: "./dev/demo/policyserv/Dockerfile"
+    environment:
+      PS_DATABASE: "postgres://postgres:postgres@postgresps/policyserv?sslmode=disable"
+      PS_DATABASE_READ: "postgres://postgres:postgres@postgresps/policyserv?sslmode=disable"
+      PS_HOMESERVER_NAME: policyserv
+      PS_KEYWORD_FILTER_KEYWORDS: "spam"
+      PS_JOIN_SERVER: hs1
+      PS_HTTP_BIND: "0.0.0.0:8080"
+      PS_API_KEY: dontuseinproduction
+      PS_SPAM_THRESHOLD: "0.5"
+      # Otherwise we'll never find the keys for hs1/hs2 as they only exist locally
+      PS_DIRECT_KEY_FETCHING: "true"
+      # This should be checked into the git repo.
+      PS_HOMESERVER_SIGNING_KEY_PATH: /data/demo.signing.key
+      PS_HOMESERVER_EVENT_SIGNING_KEY_PATH: /data/demo.signing.key
+    depends_on:
+      postgresps:
+        condition: service_healthy
+      hs1:
+        condition: service_healthy
+    ports:
+      - 4642:8080
+    networks:
+      - policyserv
+  postgresps:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    shm_size: 128mb
+    volumes:
+      - ./dev/demo/data/postgresps:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      start_period: "1s"
+      interval: "1s"
+      timeout: "5s"
+    networks:
+      - policyserv
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: policyserv
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+  policyserv:
+    image: nginx:alpine
+    ports:
+      - "4643:443"
+    volumes:
+      - ./dev/demo/ca/certs:/etc/nginx/certs:ro
+      - ./dev/demo/policyserv/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - policyservhttp
+    networks:
+      - policyserv
+
+  # Run two synapse servers: HS1(postgres) and HS2(sqlite)
+  postgressynapse:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    shm_size: 128mb
+    volumes:
+      - ./dev/demo/data/postgressynapse:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      start_period: "1s"
+      interval: "1s"
+      timeout: "5s"
+    networks:
+      - policyserv
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+  hs1:
+    build:
+      context: ./dev/demo
+      dockerfile: ./synapse/Dockerfile
+      args:
+        UID: 0
+    user: root
+    volumes:
+      - ./dev/demo/data/hs1:/data
+      - ./dev/demo/ca/certs:/certs
+    environment:
+      SYNAPSE_SERVER_NAME: hs1
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: synapse
+      POSTGRES_HOST: postgressynapse
+      UID: 0
+    depends_on:
+      postgressynapse:
+        condition: service_healthy
+    healthcheck:
+      # policyserv caches well-known responses at startup, so ensure it is responding before we say we are healthy
+      test: ["CMD", "curl", "-f", "-k", "https://localhost/.well-known/matrix/server"]
+      start_period: "3s"
+      interval: "3s"
+      timeout: "15s"
+    networks:
+      - policyserv
+    ports:
+      - 4640:443
+  hs2:
+    build:
+      context: ./dev/demo
+      dockerfile: ./synapse/Dockerfile
+      args:
+        UID: 0
+    user: root
+    volumes:
+      - ./dev/demo/data/hs2:/data
+      - ./dev/demo/ca/certs:/certs
+    environment:
+      SYNAPSE_SERVER_NAME: hs2
+      UID: 0
+    networks:
+      - policyserv
+    ports:
+      - 4641:443

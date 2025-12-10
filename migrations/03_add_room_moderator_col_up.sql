@@ -1,0 +1,1 @@
+ALTER TABLE rooms ADD COLUMN moderator_user_id TEXT NULL;

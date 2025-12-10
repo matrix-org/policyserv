@@ -1,0 +1,29 @@
+name: Feature request
+description: Let us know what you'd like to see in policyserv
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **For help and support with policyserv, use [#policyserv:matrix.org](https://matrix.to/#/#policyserv:matrix.org) and not this issue tracker.**
+
+        Use this form to request a feature in policyserv. If you're looking to suggest a new filter, please go back and 
+        select that option instead.
+  - type: dropdown
+    id: whoami
+    attributes:
+      label: I am a...
+      options:
+        - Community admin or moderator
+        - Homeserver admin
+        - Community member
+        - Safety tooling developer
+        - Researcher
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what you'd like to see added.
+    validations:
+      required: true

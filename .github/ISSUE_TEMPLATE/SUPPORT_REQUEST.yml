@@ -1,0 +1,8 @@
+name: Support request
+description: I need help setting up policyserv!
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please don't file issues for support requests.**
+        **Instead, join [#policyserv:matrix.org](https://matrix.to/#/#policyserv:matrix.org) and ask your question there.**

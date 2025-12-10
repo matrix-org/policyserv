@@ -1,0 +1,72 @@
+package api
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/matrix-org/policyserv/homeserver"
+	"github.com/matrix-org/policyserv/metrics"
+	"github.com/matrix-org/policyserv/storage"
+)
+
+type Config struct {
+	// Optional. If empty, the policyserv API will be disabled.
+	ApiKey        string
+	JoinViaServer string
+}
+
+type Api struct {
+	storage       storage.PersistentStorage
+	hs            *homeserver.Homeserver
+	apiKey        string
+	joinViaServer string
+}
+
+func NewApi(config *Config, storage storage.PersistentStorage, hs *homeserver.Homeserver) (*Api, error) {
+	return &Api{
+		storage:       storage,
+		hs:            hs,
+		apiKey:        config.ApiKey,
+		joinViaServer: config.JoinViaServer,
+	}, nil
+}
+
+func (a *Api) httpRequestHandler(upstream func(api *Api, w http.ResponseWriter, r *http.Request)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstream(a, w, r)
+	})
+}
+
+func (a *Api) httpAuthenticatedRequestHandler(upstream func(api *Api, w http.ResponseWriter, r *http.Request)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+a.apiKey {
+			defer metrics.RecordHttpResponse(r.Method, "httpAuthenticatedRequestHandler", http.StatusUnauthorized)
+			homeserver.MatrixHttpError(w, http.StatusUnauthorized, "M_UNAUTHORIZED", "Not allowed")
+			return
+		}
+
+		upstream(a, w, r)
+	})
+}
+
+func (a *Api) BindTo(mux *http.ServeMux) error {
+	mux.Handle("/", a.httpRequestHandler(httpCatchAll))
+	mux.Handle("/health", a.httpRequestHandler(httpHealth))
+	mux.Handle("/ready", a.httpRequestHandler(httpReady))
+
+	if a.apiKey != "" {
+		log.Println("Enabling policyserv API")
+		mux.Handle("/api/v1/join_rooms", a.httpRequestHandler(httpJoinRoomApi))
+		mux.Handle("/api/v1/rooms", a.httpRequestHandler(httpGetRoomsApi))
+		mux.Handle("/api/v1/set_room_moderator", a.httpRequestHandler(httpSetModeratorApi))
+		mux.Handle("/api/v1/rooms/{id}", a.httpAuthenticatedRequestHandler(httpGetRoomApi))
+		mux.Handle("/api/v1/rooms/{roomId}/join", a.httpAuthenticatedRequestHandler(httpAddRoomApi))
+		mux.Handle("/api/v1/communities/new", a.httpAuthenticatedRequestHandler(httpCreateCommunityApi))
+		mux.Handle("/api/v1/communities/{id}", a.httpAuthenticatedRequestHandler(httpGetCommunityApi))
+		mux.Handle("/api/v1/communities/{id}/config", a.httpAuthenticatedRequestHandler(httpSetCommunityConfigApi))
+		mux.Handle("/api/v1/instance/community_config", a.httpAuthenticatedRequestHandler(httpGetInstanceConfigApi))
+		mux.Handle("/api/v1/sources/muninn/set_member_directory_event", a.httpAuthenticatedRequestHandler(httpSetMuninnSourceData))
+	}
+
+	return nil
+}

@@ -1,0 +1,32 @@
+name: New filter request
+description: Have an idea of what a new filter might look like? Let us know!
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **For help and support with policyserv, use [#policyserv:matrix.org](https://matrix.to/#/#policyserv:matrix.org) and not this issue tracker.**
+
+        Use this form to suggest a new filter for policyserv.
+  - type: dropdown
+    id: whoami
+    attributes:
+      label: I am a...
+      options:
+        - Community admin or moderator
+        - Homeserver admin
+        - Community member
+        - Safety tooling developer
+        - Researcher
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        Describe how the new filter would work. For example, "messages with links to sites I don't trust should be blocked."
+        
+        Avoid including examples of allowed/blocked content, and consider what parts might be configurable by other community
+        admins and moderators.
+    validations:
+      required: true

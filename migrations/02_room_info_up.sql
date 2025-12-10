@@ -1,0 +1,1 @@
+CREATE TABLE rooms (room_id TEXT NOT NULL PRIMARY KEY, room_version TEXT NOT NULL);

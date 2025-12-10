@@ -1,0 +1,105 @@
+name: Bug report
+description: Create a report to help us improve
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **For help and support with policyserv, use [#policyserv:matrix.org](https://matrix.to/#/#policyserv:matrix.org) and not this issue tracker.**
+
+        If you want to report a security issue, please see https://matrix.org/security-disclosure-policy/
+
+        This is a bug report form. By following the instructions below and completing the sections with your information, you will help the us to get all the necessary data to fix your issue.
+
+        You can also preview your report before submitting it.
+  - type: dropdown
+    id: whoami
+    attributes:
+      label: I am a...
+      options:
+        - User seeing weird behaviour in a policyserv-protected room
+        - Policyserv operator with logs to help fix a bug
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the problem that you are experiencing
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Describe the series of steps that leads you to the problem.
+
+        Describe how what happens differs from what you expected.
+        
+        **Do not include examples of bad content to send or screenshots of the issue.**
+      placeholder: Tell us what you see!
+      value: |
+        - list the steps
+        - that reproduce the bug
+        - using hyphens as bullet points
+    validations:
+      required: true
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Installation Method
+      options:
+        - Docker (ghcr.io/matrix-org/policyserv)
+        - Other (please mention below)
+        - I don't know
+    validations:
+      required: true
+  - type: input
+    id: homeserver
+    attributes:
+      label: Homeserver
+      description: Which homeserver was *your* account on when this happened? (matrix.org, another homeserver, etc)
+    validations:
+      required: true
+  - type: input
+    id: policyserv_name
+    attributes:
+      label: Policyserv Server Name
+      description: What is the domain of your policyserv server? (beta2.matrix.org, another server, etc)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Policyserv Version
+      description: |
+        What version of policyserv are you running?
+
+        You can find the Synapse version by visiting https://yourserver.example.com/_matrix/federation/v1/version
+    validations:
+      required: true
+  - type: input
+    id: filters
+    attributes:
+      label: Affected Filters
+      description: What filter names are affected, if any?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: |
+        Please copy and paste any relevant log output as text (not images), ideally at INFO or DEBUG log level.
+        This will be automatically formatted into code, so there is no need for backticks (`\``).
+
+        Please be careful to remove any personal or private data.
+
+        **Bug reports are usually impossible to diagnose without logging.**
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: anything_else
+    attributes:
+      label: Anything else that would be useful to know?
