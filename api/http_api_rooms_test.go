@@ -143,7 +143,7 @@ func TestAddRoom(t *testing.T) {
 	api := makeApi(t)
 
 	// TODO: Mock the homeserver to prevent JoinRoom from using real code
-	t.Skip("skip because the homeserver cannot be mocked at the moment. See https://github.com/element-hq/policyserv/issues/53")
+	t.Skip("skip because the homeserver cannot be mocked at the moment. See https://github.com/matrix-org/policyserv/issues/20")
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", makeJsonBody(t, map[string]any{
