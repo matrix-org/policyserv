@@ -135,8 +135,9 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 		postfilters = append(postfilters, filter.HellbanPostfilterName)
 	}
 	if m.instanceConfig.OpenAIApiKey != "" {
-		// Access to this filter is gated by further instance config (namely, the room IDs allowed to use it)
+		// Access to these filters is gated by further instance config (namely, the room IDs allowed to use them)
 		filters = append(filters, filter.OpenAIFilterName)
+		filters = append(filters, filter.ScreenshotClassifierFilterName)
 	}
 	if !communityConfig.StickyEventsFilterAllowStickyEvents {
 		filters = append(filters, filter.StickyEventsFilterName)
