@@ -23,6 +23,7 @@ ENV PS_HOMESERVER_SIGNING_KEY_PATH=/data/signing.key
 ENV PS_HOMESERVER_EVENT_SIGNING_KEY_PATH=/data/event_signing.key
 
 COPY --from=builder /opt/bin/app /usr/local/bin/
+COPY --from=builder /opt/bin/gen_signing_key /usr/local/bin/
 COPY --from=builder /opt/migrations /opt/migrations
 
 CMD /usr/local/bin/app
