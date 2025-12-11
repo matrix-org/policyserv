@@ -17,8 +17,7 @@ import (
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/audit"
 	"github.com/matrix-org/policyserv/homeserver"
-	"github.com/matrix-org/policyserv/logging"
-	_ "github.com/matrix-org/policyserv/logging" // we always want to ensure we set up the logging
+	"github.com/matrix-org/policyserv/logging" // import this for side effects if this isn't needed directly anymore
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/redaction"
 	"github.com/matrix-org/policyserv/storage"
