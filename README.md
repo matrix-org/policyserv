@@ -24,12 +24,10 @@ Some experience with deploying homeservers is assumed. We recommend first deploy
 to gain experience with the overall process, though Synapse is not required to run or use policyserv.
 
 Before deploying policyserv, you will need to generate two signing keys: one for events, and one for the homeserver.
-Both keys can be generated using the `generate_signing_key` tool from [MMR](https://github.com/t2bot/matrix-media-repo),
-like so:
+Both keys can be generated using the `gen_signing_keys` binary included in the policyserv Docker image, like so:
 
 ```bash
-./generate_signing_key -output signing.key
-./generate_signing_key -output event_signing.key
+docker run --rm -it -v /path/to/data:/data ghcr.io/matrix-org/policyserv:main gen_signing_keys
 ```
 
 Once you have your signing keys, you'll need to prepare your configuration. All configuration options are provided as
