@@ -13,26 +13,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-co-op/gocron/v2"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/audit"
 	"github.com/matrix-org/policyserv/homeserver"
+	"github.com/matrix-org/policyserv/logging" // import this for side effects if this isn't needed directly anymore
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/redaction"
 	"github.com/matrix-org/policyserv/storage"
-	"github.com/matrix-org/policyserv/version"
-	"github.com/go-co-op/gocron/v2"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func init() {
-	log.SetOutput(os.Stdout)
-	log.SetPrefix("[policyserv] ")
-	log.SetFlags(log.LstdFlags | log.Lshortfile | log.Lmicroseconds)
-}
-
 func main() {
-	log.Println("Version:         ", version.Revision)
-
 	var err error
 	var db storage.PersistentStorage
 	var pubsubClient pubsub.Client
@@ -127,7 +119,7 @@ func main() {
 	go joinRooms(instanceConfig, hs)
 
 	// Schedule tasks now that we're mostly started up
-	scheduler, err := gocron.NewScheduler(gocron.WithLogger(&cronLogger{})) // TODO: Support metrics too (gocron "Monitors")
+	scheduler, err := gocron.NewScheduler(gocron.WithLogger(&logging.CronLogger{})) // TODO: Support metrics too (gocron "Monitors")
 	if err != nil {
 		log.Fatal(err)
 	}
