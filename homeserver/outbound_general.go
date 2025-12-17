@@ -4,20 +4,20 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"net/url"
 
 	"github.com/matrix-org/gomatrixserverlib/fclient"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 )
 
 // Ping - Sends an authenticated request to the given server name in an attempt to encourage
 // it to send us transactions/requests.
 func (h *Homeserver) Ping(ctx context.Context, serverName string) error {
-	mxUrl := url.URL{
-		Scheme: "matrix",
-		Host:   serverName,
-		Path:   "/_matrix/federation/v1/version",
+	fedReq := fclient.NewFederationRequest(http.MethodGet, h.ServerName, spec.ServerName(serverName), "/_matrix/federation/v1/version")
+	err := fedReq.Sign(h.ServerName, h.KeyId, h.signingKey)
+	if err != nil {
+		return err
 	}
-	req, err := http.NewRequest(http.MethodGet, mxUrl.String(), nil)
+	req, err := fedReq.HTTPRequest()
 	if err != nil {
 		return err
 	}
