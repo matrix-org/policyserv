@@ -95,6 +95,17 @@ It is not recommended to allow communities to use the policyserv API directly - 
 In future it will be possible for communities to specify the order/sequencing of filters. For now, the order is determined
 within policyserv itself.
 
+### Filter considerations
+
+Policyserv is best used in public or near-public communities. For rooms, this typically means having `public` join rules,
+or a way for the policyserv user to join the room without an invite (policyserv does not support receiving invites). Rooms 
+being protected by policyserv should *not* be encrypted. Policyserv will not scan encrypted messages properly, which might 
+lead to spam making it through to users.
+
+For servers, public or near-public primarily means that a relatively untrusted user can gain an account on the server,
+even after email verification or other requirements have been met. A server is considered private if *all* users on the 
+server are trusted by the server administrator(s).
+
 ### General
 
 * `PS_SPAM_THRESHOLD` (default `0.8`) - A value between 0 and 1 denoting how much "confidence" is needed before an event 
