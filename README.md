@@ -1,7 +1,7 @@
 # policyserv
 
 A community-centric [MSC4284 Policy Server](https://github.com/matrix-org/matrix-spec-proposals/pull/4284) implementation 
-for Matrix. Learn more about policy servers from [the matrix.org blog](https://matrix.org/blog/2025/04/introducing-policy-servers/).
+for Matrix. Learn more about policy servers from [the matrix.org blog](https://matrix.org/blog/2025/12/policyserv/).
 
 ✨ Looking to use policyserv in your own Matrix community? [Try the Foundation's instance](https://github.com/matrix-org/policyserv-setup-bot?tab=readme-ov-file#usage)
 or [deploy your own](#deploying)!
