@@ -60,6 +60,26 @@ func TestEnvconfigAssumptions(t *testing.T) {
 	assert.Equal(t, 20, testConfig.ManyAtsFilterMaxAts)
 }
 
+func TestLayeringNegation(t *testing.T) {
+	// Verify that communities can set zero values to turn off instance-configured values.
+	// For example, being able to turn off sticky events if they were enabled by the instance.
+
+	t.Cleanup(func() {
+		t.Setenv("PS_STICKY_EVENTS_FILTER_ALLOW_STICKY_EVENTS", "")
+	})
+	t.Setenv("PS_STICKY_EVENTS_FILTER_ALLOW_STICKY_EVENTS", "true")
+
+	buildBaseConfig()
+	assert.Equal(t, true, *baseConfigRaw.StickyEventsFilterAllowStickyEvents)
+
+	testJSON := []byte(`{
+		"sticky_events_filter_allow_sticky_events": false
+	}`)
+	testConfig, err := newCommunityConfigForJSONWithBase(baseConfigRaw, testJSON)
+	assert.NoError(t, err)
+	assert.Equal(t, false, *testConfig.StickyEventsFilterAllowStickyEvents)
+}
+
 func TestNewDefaultCommunityConfig(t *testing.T) {
 	// When calling the function, we shouldn't be getting any envconfig values
 
