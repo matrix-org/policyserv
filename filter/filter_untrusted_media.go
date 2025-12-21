@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/trust"
 )
 
@@ -18,7 +19,11 @@ type UntrustedMediaFilter struct {
 }
 
 func (m *UntrustedMediaFilter) MakeFor(set *Set) (Instanced, error) {
-	communitySource, err := trust.NewSelfDirectedSource(set.storage, set.communityConfig.UntrustedMediaFilterAllowedUserGlobs, set.communityConfig.UntrustedMediaFilterDeniedUserGlobs)
+	communitySource, err := trust.NewSelfDirectedSource(
+		set.storage,
+		internal.Dereference(set.communityConfig.UntrustedMediaFilterAllowedUserGlobs),
+		internal.Dereference(set.communityConfig.UntrustedMediaFilterDeniedUserGlobs),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +32,7 @@ func (m *UntrustedMediaFilter) MakeFor(set *Set) (Instanced, error) {
 		communitySource, // always add the community's self-directed source
 	}
 
-	if set.communityConfig.UntrustedMediaFilterUseMuninn {
+	if internal.Dereference(set.communityConfig.UntrustedMediaFilterUseMuninn) {
 		s, err := trust.NewMuninnHallSource(set.storage)
 		if err != nil {
 			return nil, err
@@ -35,7 +40,7 @@ func (m *UntrustedMediaFilter) MakeFor(set *Set) (Instanced, error) {
 		trustSources = append(trustSources, s)
 	}
 
-	if set.communityConfig.UntrustedMediaFilterUsePowerLevels {
+	if internal.Dereference(set.communityConfig.UntrustedMediaFilterUsePowerLevels) {
 		s, err := trust.NewCreatorSource(set.storage)
 		if err != nil {
 			return nil, err
@@ -54,7 +59,7 @@ func (m *UntrustedMediaFilter) MakeFor(set *Set) (Instanced, error) {
 		trustSources: trustSources,
 		upstreamFilter: &InstancedMediaFilter{
 			set:        set,
-			mediaTypes: set.communityConfig.UntrustedMediaFilterMediaTypes,
+			mediaTypes: internal.Dereference(set.communityConfig.UntrustedMediaFilterMediaTypes),
 		},
 	}, nil
 }

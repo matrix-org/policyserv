@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const EventTypeFilterName = "EventTypeFilter"
@@ -18,8 +19,8 @@ type EventTypeFilter struct {
 func (e *EventTypeFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedEventTypeFilter{
 		set:                    set,
-		allowedEventTypes:      set.communityConfig.EventTypePrefilterAllowedEventTypes,
-		allowedStateEventTypes: set.communityConfig.EventTypePrefilterAllowedStateEventTypes,
+		allowedEventTypes:      internal.Dereference(set.communityConfig.EventTypePrefilterAllowedEventTypes),
+		allowedStateEventTypes: internal.Dereference(set.communityConfig.EventTypePrefilterAllowedStateEventTypes),
 	}, nil
 }
 

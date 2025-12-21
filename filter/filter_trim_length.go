@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const TrimLengthFilterName = "TrimLengthFilter"
@@ -20,7 +21,7 @@ type TrimLengthFilter struct {
 func (t *TrimLengthFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedTrimLengthFilter{
 		set:           set,
-		maxDifference: set.communityConfig.TrimLengthFilterMaxDifference,
+		maxDifference: internal.Dereference(set.communityConfig.TrimLengthFilterMaxDifference),
 	}, nil
 }
 

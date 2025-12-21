@@ -7,6 +7,7 @@ import (
 
 	goSet "github.com/deckarep/golang-set"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const MentionsFilterName = "MentionsFilter"
@@ -21,8 +22,8 @@ type MentionsFilter struct {
 func (m *MentionsFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedMentionsFilter{
 		set:           set,
-		maxMentions:   set.communityConfig.MentionFilterMaxMentions,
-		minNameLength: set.communityConfig.MentionFilterMinPlaintextLength,
+		maxMentions:   internal.Dereference(set.communityConfig.MentionFilterMaxMentions),
+		minNameLength: internal.Dereference(set.communityConfig.MentionFilterMinPlaintextLength),
 	}, nil
 }
 

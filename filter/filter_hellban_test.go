@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -93,7 +94,7 @@ func TestHellbanPrefilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityId: "TestHellbanPrefilter",
 		CommunityConfig: &config.CommunityConfig{
-			HellbanPostfilterMinutes: 10,
+			HellbanPostfilterMinutes: internal.Pointer(10),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{HellbanPrefilterName},
@@ -166,7 +167,7 @@ func TestHellbanPostfilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityId: "TestHellbanPostfilter",
 		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: 0.8, // set to a value where the hellban filter will detect the fixed filter's output as spam
+			SpamThreshold: internal.Pointer(0.8), // set to a value where the hellban filter will detect the fixed filter's output as spam
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{FixedFilterName},
@@ -261,8 +262,8 @@ func TestHellbanFiltersCombined(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityId: "TestHellbanFiltersCombined",
 		CommunityConfig: &config.CommunityConfig{
-			HellbanPostfilterMinutes: 10,
-			SpamThreshold:            0.1,
+			HellbanPostfilterMinutes: internal.Pointer(10),
+			SpamThreshold:            internal.Pointer(0.1),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{HellbanPrefilterName},

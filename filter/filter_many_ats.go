@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const ManyAtsFilterName = "ManyAtsFilter"
@@ -19,7 +20,7 @@ type ManyAtsFilter struct {
 func (m *ManyAtsFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedManyAtsFilter{
 		set:    set,
-		maxAts: set.communityConfig.ManyAtsFilterMaxAts,
+		maxAts: internal.Dereference(set.communityConfig.ManyAtsFilterMaxAts),
 	}, nil
 }
 

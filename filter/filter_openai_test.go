@@ -7,6 +7,7 @@ import (
 
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,7 +47,7 @@ func TestOpenAIFilter(t *testing.T) {
 	instance := &InstancedOpenAIFilter{
 		set: &Set{ // the filter doesn't use most of this
 			communityConfig: &config.CommunityConfig{
-				OpenAIFilterFailSecure: true, // asserted in TestAIProvider
+				OpenAIFilterFailSecure: internal.Pointer(true), // asserted in TestAIProvider
 			},
 		},
 		aiProvider: aiProvider,

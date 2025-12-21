@@ -4,18 +4,18 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEventTypeFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			EventTypePrefilterAllowedEventTypes:      []string{"m.room.message"},
-			EventTypePrefilterAllowedStateEventTypes: []string{"m.room.topic"},
+			EventTypePrefilterAllowedEventTypes:      &[]string{"m.room.message"},
+			EventTypePrefilterAllowedStateEventTypes: &[]string{"m.room.topic"},
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{EventTypeFilterName},

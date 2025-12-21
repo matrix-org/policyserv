@@ -155,7 +155,7 @@ func TestSetCommunityConfigNotFound(t *testing.T) {
 	api := makeApi(t)
 
 	cnf := &config.CommunityConfig{
-		KeywordFilterKeywords: []string{"keyword1", "keyword2"},
+		KeywordFilterKeywords: &[]string{"keyword1", "keyword2"},
 	}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/not_a_real_id/config", makeJsonBody(t, cnf))
@@ -178,7 +178,7 @@ func TestSetCommunityConfig(t *testing.T) {
 	assert.Equal(t, name, community.Name)
 
 	cnf := &config.CommunityConfig{
-		KeywordFilterKeywords: []string{"keyword1", "keyword2"},
+		KeywordFilterKeywords: &[]string{"keyword1", "keyword2"},
 	}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/"+community.CommunityId+"/config", makeJsonBody(t, cnf))

@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,11 +26,11 @@ func TestMatrixFoundationIntents(t *testing.T) {
 
 	communityConfig, err := config.NewDefaultCommunityConfig()
 	assert.NoError(t, err)
-	communityConfig.SpamThreshold = spamThreshold
-	communityConfig.SenderPrefilterAllowedSenders = []string{foundationAdmin}
-	communityConfig.MjolnirFilterEnabled = true
-	communityConfig.DensityFilterMaxDensity = 0.95
-	communityConfig.HellbanPostfilterMinutes = 5
+	communityConfig.SpamThreshold = &spamThreshold
+	communityConfig.SenderPrefilterAllowedSenders = &[]string{foundationAdmin}
+	communityConfig.MjolnirFilterEnabled = internal.Pointer(true)
+	communityConfig.DensityFilterMaxDensity = internal.Pointer(0.95)
+	communityConfig.HellbanPostfilterMinutes = internal.Pointer(5)
 
 	cnf := &SetConfig{
 		CommunityId: "foundation",

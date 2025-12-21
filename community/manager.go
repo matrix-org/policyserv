@@ -12,6 +12,7 @@ import (
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter"
 	"github.com/matrix-org/policyserv/filter/audit"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/storage"
 )
@@ -97,40 +98,40 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 	hellbanPrefilters := make([]string, 0) // these run after the prefilters, but before the other filters
 	filters := make([]string, 0)
 	postfilters := make([]string, 0)
-	if len(communityConfig.KeywordFilterKeywords) > 0 {
+	if len(internal.Dereference(communityConfig.KeywordFilterKeywords)) > 0 {
 		filters = append(filters, filter.KeywordFilterName)
 	}
-	if len(communityConfig.EventTypePrefilterAllowedEventTypes) > 0 || len(communityConfig.EventTypePrefilterAllowedStateEventTypes) > 0 {
+	if len(internal.Dereference(communityConfig.EventTypePrefilterAllowedEventTypes)) > 0 || len(internal.Dereference(communityConfig.EventTypePrefilterAllowedStateEventTypes)) > 0 {
 		prefilters = append(prefilters, filter.EventTypeFilterName)
 	}
-	if len(communityConfig.SenderPrefilterAllowedSenders) > 0 {
+	if len(internal.Dereference(communityConfig.SenderPrefilterAllowedSenders)) > 0 {
 		prefilters = append(prefilters, filter.SenderFilterName)
 	}
-	if communityConfig.DensityFilterMaxDensity > 0 {
+	if internal.Dereference(communityConfig.DensityFilterMaxDensity) > 0 {
 		filters = append(filters, filter.DensityFilterName)
 	}
-	if communityConfig.LengthFilterMaxLength > 0 {
+	if internal.Dereference(communityConfig.LengthFilterMaxLength) > 0 {
 		filters = append(filters, filter.LengthFilterName)
 	}
-	if communityConfig.ManyAtsFilterMaxAts > 0 {
+	if internal.Dereference(communityConfig.ManyAtsFilterMaxAts) > 0 {
 		filters = append(filters, filter.ManyAtsFilterName)
 	}
-	if len(communityConfig.MediaFilterMediaTypes) > 0 {
+	if len(internal.Dereference(communityConfig.MediaFilterMediaTypes)) > 0 {
 		filters = append(filters, filter.MediaFilterName)
 	}
-	if len(communityConfig.UntrustedMediaFilterMediaTypes) > 0 {
+	if len(internal.Dereference(communityConfig.UntrustedMediaFilterMediaTypes)) > 0 {
 		filters = append(filters, filter.UntrustedMediaFilterName)
 	}
-	if communityConfig.MentionFilterMaxMentions > 0 {
+	if internal.Dereference(communityConfig.MentionFilterMaxMentions) > 0 {
 		filters = append(filters, filter.MentionsFilterName)
 	}
-	if communityConfig.MjolnirFilterEnabled && m.instanceConfig.MjolnirFilterRoomID != "" {
+	if internal.Dereference(communityConfig.MjolnirFilterEnabled) && m.instanceConfig.MjolnirFilterRoomID != "" {
 		filters = append(filters, filter.MjolnirFilterName)
 	}
-	if communityConfig.TrimLengthFilterMaxDifference > 0 {
+	if internal.Dereference(communityConfig.TrimLengthFilterMaxDifference) > 0 {
 		filters = append(filters, filter.TrimLengthFilterName)
 	}
-	if communityConfig.HellbanPostfilterMinutes > 0 {
+	if internal.Dereference(communityConfig.HellbanPostfilterMinutes) > 0 {
 		hellbanPrefilters = append(hellbanPrefilters, filter.HellbanPrefilterName)
 		postfilters = append(postfilters, filter.HellbanPostfilterName)
 	}
@@ -138,13 +139,13 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 		// Access to this filter is gated by further instance config (namely, the room IDs allowed to use it)
 		filters = append(filters, filter.OpenAIFilterName)
 	}
-	if !communityConfig.StickyEventsFilterAllowStickyEvents {
+	if !internal.Dereference(communityConfig.StickyEventsFilterAllowStickyEvents) {
 		filters = append(filters, filter.StickyEventsFilterName)
 	}
 	var scanner content.Scanner
-	if m.instanceConfig.HMAApiUrl != "" && len(communityConfig.HMAFilterEnabledBanks) > 0 {
+	if m.instanceConfig.HMAApiUrl != "" && len(internal.Dereference(communityConfig.HMAFilterEnabledBanks)) > 0 {
 		filters = append(filters, filter.MediaScanningFilterName)
-		scanner, err = content.NewHMAScanner(m.instanceConfig.HMAApiUrl, m.instanceConfig.HMAApiKey, communityConfig.HMAFilterEnabledBanks)
+		scanner, err = content.NewHMAScanner(m.instanceConfig.HMAApiUrl, m.instanceConfig.HMAApiKey, internal.Dereference(communityConfig.HMAFilterEnabledBanks))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create HMA scanner: %w", err)
 		}

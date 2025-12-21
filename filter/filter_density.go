@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const DensityFilterName = "DensityFilter"
@@ -23,8 +24,8 @@ type DensityFilter struct {
 func (d *DensityFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedDensityFilter{
 		set:              set,
-		maxDensity:       set.communityConfig.DensityFilterMaxDensity,
-		minTriggerLength: set.communityConfig.DensityFilterMinTriggerLength,
+		maxDensity:       internal.Dereference(set.communityConfig.DensityFilterMaxDensity),
+		minTriggerLength: internal.Dereference(set.communityConfig.DensityFilterMinTriggerLength),
 	}, nil
 }
 
