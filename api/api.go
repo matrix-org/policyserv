@@ -56,9 +56,8 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 
 	if a.apiKey != "" {
 		log.Println("Enabling policyserv API")
-		mux.Handle("/api/v1/join_rooms", a.httpRequestHandler(httpJoinRoomApi))
-		mux.Handle("/api/v1/rooms", a.httpRequestHandler(httpGetRoomsApi))
-		mux.Handle("/api/v1/set_room_moderator", a.httpRequestHandler(httpSetModeratorApi))
+		mux.Handle("/api/v1/rooms", a.httpAuthenticatedRequestHandler(httpGetRoomsApi))
+		mux.Handle("/api/v1/set_room_moderator", a.httpAuthenticatedRequestHandler(httpSetModeratorApi))
 		mux.Handle("/api/v1/rooms/{id}", a.httpAuthenticatedRequestHandler(httpGetRoomApi))
 		mux.Handle("/api/v1/rooms/{roomId}/join", a.httpAuthenticatedRequestHandler(httpAddRoomApi))
 		mux.Handle("/api/v1/communities/new", a.httpAuthenticatedRequestHandler(httpCreateCommunityApi))
