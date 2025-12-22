@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +18,7 @@ func TestMjolnirFilter(t *testing.T) {
 	mjolnirRoomId := "!mjolnir:example.org"
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			MjolnirFilterEnabled: true,
+			MjolnirFilterEnabled: internal.Pointer(true),
 		},
 		InstanceConfig: &config.InstanceConfig{
 			MjolnirFilterRoomID: mjolnirRoomId,

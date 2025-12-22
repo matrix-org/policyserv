@@ -8,15 +8,16 @@ import (
 	"io"
 	"log"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter/audit"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/storage"
-	"github.com/matrix-org/gomatrixserverlib"
 )
 
 type SetConfig struct {
@@ -81,7 +82,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 	log.Printf("[%s | %s | %s] Checking event", event.EventID(), event.RoomID().String(), s.communityId)
 	vecs := confidence.NewConfidenceVectors()
 	vecs.SetVector(classification.Spam, 0.5) // per docs elsewhere, start by assuming 50% likelihood of spam
-	auditCtx, err := newAuditContext(s.instanceConfig, event, s.communityConfig.WebhookUrl)
+	auditCtx, err := newAuditContext(s.instanceConfig, event, internal.Dereference(s.communityConfig.WebhookUrl))
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 
 func (s *Set) IsSpamResponse(ctx context.Context, vecs confidence.Vectors) bool {
 	val := vecs.GetVector(classification.Spam)
-	return val >= s.communityConfig.SpamThreshold
+	return val >= internal.Dereference(s.communityConfig.SpamThreshold)
 }
 
 func (s *Set) Close() error {

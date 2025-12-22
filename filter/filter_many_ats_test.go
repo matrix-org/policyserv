@@ -4,17 +4,18 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestManyAtsFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			ManyAtsFilterMaxAts: 5,
+			ManyAtsFilterMaxAts: internal.Pointer(5),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{ManyAtsFilterName},

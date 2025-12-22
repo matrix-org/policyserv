@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
@@ -63,8 +64,8 @@ func TestGetFilterSetForRoomId(t *testing.T) {
 		CommunityId: communityId,
 		Name:        "Test Community 1",
 		Config: &config.CommunityConfig{
-			KeywordFilterKeywords:    []string{"keyword1"},
-			HellbanPostfilterMinutes: -1, // disable hellban to avoid it interfering with this test
+			KeywordFilterKeywords:    &[]string{"keyword1"},
+			HellbanPostfilterMinutes: internal.Pointer(-1), // disable hellban to avoid it interfering with this test
 		},
 	})
 	assert.NoError(t, err)
@@ -103,8 +104,8 @@ func TestGetFilterSetForRoomId(t *testing.T) {
 		CommunityId: communityId2,
 		Name:        "Test Community 2",
 		Config: &config.CommunityConfig{
-			KeywordFilterKeywords:    []string{"keyword2"},
-			HellbanPostfilterMinutes: -1, // disable hellban to avoid it interfering with this test
+			KeywordFilterKeywords:    &[]string{"keyword2"},
+			HellbanPostfilterMinutes: internal.Pointer(-1), // disable hellban to avoid it interfering with this test
 		},
 	})
 	assert.NoError(t, err)
@@ -147,8 +148,8 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	cnf := &config.CommunityConfig{
-		KeywordFilterKeywords:    []string{"keyword1"},
-		HellbanPostfilterMinutes: -1, // disable hellban to avoid it interfering with this test
+		KeywordFilterKeywords:    &[]string{"keyword1"},
+		HellbanPostfilterMinutes: internal.Pointer(-1), // disable hellban to avoid it interfering with this test
 	}
 	err = manager.storage.UpsertCommunity(ctx, &storage.StoredCommunity{
 		CommunityId: communityId,
@@ -181,7 +182,7 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 	assert.True(t, set.IsSpamResponse(ctx, vecs))
 
 	// Now, change the config but *don't* notify the manager about it to prove the cache is working
-	cnf.KeywordFilterKeywords = []string{"keyword2"}
+	cnf.KeywordFilterKeywords = &[]string{"keyword2"}
 	err = manager.storage.UpsertCommunity(ctx, &storage.StoredCommunity{
 		CommunityId: communityId,
 		Name:        "Test Community 1",
@@ -215,8 +216,8 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 		CommunityId: communityId2,
 		Name:        "Test Community 2",
 		Config: &config.CommunityConfig{
-			KeywordFilterKeywords:    []string{"keyword3"},
-			HellbanPostfilterMinutes: -1, // disable hellban to avoid it interfering with this test
+			KeywordFilterKeywords:    &[]string{"keyword3"},
+			HellbanPostfilterMinutes: internal.Pointer(-1), // disable hellban to avoid it interfering with this test
 		},
 	})
 	assert.NoError(t, err)

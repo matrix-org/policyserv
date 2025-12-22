@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const SenderFilterName = "SenderFilter"
@@ -18,7 +19,7 @@ type SenderFilter struct {
 func (s *SenderFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedSenderFilter{
 		set:            set,
-		allowedUserIds: set.communityConfig.SenderPrefilterAllowedSenders,
+		allowedUserIds: internal.Dereference(set.communityConfig.SenderPrefilterAllowedSenders),
 	}, nil
 }
 

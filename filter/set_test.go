@@ -14,6 +14,7 @@ import (
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -212,7 +213,7 @@ func TestCheckEventWithErrorInGroup(t *testing.T) {
 func TestSetSpamThreshold(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: 0.6,
+			SpamThreshold: internal.Pointer(0.6),
 		},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -270,8 +271,8 @@ func TestCallsWebhook(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: 0.6,
-			WebhookUrl:    server.URL + "/webhook",
+			SpamThreshold: internal.Pointer(0.6),
+			WebhookUrl:    internal.Pointer(server.URL + "/webhook"),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{FixedFilterName},
@@ -355,8 +356,8 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: 0.6,
-			WebhookUrl:    server.URL + "/webhook",
+			SpamThreshold: internal.Pointer(0.6),
+			WebhookUrl:    internal.Pointer(server.URL + "/webhook"),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{FixedFilterName},

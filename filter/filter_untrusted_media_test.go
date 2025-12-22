@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/matrix-org/policyserv/trust"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,9 +18,9 @@ func TestUntrustedMediaFilter(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			UntrustedMediaFilterMediaTypes:     []string{"m.sticker", "m.image"},
-			UntrustedMediaFilterUsePowerLevels: true,
-			UntrustedMediaFilterUseMuninn:      true,
+			UntrustedMediaFilterMediaTypes:     &[]string{"m.sticker", "m.image"},
+			UntrustedMediaFilterUsePowerLevels: internal.Pointer(true),
+			UntrustedMediaFilterUseMuninn:      internal.Pointer(true),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{UntrustedMediaFilterName},

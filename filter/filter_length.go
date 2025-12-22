@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const LengthFilterName = "LengthFilter"
@@ -18,7 +19,7 @@ type LengthFilter struct {
 func (l *LengthFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedLengthFilter{
 		set:       set,
-		maxLength: set.communityConfig.LengthFilterMaxLength,
+		maxLength: internal.Dereference(set.communityConfig.LengthFilterMaxLength),
 	}, nil
 }
 

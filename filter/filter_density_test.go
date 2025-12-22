@@ -4,18 +4,19 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDensityFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			DensityFilterMaxDensity:       0.5,
-			DensityFilterMinTriggerLength: 10,
+			DensityFilterMaxDensity:       internal.Pointer(0.5),
+			DensityFilterMinTriggerLength: internal.Pointer(10),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{DensityFilterName},

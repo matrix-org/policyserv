@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const MediaFilterName = "MediaFilter"
@@ -19,7 +20,7 @@ type MediaFilter struct {
 func (m *MediaFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedMediaFilter{
 		set:        set,
-		mediaTypes: set.communityConfig.MediaFilterMediaTypes,
+		mediaTypes: internal.Dereference(set.communityConfig.MediaFilterMediaTypes),
 	}, nil
 }
 

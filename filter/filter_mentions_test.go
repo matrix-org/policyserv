@@ -8,6 +8,7 @@ import (
 
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,8 +33,8 @@ func TestMentionsFilter(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			MentionFilterMaxMentions:        3,
-			MentionFilterMinPlaintextLength: 5,
+			MentionFilterMaxMentions:        internal.Pointer(3),
+			MentionFilterMinPlaintextLength: internal.Pointer(5),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{MentionsFilterName},

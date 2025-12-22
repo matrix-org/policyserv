@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +17,7 @@ func TestMediaScanningFilter(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			MediaFilterMediaTypes: []string{"m.sticker", "m.image"},
+			MediaFilterMediaTypes: &[]string{"m.sticker", "m.image"},
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{MediaScanningFilterName},

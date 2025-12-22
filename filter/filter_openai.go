@@ -7,6 +7,7 @@ import (
 
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -46,7 +47,7 @@ func (f *InstancedOpenAIFilter) CheckEvent(ctx context.Context, input *Input) ([
 		return nil, nil
 	}
 	return f.aiProvider.CheckEvent(ctx, &aiFilterConfig{
-		FailSecure: f.set.communityConfig.OpenAIFilterFailSecure,
+		FailSecure: internal.Dereference(f.set.communityConfig.OpenAIFilterFailSecure),
 	}, input)
 }
 

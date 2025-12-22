@@ -10,6 +10,7 @@ import (
 
 	cache "github.com/Code-Hex/go-generics-cache"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pubsub"
 )
 
@@ -25,7 +26,7 @@ type HellbanPrefilter struct {
 }
 
 func (h *HellbanPrefilter) MakeFor(set *Set) (Instanced, error) {
-	return newPrefilterHellban(set, time.Duration(set.communityConfig.HellbanPostfilterMinutes)*time.Minute)
+	return newPrefilterHellban(set, time.Duration(internal.Dereference(set.communityConfig.HellbanPostfilterMinutes))*time.Minute)
 }
 
 type HellbanPostfilter struct {

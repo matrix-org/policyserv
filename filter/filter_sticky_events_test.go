@@ -5,17 +5,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStickyEventsFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			StickyEventsFilterAllowStickyEvents: false,
+			StickyEventsFilterAllowStickyEvents: internal.Pointer(false),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{StickyEventsFilterName},

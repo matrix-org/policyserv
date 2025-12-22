@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 )
 
 const KeywordFilterName = "KeywordFilter"
@@ -19,7 +20,7 @@ type KeywordFilter struct {
 func (k *KeywordFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedKeywordFilter{
 		set:      set,
-		keywords: set.communityConfig.KeywordFilterKeywords,
+		keywords: internal.Dereference(set.communityConfig.KeywordFilterKeywords),
 	}, nil
 }
 
