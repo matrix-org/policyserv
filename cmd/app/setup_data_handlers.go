@@ -16,12 +16,15 @@ func setupDataHandlers(instanceConfig *config.InstanceConfig) (storage.Persisten
 			MaxOpenConns: instanceConfig.DatabaseMaxOpenConns,
 			MaxIdleConns: instanceConfig.DatabaseMaxIdleConns,
 		},
-		RODatabase: &storage.PostgresStorageConnectionConfig{
+		RODatabase:     nil,
+		MigrationsPath: instanceConfig.DatabaseMigrationsDir,
+	}
+	if instanceConfig.DatabaseReadonlyUri != "" {
+		dbConfig.RODatabase = &storage.PostgresStorageConnectionConfig{
 			Uri:          instanceConfig.DatabaseReadonlyUri,
 			MaxOpenConns: instanceConfig.DatabaseReadonlyMaxOpen,
 			MaxIdleConns: instanceConfig.DatabaseReadonlyMaxIdle,
-		},
-		MigrationsPath: instanceConfig.DatabaseMigrationsDir,
+		}
 	}
 	psqlDb, err := storage.NewPostgresStorage(dbConfig)
 	if err != nil {
