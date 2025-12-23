@@ -91,7 +91,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 			Event:                        event,
 			IncrementalConfidenceVectors: vecs,
 			auditContext:                 auditCtx,
-			Medias:                       make([]*Media, 0),
+			Medias:                       make([]*media.Item, 0),
 		}
 
 		if mediaDownloader != nil {
@@ -107,7 +107,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 				if len(url) == 0 {
 					return // the field we're trying to parse probably wasn't present on the event
 				}
-				m, err := NewMedia(url, mediaDownloader)
+				m, err := media.NewItem(url, mediaDownloader)
 				if err != nil {
 					log.Printf("[%s | %s] Non-fatal error creating new media object for '%s': %s", event.EventID(), event.RoomID().String(), url, err)
 				}
