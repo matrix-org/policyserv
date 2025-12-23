@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 
@@ -59,7 +60,8 @@ func (m *OpenAIOmniModeration) CheckEvent(ctx context.Context, cnf *OpenAIOmniMo
 			}
 		}
 		for _, r := range res.Results {
-			log.Printf("[%s | %s] Result for sender %s: %+v", input.Event.EventID(), input.Event.RoomID(), input.Event.SenderID(), r)
+			// Note: we compress JSON here because the OpenAI library tends to return *a lot* of redundant detail, including JSON with newlines in it.
+			log.Printf("[%s | %s] Result for sender %s: Flagged=%t Flags=%s Scores=%s", input.Event.EventID(), input.Event.RoomID(), input.Event.SenderID(), r.Flagged, compressJsonResponse(r.Categories), compressJsonResponse(r.CategoryScores))
 			if r.Flagged {
 				flags := []classification.Classification{classification.Spam}
 				if r.Categories.SexualMinors {
@@ -70,4 +72,26 @@ func (m *OpenAIOmniModeration) CheckEvent(ctx context.Context, cnf *OpenAIOmniMo
 		}
 	}
 	return nil, nil
+}
+
+type compressible interface {
+	RawJSON() string // same definition that's shared with the OpenAI response parts
+}
+
+func compressJsonResponse(target compressible) string {
+	raw := target.RawJSON()
+
+	val := make(map[string]any)
+	err := json.Unmarshal([]byte(raw), &val)
+	if err != nil {
+		log.Printf("Non-fatal error compressing JSON. Using uncompressed instead. %s", err)
+		return raw
+	}
+	b, err := json.Marshal(val)
+	if err != nil {
+		log.Printf("Non-fatal error compressing JSON. Using uncompressed instead. %s", err)
+		return raw
+	}
+
+	return string(b)
 }
