@@ -50,7 +50,7 @@ func TestOpenAIOmniFilter(t *testing.T) {
 	assert.NotNil(t, instanced)
 
 	// Verify that the config/setup of the executor are carried through correctly
-	assert.Equal(t, set, instanced.set)                     // should have been set during filter creation
+	assert.Equal(t, set, instanced.set) // should have been set during filter creation
 	assert.Equal(t, OpenAIOmniFilterName, instanced.Name()) // should have been set during filter creation
 	assert.Equal(t, &ai.OpenAIOmniModerationConfig{
 		FailSecure: true, // should have been set by pulling in the community config above
