@@ -26,12 +26,6 @@ func httpSetModeratorApi(api *Api, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("Authorization") != "Bearer "+api.apiKey {
-		defer metrics.RecordHttpResponse(r.Method, "httpSetModeratorApi", http.StatusUnauthorized)
-		homeserver.MatrixHttpError(w, http.StatusUnauthorized, "M_UNAUTHORIZED", "Not allowed")
-		return
-	}
-
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)

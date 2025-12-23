@@ -6,38 +6,6 @@ Policyserv has a rudimentary API to do some common tasks. To enable the API, set
 
 Supply the `Authorization` header with a `Bearer` token matching `PS_API_KEY`. For example, if you have `PS_API_KEY=changeme` then your header would be `Authorization: Bearer changeme`.
 
-## Join Rooms API
-
-**Deprecated: Replaced by `POST /api/v1/rooms/{roomId}/join`** - do not use deprecated endpoints.
-
-When policyserv is joined to a room, it considers that room protected. Do not ask policyserv to join rooms you don't want to protect.
-
-Note: you can also use `PS_JOIN_ROOM_IDS` to join rooms. The API method just avoids a restart.
-
-Example:
-```bash
-# Set APIKEY to your PS_API_KEY value
-APIKEY=changeme
-curl -s -X POST -H "Authorization: Bearer ${APIKEY}" --data-binary '{"via":"example.org","room_ids": ["!room:example.org"]}' https://example.org/api/v1/join_rooms
-```
-
-Request method: `POST`
-Request body:
-```json
-{
-  "via": "example.org",
-  "room_ids": [
-    "!room:example.org"
-  ]
-}
-```
-
-If there's an error, a standard Matrix error will be returned. If successful, expect `{"joined_all": true}` and 200 OK.
-
-The logs can be monitored to ensure the room IDs were correctly picked up.
-
-Room joins may be retried internally, blocking the request until they complete.
-
 ## Set room moderator API
 
 **Deprecated: Not intended to be used long-term.**
