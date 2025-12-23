@@ -2,54 +2,12 @@ package filter
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"net/url"
-	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
 	"github.com/matrix-org/policyserv/media"
-	"github.com/matrix-org/gomatrixserverlib"
 )
-
-var InvalidMediaUrlError = errors.New("invalid media url")
-
-// Media - A piece of media that was extracted from an event.
-type Media struct {
-	Origin  string
-	MediaId string
-
-	downloader media.Downloader
-}
-
-// NewMedia - Creates a new Media instance from the given URL. Returns an InvalidMediaUrlError if the URL is invalid
-// or not an MXC URL.
-func NewMedia(mediaUrl string, downloader media.Downloader) (*Media, error) {
-	parsed, err := url.Parse(mediaUrl)
-	if err != nil {
-		return nil, errors.Join(InvalidMediaUrlError, err)
-	}
-	if parsed.Scheme != "mxc" {
-		return nil, errors.Join(InvalidMediaUrlError, errors.New("not an mxc uri"))
-	}
-
-	return &Media{
-		Origin:     parsed.Host,
-		MediaId:    parsed.Path[1:], // strip leading slash,
-		downloader: downloader,
-	}, nil
-}
-
-func (m *Media) Download() ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // 30s is somewhat arbitrary - we just don't want to wait forever
-	defer cancel()
-	return m.downloader.DownloadMedia(ctx, m.Origin, m.MediaId)
-}
-
-func (m *Media) String() string {
-	return fmt.Sprintf("mxc://%s/%s", m.Origin, m.MediaId)
-}
 
 // Input - A filter input.
 type Input struct {
@@ -60,7 +18,7 @@ type Input struct {
 	IncrementalConfidenceVectors confidence.Vectors
 
 	// Extracted media items from the event.
-	Medias []*Media
+	Medias []*media.Item
 
 	// The context used for auditing the performance of policyserv's filters.
 	auditContext *auditContext
