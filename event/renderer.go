@@ -1,4 +1,4 @@
-package filter
+package event
 
 import (
 	"encoding/json"
@@ -22,7 +22,7 @@ type reactionEventContent struct {
 	} `json:"m.relates_to"`
 }
 
-func renderEventToText(event gomatrixserverlib.PDU) ([]string, error) {
+func RenderToText(event gomatrixserverlib.PDU) ([]string, error) {
 	switch event.Type() {
 	case "m.room.message":
 		content := &messageEventContent{}

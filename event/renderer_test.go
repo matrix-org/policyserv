@@ -1,4 +1,4 @@
-package filter
+package event
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ func TestRenderEventMText(t *testing.T) {
 			"msgtype": "m.text",
 		},
 	})
-	render, err := renderEventToText(event)
+	render, err := RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"@alice:example.org says: hello world"}, render)
 
@@ -36,7 +36,7 @@ func TestRenderEventMText(t *testing.T) {
 			"formatted_body": "<b>hello world</b>",
 		},
 	})
-	render, err = renderEventToText(event)
+	render, err = RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"@alice:example.org says: hello world", "@alice:example.org says: <b>hello world</b>"}, render)
 }
@@ -54,7 +54,7 @@ func TestRenderEventMNotice(t *testing.T) {
 			"msgtype": "m.notice",
 		},
 	})
-	render, err := renderEventToText(event)
+	render, err := RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"@alice:example.org says: hello world"}, render)
 
@@ -70,7 +70,7 @@ func TestRenderEventMNotice(t *testing.T) {
 			"formatted_body": "<b>hello world</b>",
 		},
 	})
-	render, err = renderEventToText(event)
+	render, err = RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"@alice:example.org says: hello world", "@alice:example.org says: <b>hello world</b>"}, render)
 }
@@ -88,7 +88,7 @@ func TestRenderEventMEmote(t *testing.T) {
 			"msgtype": "m.emote",
 		},
 	})
-	render, err := renderEventToText(event)
+	render, err := RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"@alice:example.org says: /me waves hello"}, render)
 
@@ -104,7 +104,7 @@ func TestRenderEventMEmote(t *testing.T) {
 			"formatted_body": "<b>waves hello</b>",
 		},
 	})
-	render, err = renderEventToText(event)
+	render, err = RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"@alice:example.org says: /me waves hello", "@alice:example.org says: /me <b>waves hello</b>"}, render)
 }
@@ -121,7 +121,7 @@ func TestRenderEventUnrenderableMessages(t *testing.T) {
 			"msgtype": "m.image", // not a supported message type
 		},
 	})
-	render, err := renderEventToText(event)
+	render, err := RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string(nil), render)
 
@@ -134,7 +134,7 @@ func TestRenderEventUnrenderableMessages(t *testing.T) {
 			"msgtype": "m.video", // not a supported message type
 		},
 	})
-	render, err = renderEventToText(event)
+	render, err = RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string(nil), render)
 
@@ -147,7 +147,7 @@ func TestRenderEventUnrenderableMessages(t *testing.T) {
 			"msgtype": "m.audio", // not a supported message type
 		},
 	})
-	render, err = renderEventToText(event)
+	render, err = RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string(nil), render)
 
@@ -160,7 +160,7 @@ func TestRenderEventUnrenderableMessages(t *testing.T) {
 			"msgtype": "m.file", // not a supported message type
 		},
 	})
-	render, err = renderEventToText(event)
+	render, err = RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string(nil), render)
 
@@ -173,7 +173,7 @@ func TestRenderEventUnrenderableMessages(t *testing.T) {
 			"msgtype": "org.example.custom", // not a supported message type
 		},
 	})
-	render, err = renderEventToText(event)
+	render, err = RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string(nil), render)
 }
@@ -194,7 +194,7 @@ func TestRenderEventReaction(t *testing.T) {
 			},
 		},
 	})
-	render, err := renderEventToText(event)
+	render, err := RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"@alice:example.org reacted with 💖"}, render)
 }
@@ -211,7 +211,7 @@ func TestRenderEventUnknownType(t *testing.T) {
 			"this": "does not matter",
 		},
 	})
-	render, err := renderEventToText(event)
+	render, err := RenderToText(event)
 	assert.NoError(t, err)
 	assert.Equal(t, []string(nil), render)
 }

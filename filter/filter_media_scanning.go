@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/policyserv/media"
 )
 
 const MediaScanningFilterName = "MediaScanningFilter"
@@ -85,7 +86,7 @@ func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *In
 	return classifications, nil
 }
 
-func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event gomatrixserverlib.PDU, media *Media, ch chan<- []classification.Classification) {
+func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event gomatrixserverlib.PDU, media *media.Item, ch chan<- []classification.Classification) {
 	log.Printf("[%s | %s] Downloading media %s", event.EventID(), event.RoomID().String(), media)
 	b, err := media.Download()
 	if err != nil {

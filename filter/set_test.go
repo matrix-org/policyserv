@@ -15,6 +15,7 @@ import (
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
 	"github.com/matrix-org/policyserv/internal"
+	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -119,14 +120,14 @@ func TestSetCheckEvent(t *testing.T) {
 		Type:    "m.room.message",
 		Content: make(map[string]any),
 	})
-	f1.Expect = &Input{Event: event, Medias: make([]*Media, 0), IncrementalConfidenceVectors: confidence.Vectors{
+	f1.Expect = &Input{Event: event, Medias: make([]*media.Item, 0), IncrementalConfidenceVectors: confidence.Vectors{
 		classification.Spam: 0.5,
 	}}
 	f1.ReturnClasses = []classification.Classification{
 		classification.Spam,
 		classification.Mentions,
 	}
-	f2.Expect = &Input{Event: event, Medias: make([]*Media, 0), IncrementalConfidenceVectors: confidence.Vectors{
+	f2.Expect = &Input{Event: event, Medias: make([]*media.Item, 0), IncrementalConfidenceVectors: confidence.Vectors{
 		classification.Spam:     1.0,
 		classification.Mentions: 1.0,
 	}}
@@ -179,13 +180,13 @@ func TestCheckEventWithErrorInGroup(t *testing.T) {
 	inputs := []*Input{
 		{
 			Event:  event,
-			Medias: make([]*Media, 0),
+			Medias: make([]*media.Item, 0),
 			IncrementalConfidenceVectors: confidence.Vectors{
 				classification.Spam: 0.5,
 			},
 		}, {
 			Event:  event,
-			Medias: make([]*Media, 0),
+			Medias: make([]*media.Item, 0),
 			IncrementalConfidenceVectors: confidence.Vectors{
 				classification.Spam: 1.0, // group 0 result
 			},
@@ -317,7 +318,7 @@ func TestCallsWebhook(t *testing.T) {
 		fixedFilter.Set = set
 		fixedFilter.Expect = &Input{
 			Event:                        event,
-			Medias:                       make([]*Media, 0),
+			Medias:                       make([]*media.Item, 0),
 			IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
 		}
 		fixedFilter.ReturnClasses = []classification.Classification{}
@@ -393,7 +394,7 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 	fixedFilter.Set = set
 	fixedFilter.Expect = &Input{
 		Event:                        event,
-		Medias:                       make([]*Media, 0),
+		Medias:                       make([]*media.Item, 0),
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
 	}
 	fixedFilter.ReturnClasses = []classification.Classification{classification.Spam}
@@ -457,7 +458,7 @@ func TestExtractsMedia(t *testing.T) {
 	fixedFilter.Expect = &Input{
 		Event:                        event,
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
-		Medias: []*Media{
+		Medias: []*media.Item{
 			{
 				Origin:  origin1,
 				MediaId: id1,
@@ -478,7 +479,7 @@ func TestExtractsMedia(t *testing.T) {
 	fixedFilter.Expect = &Input{
 		Event:                        event,
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
-		Medias:                       make([]*Media, 0),
+		Medias:                       make([]*media.Item, 0),
 	}
 	res, err = set.CheckEvent(context.Background(), event, nil)
 	assert.NoError(t, err)

@@ -137,7 +137,7 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 	}
 	if m.instanceConfig.OpenAIApiKey != "" {
 		// Access to this filter is gated by further instance config (namely, the room IDs allowed to use it)
-		filters = append(filters, filter.OpenAIFilterName)
+		filters = append(filters, filter.OpenAIOmniFilterName)
 	}
 	if !internal.Dereference(communityConfig.StickyEventsFilterAllowStickyEvents) {
 		filters = append(filters, filter.StickyEventsFilterName)
