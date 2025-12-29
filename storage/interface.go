@@ -35,8 +35,8 @@ type StateLearnQueueItem struct {
 }
 
 type StoredKeywordTemplate struct {
-	Name string
-	Body string
+	Name string `json:"name"`
+	Body string `json:"body"`
 }
 
 type Transaction interface { // mirror of sql.Tx interface for ease of compatibility
