@@ -49,6 +49,8 @@ type PostgresStorage struct {
 	stateLearnQueueInsert                *sql.Stmt
 	trustDataSelect                      *sql.Stmt
 	trustDataUpsert                      *sql.Stmt
+	keywordTemplateSelect                *sql.Stmt
+	keywordTemplateUpsert                *sql.Stmt
 
 	//userIdsAndDisplayNamesByRoomIdUpsert *sql.Stmt // We do the upsert manually to enter a transaction instead
 	//banRulesUpsertForRoom                *sql.Stmt // We do the upsert manually to enter a transaction instead
@@ -129,6 +131,12 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 		return err
 	}
 	if s.trustDataUpsert, err = s.db.Prepare("INSERT INTO trust_data (source_name, key, data) VALUES ($1, $2, $3) ON CONFLICT (source_name, key) DO UPDATE SET data = $3;"); err != nil {
+		return err
+	}
+	if s.keywordTemplateSelect, err = s.readonlyDb.Prepare("SELECT name, body FROM keyword_templates WHERE name = $1;"); err != nil {
+		return err
+	}
+	if s.keywordTemplateUpsert, err = s.db.Prepare("INSERT INTO keyword_templates (name, body) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET body = $2;"); err != nil {
 		return err
 	}
 
@@ -466,6 +474,27 @@ func (s *PostgresStorage) SetTrustData(ctx context.Context, sourceName string, k
 
 	_, err = s.trustDataUpsert.ExecContext(ctx, sourceName, key, b)
 	return err
+}
+
+func (s *PostgresStorage) UpsertKeywordTemplate(ctx context.Context, template *StoredKeywordTemplate) error {
+	t := dbmetrics.StartSelfDatabaseTimer("UpsertKeywordTemplate")
+	defer t.ObserveDuration()
+
+	_, err := s.keywordTemplateUpsert.ExecContext(ctx, template.Name, template.Body)
+	return err
+}
+
+func (s *PostgresStorage) GetKeywordTemplate(ctx context.Context, name string) (*StoredKeywordTemplate, error) {
+	t := dbmetrics.StartSelfDatabaseTimer("GetKeywordTemplate")
+	defer t.ObserveDuration()
+
+	r := s.keywordTemplateSelect.QueryRowContext(ctx, name)
+	val := &StoredKeywordTemplate{}
+	err := r.Scan(&val.Name, &val.Body)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
 }
 
 // Deduplicates strings given to it

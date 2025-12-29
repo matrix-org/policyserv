@@ -166,6 +166,47 @@ event will be marked as spam.
 * `PS_KEYWORD_FILTER_KEYWORDS` (default `spammy spam`) - Keywords in CSV format. Events with any one of these keywords 
   will be marked as spam. Set to an empty value to disable the filter.
 
+### Keyword template filter
+
+Some keyword matching sources cannot be made open source, but would ideally still be available for use within policyserv.
+This filter uses Go's [`text/template`](https://pkg.go.dev/text/template) package to allow for some amount of custom 
+scripting within the keyword template. If the template's goal is a simple "contains" check, the regular keyword filter 
+should be used instead. This filter is intended for more complex logic being applied to keywords.
+
+Templates are provided two variables: `BodyRaw` (`string`) and `BodyWords` (`[]string`). The template must then evaluate
+to a whitespace-separated list of [MSC4387](https://github.com/matrix-org/matrix-spec-proposals/pull/4387) harms the body
+(raw or words) matches. If there are no matches, the template should evaluate to an empty string.
+
+Templates additionally have the following functions available to them:
+
+* `StrSlice` - Creates a string slice. Usage: `{{ $slice := StrSlice "one" "two" "three" }}`
+* `ToLower` - Converts a string to lowercase. Usage: `{{ .BodyRaw | ToLower }}`.
+* `ToUpper` - Converts a string to uppercase. Usage: `{{ .BodyRaw | ToUpper }}`.
+* `RemovePunctuation` - Removes punctuation from a string. Usage: `{{ .BodyRaw | TrimPunctuation }}`.
+* `StrSliceContains` - Checks if a slice of strings contains a given value. Usage: `{{ if StrSliceContains .BodyWords "badword" }}...{{ end }}`
+* `StringContains` - Checks if a string contains a given substring. Usage: `{{ if StringContains .BodyRaw "badword" }}...{{ end }}`
+
+**Note**: this filter appends a message's `formatted_body` to its `body` to reduce the number of template executions.
+This also means that the `BodyWords` will contain broken formatting after splitting the combined body and formatted body.
+
+An example template might be:
+
+```template
+{{ badWords := StrSlice "one" "two" "three" }}
+{{ range $word := .BodyWords }}
+  {{ if StrSliceContains $badWords $word }}
+    org.matrix.msc4387.spam
+  {{ end }}
+{{ end }}
+```
+
+Communities cannot upload new or custom templates with this to minimize abuse. Templates are uploaded to policyserv using
+the [API](./docs/api.md).
+
+* `PS_KEYWORD_TEMPLATE_FILTER_TEMPLATE_NAMES` (default empty value) - The CSV-formatted names of keyword templates to 
+  use. If a listed filter is not found, it is skipped. Set to an empty value to disable the filter. Template names are
+  set when uploading them via the policyserv API.
+
 ### Mention filter
 
 The mentions filter looks for both plaintext and `m.mentions`-style mentions in events. If a user sends an event containing 

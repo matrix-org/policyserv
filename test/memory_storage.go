@@ -7,9 +7,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/storage"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/ryanuber/go-glob"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,6 +28,7 @@ type MemoryStorage struct {
 	learnStateQueue        []*storage.StateLearnQueueItem
 	pendingLearnStateQueue []*storage.StateLearnQueueItem
 	trustData              map[string]map[string][]byte // sourceName -> key -> JSON value
+	keywordTemplates       map[string]*storage.StoredKeywordTemplate
 }
 
 func NewMemoryStorage(t *testing.T) *MemoryStorage {
@@ -41,6 +42,7 @@ func NewMemoryStorage(t *testing.T) *MemoryStorage {
 		learnStateQueue:        make([]*storage.StateLearnQueueItem, 0),
 		pendingLearnStateQueue: make([]*storage.StateLearnQueueItem, 0),
 		trustData:              make(map[string]map[string][]byte),
+		keywordTemplates:       make(map[string]*storage.StoredKeywordTemplate),
 	}
 }
 
@@ -218,6 +220,23 @@ func (m *MemoryStorage) SetTrustData(ctx context.Context, sourceName string, key
 		m.trustData[sourceName] = make(map[string][]byte)
 	}
 	m.trustData[sourceName][key] = val
+	return nil
+}
+
+func (m *MemoryStorage) GetKeywordTemplate(ctx context.Context, name string) (*storage.StoredKeywordTemplate, error) {
+	assert.NotNil(m.t, ctx, "context is required")
+
+	val, ok := m.keywordTemplates[name]
+	if !ok {
+		return nil, sql.ErrNoRows
+	}
+
+	return val, nil
+}
+
+func (m *MemoryStorage) UpsertKeywordTemplate(ctx context.Context, template *storage.StoredKeywordTemplate) error {
+	assert.NotNil(m.t, ctx, "context is required")
+	m.keywordTemplates[template.Name] = template
 	return nil
 }
 

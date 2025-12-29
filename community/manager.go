@@ -101,6 +101,9 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 	if len(internal.Dereference(communityConfig.KeywordFilterKeywords)) > 0 {
 		filters = append(filters, filter.KeywordFilterName)
 	}
+	if len(internal.Dereference(communityConfig.KeywordTemplateFilterTemplateNames)) > 0 {
+		filters = append(filters, filter.KeywordTemplateFilterName)
+	}
 	if len(internal.Dereference(communityConfig.EventTypePrefilterAllowedEventTypes)) > 0 || len(internal.Dereference(communityConfig.EventTypePrefilterAllowedStateEventTypes)) > 0 {
 		prefilters = append(prefilters, filter.EventTypeFilterName)
 	}

@@ -14,6 +14,7 @@ type CommunityConfig struct {
 	// the community would be stuck with the envconfig/instance default).
 
 	KeywordFilterKeywords                    *[]string `json:"keyword_filter_keywords,omitempty" envconfig:"keyword_filter_keywords" default:"spammy spam"`
+	KeywordTemplateFilterTemplateNames       *[]string `json:"keyword_template_filter_template_names,omitempty" envconfig:"keyword_template_filter_template_names" default:""`
 	MentionFilterMaxMentions                 *int      `json:"mention_filter_max_mentions,omitempty" envconfig:"mention_filter_max_mentions" default:"20"`
 	MentionFilterMinPlaintextLength          *int      `json:"mention_filter_min_plaintext_length,omitempty" envconfig:"mention_filter_min_plaintext_length" default:"5"`
 	ManyAtsFilterMaxAts                      *int      `json:"many_ats_filter_max_ats,omitempty" envconfig:"many_ats_filter_max_ats" default:"20"`
