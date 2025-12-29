@@ -42,7 +42,7 @@ func TestGptOssSafeguard(t *testing.T) {
 			Sender:  "@user:example.org",
 			Content: map[string]any{
 				"msgtype": "m.text",
-				"body":    "JOIN NOW FOR CASH https://t.me/CashNow",
+				"body":    "You could be rich like me. JOIN https://t.me/redacted TO EARN MONEY NOW",
 			},
 		}),
 	})

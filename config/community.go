@@ -35,6 +35,7 @@ type CommunityConfig struct {
 	SpamThreshold                            *float64  `json:"spam_threshold,omitempty" envconfig:"spam_threshold" default:"0.8"`
 	WebhookUrl                               *string   `json:"webhook_url,omitempty" envconfig:"webhook_url" default:""`
 	OpenAIFilterFailSecure                   *bool     `json:"openai_filter_fail_secure,omitempty" envconfig:"openai_filter_fail_secure" default:"true"`
+	GptOssSafeguardFilterFailSecure          *bool     `json:"gpt_oss_safeguard_filter_fail_secure,omitempty" envconfig:"gpt_oss_safeguard_filter_fail_secure" default:"true"`
 	StickyEventsFilterAllowStickyEvents      *bool     `json:"sticky_events_filter_allow_sticky_events,omitempty" envconfig:"sticky_events_filter_allow_sticky_events" default:"true"`
 	HMAFilterEnabledBanks                    *[]string `json:"hma_filter_enabled_banks,omitempty" envconfig:"hma_filter_enabled_banks" default:""`
 }

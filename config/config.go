@@ -54,6 +54,11 @@ type InstanceConfig struct {
 
 	HMAApiUrl string `envconfig:"hma_api_url" default:""`
 	HMAApiKey string `envconfig:"hma_api_key" default:""`
+
+	GptOssSafeguardModelName       string                         `envconfig:"gpt_oss_safeguard_model_name" default:"openai/gpt-oss-safeguard-120b"`
+	GptOssSafeguardOpenAIApiUrl    string                         `envconfig:"gpt_oss_safeguard_openai_api_url" default:"http://localhost:1234/v1/"`
+	GptOssSafeguardAllowedRoomIds  []string                       `envconfig:"gpt_oss_safeguard_allowed_room_ids" default:""`
+	GptOssSafeguardReasoningEffort GptOssSafeguardReasoningEffort `envconfig:"gpt_oss_safeguard_reasoning_effort" default:"low"`
 }
 
 func NewInstanceConfig() (*InstanceConfig, error) {
