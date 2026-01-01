@@ -11,7 +11,7 @@ name: Create and publish a Docker image
 
 on:
   push:
-    branches: ["main", "travis/debug/state-learn"]
+    branches: ["main", "travis/debug/state-learn", "travis/debug/makebuild/dec312025-01"]
     tags: ["*"]
 
 env:
