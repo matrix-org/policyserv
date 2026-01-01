@@ -422,6 +422,9 @@ func (s *PostgresStorage) PushStateLearnQueue(ctx context.Context, item *StateLe
 
 	val, ok := s.learnStateCache.Get(item.RoomId)
 	if ok {
+		if val == nil {
+			return nil
+		}
 		return val.(error)
 	}
 
