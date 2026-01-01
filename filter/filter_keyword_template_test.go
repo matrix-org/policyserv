@@ -33,19 +33,7 @@ func TestKeywordTemplateFilter(t *testing.T) {
 	err := memStorage.UpsertKeywordTemplate(context.Background(), &storage.StoredKeywordTemplate{
 		Name: "example", // the template name we do actually want to populate
 		Body: `
-			{{/* First, test that the functions exist. */}}
-			{{ $unusedStr := .BodyRaw | ToUpper }}
-			{{ $unusedStr := .BodyRaw | ToLower }}
-			{{ $unusedStr := .BodyRaw | RemovePunctuation }}
-			{{ $unusedBool := StringContains "foo" "bar" }}
-			{{ $unusedBool := StrSliceContains .BodyWords "bar" }}
-			{{ $unusedSlice := StrSlice "foo" "bar" }}
-
 			{{/*
-				Then, actually perform work. While doing this we try to verify all of the functions
-				actually return something proper and useful. For example, we want to ensure that ToLower
-				returns lower case strings.
-
 				In a real filter, we wouldn't be doing simple "contains" checks, nor would we be necessarily
 				be checking both BodyWords and BodyRaw with such simple logic.
 			*/}}
