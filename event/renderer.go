@@ -8,7 +8,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 )
 
-type messageEventContent struct {
+type MessageEventContent struct {
 	Body          string `json:"body"`
 	Msgtype       string `json:"msgtype"`
 	FormattedBody string `json:"formatted_body"`
@@ -25,7 +25,7 @@ type reactionEventContent struct {
 func RenderToText(event gomatrixserverlib.PDU) ([]string, error) {
 	switch event.Type() {
 	case "m.room.message":
-		content := &messageEventContent{}
+		content := &MessageEventContent{}
 		err := json.Unmarshal(event.Content(), &content)
 		if err != nil {
 			return nil, err
