@@ -10,6 +10,7 @@ import (
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
 	"github.com/matrix-org/policyserv/internal"
+	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -218,7 +219,7 @@ func TestHellbanPostfilter(t *testing.T) {
 	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
 		fixedFilter.Expect = &Input{
 			Event:                        event,
-			Medias:                       make([]*Media, 0),
+			Medias:                       make([]*media.Item, 0),
 			IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
 		}
 		if isSpam {
@@ -323,7 +324,7 @@ func TestHellbanFiltersCombined(t *testing.T) {
 	// Step 2 prep
 	fixedFilter.Expect = &Input{
 		Event:                        spammyEvent1,
-		Medias:                       make([]*Media, 0),
+		Medias:                       make([]*media.Item, 0),
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5}, // just the starting value
 	}
 	// We set a Mentions classification so we can detect that the filter ran
@@ -347,7 +348,7 @@ func TestHellbanFiltersCombined(t *testing.T) {
 	// Step 6 prep
 	fixedFilter.Expect = &Input{
 		Event:  spammyEvent1,
-		Medias: make([]*Media, 0),
+		Medias: make([]*media.Item, 0),
 		IncrementalConfidenceVectors: confidence.Vectors{
 			classification.Spam:      1.0,
 			classification.Frequency: 1.0,
