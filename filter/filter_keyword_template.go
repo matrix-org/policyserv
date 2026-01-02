@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/matrix-org/policyserv/event"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pslib"
@@ -66,7 +67,7 @@ func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *
 		return nil, nil
 	}
 
-	content := &messageEventContent{}
+	content := &event.MessageEventContent{}
 	err := json.Unmarshal(input.Event.Content(), &content)
 	if err != nil {
 		// Probably not a string
