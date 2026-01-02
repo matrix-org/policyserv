@@ -32,6 +32,12 @@ func assertApiError(t *testing.T, w *httptest.ResponseRecorder, errcode string, 
 	assert.Equal(t, error, jsonErr["error"])
 }
 
+func assertJsonBody(t *testing.T, w *httptest.ResponseRecorder, expected any) {
+	expectedJson, err := json.Marshal(expected)
+	assert.NoError(t, err)
+	assert.JSONEq(t, string(expectedJson), w.Body.String())
+}
+
 const testApiKey = "do_not_use_in_production_otherwise_sadness_will_be_created"
 
 func makeApi(t *testing.T) *Api {

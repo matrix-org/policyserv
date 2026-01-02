@@ -133,3 +133,27 @@ curl -s -X POST -H "Authorization: Bearer ${APIKEY}" --data-binary '{ ... event 
 ```
 
 The endpoint returns 200 OK on success, or a standard error response upon error.
+
+## Keyword Templates API
+
+Use these endpoints to manage keyword templates for the [keyword template filter](../README.md#keyword-template-filter). Setting/creating templates does not cause them to be used: communities still need to opt-in to the templates via the filter configuration.
+
+In all cases, the template name is decided by the caller. If the template already exists, it will be overwritten. It's recommended to use a consistent, but descriptive, template name for use by communities.
+
+Example:
+```bash
+APIKEY=changeme
+curl -s -X POST -H "Authorization: Bearer ${APIKEY}" --data-binary 'TEMPLATE TEXT GOES HERE' https://example.org/api/v1/keyword_templates/MY_TEMPLATE_NAME
+curl -s -X GET -H "Authorization: Bearer ${APIKEY}" https://example.org/api/v1/keyword_templates/MY_TEMPLATE_NAME
+```
+
+All endpoints return a standard error response upon error, or the following with 200 OK on success:
+
+```json
+{
+  "name": "MY_TEMPLATE_NAME",
+  "body": "TEMPLATE TEXT GOES HERE"
+}
+```
+
+A template may be "deleted" by settings its content to an empty string.

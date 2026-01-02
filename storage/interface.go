@@ -34,6 +34,11 @@ type StateLearnQueueItem struct {
 	AfterTimestampMillis int64
 }
 
+type StoredKeywordTemplate struct {
+	Name string `json:"name"`
+	Body string `json:"body"`
+}
+
 type Transaction interface { // mirror of sql.Tx interface for ease of compatibility
 	Commit() error
 	Rollback() error
@@ -75,4 +80,7 @@ type PersistentStorage interface {
 	// an empty string. The data is stored as JSON and must be serializable.
 	SetTrustData(ctx context.Context, sourceName string, key string, data any) error
 	GetTrustData(ctx context.Context, sourceName string, key string, result any) error
+
+	UpsertKeywordTemplate(ctx context.Context, template *StoredKeywordTemplate) error
+	GetKeywordTemplate(ctx context.Context, name string) (*StoredKeywordTemplate, error)
 }

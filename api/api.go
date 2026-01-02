@@ -65,6 +65,7 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 		mux.Handle("/api/v1/communities/{id}/config", a.httpAuthenticatedRequestHandler(httpSetCommunityConfigApi))
 		mux.Handle("/api/v1/instance/community_config", a.httpAuthenticatedRequestHandler(httpGetInstanceConfigApi))
 		mux.Handle("/api/v1/sources/muninn/set_member_directory_event", a.httpAuthenticatedRequestHandler(httpSetMuninnSourceData))
+		mux.Handle("/api/v1/keyword_templates/{name}", a.httpAuthenticatedRequestHandler(httpKeywordTemplates))
 	}
 
 	return nil
