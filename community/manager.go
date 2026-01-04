@@ -142,6 +142,10 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 		// Access to this filter is gated by further instance config (namely, the room IDs allowed to use it)
 		filters = append(filters, filter.OpenAIOmniFilterName)
 	}
+	if len(m.instanceConfig.GptOssSafeguardAllowedRoomIds) > 0 {
+		// If the policyserv admin set an allowed room ID, then they probably set the other variables required to run the model
+		filters = append(filters, filter.GptOssSafeguardFilterName)
+	}
 	if !internal.Dereference(communityConfig.StickyEventsFilterAllowStickyEvents) {
 		filters = append(filters, filter.StickyEventsFilterName)
 	}

@@ -318,10 +318,7 @@ The OpenAI filter requires an [OpenAI Platform](https://platform.openai.com/) ac
 found that the account needs to be funded with about $10 USD first *before* the API key is created, otherwise it'll return
 401/429 errors.
 
-Current model usage is limited to text messages only. Media is not scanned by this filter. 
-
-Future experimentation is expected to include [gpt-oss-safeguard](https://openai.com/index/introducing-gpt-oss-safeguard/)
-for locally-hosted text scanning (gpt-oss-safeguard can't currently handle media).
+Current model usage is limited to text messages only. Media is not scanned by this filter.
 
 * `PS_OPENAI_FILTER_FAIL_SECURE` (default `true`) - When `true`, the OpenAI filter will return a spam response when it 
   encounters an error from OpenAI (rate limits, etc). When `false`, the filter logs the error and returns a neutral 
@@ -334,6 +331,34 @@ Setting up the filter requires server configuration. Communities cannot change t
 * `PS_OPENAI_FILTER_ALLOWED_ROOM_IDS` (default empty value) - The CSV-formatted room IDs which are allowed to use the 
   OpenAI filter, and will be forced to use it.
 
+### `gpt-oss-safeguard` filter
+
+**Note**: this filter is currently experimental and may change in future versions.
+
+[gpt-oss-safeguard](https://github.com/openai/gpt-oss-safeguard) is an open source safety reasoning model from OpenAI.
+For this filter to work, the model needs to be hosted on an OpenAI API-compatible server. In production environments this
+will likely be a [vLLM server running the 120b variant](https://docs.vllm.ai/projects/recipes/en/latest/OpenAI/GPT-OSS.html#gpt-oss-vllm-usage-guide).
+
+Developers or small deployments will find it easier to run [LM Studio with the 20b variant](https://cookbook.openai.com/articles/gpt-oss/run-locally-lmstudio).
+
+Current model usage is limited to text messages only. Media is not scanned by this filter. The spam policy used by this
+filter is currently hardcoded and can be found [here](./ai/gpt_oss_safeguard_spam_policy.go).
+
+* `PS_GPT_OSS_SAFEGUARD_FILTER_FAIL_SECURE` (default `true`) - When `true`, the safeguard filter will return a spam response when
+  it encounters an error from the OpenAI API-compatible server. When `false`, the filter logs the error and returns a
+  neutral response.
+
+Setting up the filter requires server configuration. Communities cannot change these settings:
+
+* `PS_GPT_OSS_SAFEGUARD_MODEL_NAME` (default `openai/gpt-oss-safeguard-120b`) - The name of the model to use. This will
+  probably be either `openai/gpt-oss-safeguard-120b` or `openai/gpt-oss-safeguard-20b`, but may be different depending on
+  how you've deployed safeguard to your OpenAI API-compatible server.
+* `PS_GPT_OSS_SAFEGUARD_ALLOWED_ROOM_IDS` (default empty value) - The CSV-formatted room IDs which are allowed to use the 
+  safeguard filter, and will be forced to use it.
+* `PS_GPT_OSS_SAFEGUARD_OPENAI_API_URL` (default empty value) - The base URL of your OpenAI API-compatible server. Note
+  that in at least LM Studio environments, this URL should include the `/v1` path component. Example: `http://localhost:1234/v1`.
+* `PS_GPT_OSS_SAFEGUARD_REASONING_EFFORT` (default `low`) - One of `low`, `medium`, or `high`. This sets the amount of
+  reasoning the model will perform. Higher values will take longer to process, but may be more accurate.
 
 ### Hasher-Matcher-Actioner (HMA) filter
 
