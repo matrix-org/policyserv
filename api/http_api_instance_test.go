@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +20,7 @@ func TestGetInstanceConfigWrongMethod(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost /*this should be GET*/, "/api/v1/instance/community_config", nil)
 	httpGetInstanceConfigApi(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
 
 func TestGetInstanceConfig(t *testing.T) {
