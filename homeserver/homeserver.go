@@ -8,12 +8,12 @@ import (
 	"time"
 
 	cache "github.com/Code-Hex/go-generics-cache"
-	"github.com/matrix-org/policyserv/pubsub"
-	"github.com/matrix-org/policyserv/queue"
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/pubsub"
+	"github.com/matrix-org/policyserv/queue"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 type KeyQueryServer struct {
@@ -137,6 +137,7 @@ func (h *Homeserver) httpRequestHandler(upstream func(homeserver *Homeserver, w 
 
 func (h *Homeserver) BindTo(mux *http.ServeMux) error {
 	mux.Handle("/.well-known/matrix/server", h.httpRequestHandler(httpDiscovery))
+	mux.Handle("/.well-known/matrix/org.matrix.msc4284.policy_server", h.httpRequestHandler(httpKeyDiscovery))
 	mux.Handle("/_matrix/federation/v1/version", h.httpRequestHandler(httpVersion))
 	mux.Handle("/_matrix/key/v2/server", h.httpRequestHandler(httpSelfKey))
 	mux.Handle("/_matrix/federation/v1/send/{txnId}", h.httpRequestHandler(httpTransactionReceive))
