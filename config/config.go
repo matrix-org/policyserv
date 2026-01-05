@@ -11,18 +11,19 @@ type InstanceConfig struct {
 
 	ApiKey string `envconfig:"api_key" default:""`
 
-	Database                string   `envconfig:"database" default:"postgres://policyserv:devonly@localhost/policyserv?sslmode=disable"`
-	DatabaseMigrationsDir   string   `envconfig:"database_migrations_dir" default:"./migrations"`
-	DatabaseMaxOpenConns    int      `envconfig:"database_max_open_conns" default:"10"`
-	DatabaseMaxIdleConns    int      `envconfig:"database_max_idle_conns" default:"5"`
-	DatabaseReadonlyUri     string   `envconfig:"database_read" default:""`
-	DatabaseReadonlyMaxOpen int      `envconfig:"database_read_max_open" default:"10"`
-	DatabaseReadonlyMaxIdle int      `envconfig:"database_read_max_idle" default:"5"`
-	ProcessingPoolSize      int      `envconfig:"processing_pool_size" default:"100"`
-	KeyQueryServer          []string `envconfig:"key_query_server" default:"matrix.org,ed25519:a_RXGa,l8Hft5qXKn1vfHrg3p4+W8gELQVo8N13JkluMfmn2sQ"`
-	EnableDirectKeyFetching bool     `envconfig:"direct_key_fetching" default:"false"`
-	TrustedOrigins          []string `envconfig:"trusted_origins" default:"matrix.org,element.io"`
-	StateCacheMinutes       int      `envconfig:"state_cache_minutes" default:"5"`
+	Database                  string   `envconfig:"database" default:"postgres://policyserv:devonly@localhost/policyserv?sslmode=disable"`
+	DatabaseMigrationsDir     string   `envconfig:"database_migrations_dir" default:"./migrations"`
+	DatabaseMaxOpenConns      int      `envconfig:"database_max_open_conns" default:"10"`
+	DatabaseMaxIdleConns      int      `envconfig:"database_max_idle_conns" default:"5"`
+	DatabaseReadonlyUri       string   `envconfig:"database_read" default:""`
+	DatabaseReadonlyMaxOpen   int      `envconfig:"database_read_max_open" default:"10"`
+	DatabaseReadonlyMaxIdle   int      `envconfig:"database_read_max_idle" default:"5"`
+	ProcessingPoolSize        int      `envconfig:"processing_pool_size" default:"100"`
+	KeyQueryServer            []string `envconfig:"key_query_server" default:"matrix.org,ed25519:a_RXGa,l8Hft5qXKn1vfHrg3p4+W8gELQVo8N13JkluMfmn2sQ"`
+	EnableDirectKeyFetching   bool     `envconfig:"direct_key_fetching" default:"false"`
+	TrustedOrigins            []string `envconfig:"trusted_origins" default:"matrix.org,element.io"`
+	StateCacheMinutes         int      `envconfig:"state_cache_minutes" default:"5"`
+	StateCacheIntervalMinutes int      `envconfig:"state_cache_interval_minutes" default:"60"`
 
 	HomeserverName                   string `envconfig:"homeserver_name" default:"localhost"`
 	HomeserverSigningKeyPath         string `envconfig:"homeserver_signing_key_path" default:"./signing.key"`

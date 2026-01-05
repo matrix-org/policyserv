@@ -124,7 +124,7 @@ func main() {
 		log.Fatal(err)
 	}
 	scheduler.Start() // start immediately so we can force jobs to run immediately too
-	err = setupScheduler(scheduler, db, instanceConfig)
+	err = setupScheduler(scheduler, hs, db, instanceConfig)
 	if err != nil {
 		log.Fatal(err)
 	}

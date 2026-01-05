@@ -8,12 +8,12 @@ import (
 	"time"
 
 	cache "github.com/Code-Hex/go-generics-cache"
-	"github.com/matrix-org/policyserv/pubsub"
-	"github.com/matrix-org/policyserv/queue"
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/pubsub"
+	"github.com/matrix-org/policyserv/queue"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 type KeyQueryServer struct {
@@ -117,7 +117,6 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 		),
 	}
 	hs.keyRing.KeyDatabase = hs // implemented by keyring.go
-	hs.scheduleStateLearning()
 	return hs, nil
 }
 

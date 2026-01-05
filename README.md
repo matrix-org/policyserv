@@ -54,7 +54,8 @@ Everything else is optional, though may be useful for some deployments:
 * `PS_DATABASE_READ_MAX_IDLE_CONNS` (default `5`) - The maximum number of idle connections to open to the database.
 * `PS_KEY_QUERY_SERVER` (default `matrix.org,ed25519:a_RXGa,l8Hft5qXKn1vfHrg3p4+W8gELQVo8N13JkluMfmn2sQ`) - The **trusted** server to query keys from and its key information in CSV format (`name,keyId,keyBase64`).
 * `PS_TRUSTED_ORIGINS` (default `matrix.org,element.io`) - The hostnames in CSV format which are trusted to provide information like room state to policyserv. It's best to list at least 1 server here. Do not list servers which might deliberately or accidentally return confusing/inaccurate state for rooms.
-* `PS_STATE_CACHE_MINUTES` (default `5`) - The minimum number of minutes to keep room state caches fresh.
+* `PS_STATE_CACHE_MINUTES` (default `5`) - The minimum number of minutes to keep room state caches fresh after a fetch.
+* `PS_STATE_CACHE_INTERVAL_MINUTES` (default `60`) - The target number of minutes between room state fetches for caching. The actual interval will be within 10% of this value. If negative or zero, the default of 60 minutes will be used.
 * `PS_JOIN_SERVER` (default `matrix.org`) - The server to send the join event through.
 * `PS_JOIN_ROOM_IDS` (default empty value) - The room IDs to join to receive events in, and therefore protect. Removing a room from this list does *not* unprotect it. Rooms will become part of the `default` community.
 * `PS_JOIN_LOCALPART` (default `policyserv`) - The localpart for the user ID which joins the rooms.
