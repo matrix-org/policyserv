@@ -9,11 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/matrix-org/policyserv/pubsub"
-	"github.com/matrix-org/policyserv/storage"
-	"github.com/matrix-org/policyserv/trust"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/storage"
+	"github.com/matrix-org/policyserv/trust"
 )
 
 type displayNameOnly struct {
@@ -23,67 +22,6 @@ type displayNameOnly struct {
 type minimalPolicyRule struct {
 	Recommendation string `json:"recommendation,omitempty"`
 	Entity         string `json:"entity,omitempty"`
-}
-
-func (h *Homeserver) scheduleStateLearning() {
-	// We set up a notification channel *and* a timer in case we miss the channel for some reason.
-	// Updates aren't expected to be overly frequent, so we can get away with relatively long timeouts.
-	go func(h *Homeserver) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-
-		ch, err := h.pubsubClient.Subscribe(ctx, pubsub.TopicNewStateToLearn)
-		if err != nil {
-			log.Fatalf("Error subscribing to %s: %v", pubsub.TopicNewStateToLearn, err)
-			return
-		}
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		workFn := func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-
-			val, txn, err := h.storage.PopStateLearnQueue(ctx)
-			if err != nil {
-				log.Printf("Non-fatal error popping state learn queue: %v", err)
-				return
-			}
-			if txn != nil {
-				defer txn.Rollback() // if something goes wrong, just roll back.
-			}
-			if val == nil {
-				log.Printf("No state to learn")
-				return // no work to do
-			}
-			log.Printf("Learning state: %#v", val)
-			err = h.LearnStateIfExpired(ctx, val.RoomId, val.AtEventId, val.ViaServer)
-			if err != nil {
-				log.Printf("Non-fatal error learning state in %s at %s via %s: %v", val.RoomId, val.AtEventId, val.ViaServer, err)
-				return
-			}
-			log.Printf("State learned: %#v", val)
-
-			err = txn.Commit()
-			if err != nil {
-				log.Printf("Non-fatal error committing transaction: %v", err)
-				return
-			}
-		}
-		for {
-			select {
-			case val := <-ch:
-				if val == pubsub.ClosingValue {
-					log.Printf("Stopping state learning loop")
-					return // break infinite loop
-				}
-				log.Printf("State learn notification: %s", val)
-			case <-ticker.C:
-				log.Printf("State learn timer")
-			}
-
-			workFn()
-		}
-	}(h)
 }
 
 func (h *Homeserver) shouldLearnState(ctx context.Context, roomId string) (bool, *storage.StoredRoom, error) {

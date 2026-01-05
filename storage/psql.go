@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
+	cache "github.com/Code-Hex/go-generics-cache"
 	"github.com/DavidHuie/gomigrate"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/confidence"
@@ -15,6 +17,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/ryanuber/go-glob"
+	"golang.org/x/sync/singleflight"
 )
 
 type PostgresStorageConnectionConfig struct {
@@ -35,6 +38,9 @@ type PostgresStorageConfig struct {
 type PostgresStorage struct {
 	db         *sql.DB
 	readonlyDb *sql.DB
+
+	learnStateGroup *singleflight.Group
+	learnStateCache *cache.Cache[string, error]
 
 	roomSelectAll                        *sql.Stmt
 	roomSelect                           *sql.Stmt
@@ -75,7 +81,12 @@ func NewPostgresStorage(config *PostgresStorageConfig) (*PostgresStorage, error)
 		readonlyDb.SetMaxIdleConns(config.RODatabase.MaxIdleConns)
 	}
 
-	s := &PostgresStorage{db: db, readonlyDb: readonlyDb}
+	s := &PostgresStorage{
+		db:              db,
+		readonlyDb:      readonlyDb,
+		learnStateGroup: new(singleflight.Group),
+		learnStateCache: cache.New[string, error](cache.WithJanitorInterval[string, error](1 * time.Minute)),
+	}
 	if err = s.prepare(config.MigrationsPath); err != nil {
 		return nil, errors.Join(fmt.Errorf("failed to run migrations with path '%s'", config.MigrationsPath), err)
 	}
@@ -417,11 +428,24 @@ func (s *PostgresStorage) PushStateLearnQueue(ctx context.Context, item *StateLe
 	t := dbmetrics.StartSelfDatabaseTimer("PushStateLearnQueue")
 	defer t.ObserveDuration()
 
-	_, err := s.stateLearnQueueInsert.ExecContext(ctx, item.RoomId, item.AtEventId, item.ViaServer, item.AfterTimestampMillis)
-	if err != nil {
-		return err
+	val, ok := s.learnStateCache.Get(item.RoomId)
+	if ok {
+		if val == nil {
+			return nil
+		}
+		return val.(error)
 	}
-	return nil
+
+	_, err, _ := s.learnStateGroup.Do(item.RoomId, func() (interface{}, error) {
+		_, err := s.stateLearnQueueInsert.ExecContext(ctx, item.RoomId, item.AtEventId, item.ViaServer, item.AfterTimestampMillis)
+		s.learnStateCache.Set(item.RoomId, err, cache.WithExpiration(1*time.Minute))
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	})
+
+	return err
 }
 
 func (s *PostgresStorage) PopStateLearnQueue(ctx context.Context) (*StateLearnQueueItem, Transaction, error) {

@@ -127,7 +127,6 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 		),
 	}
 	hs.keyRing.KeyDatabase = hs // implemented by keyring.go
-	hs.scheduleStateLearning()
 	return hs, nil
 }
 
