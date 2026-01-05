@@ -10,6 +10,7 @@ import (
 
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/storage"
+	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,12 +20,12 @@ func TestCreateCommunityWrongMethod(t *testing.T) {
 	api := makeApi(t)
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet /*this should be POST*/, "/api/v1/communities/new", makeJsonBody(t, map[string]any{
+	r := httptest.NewRequest(http.MethodGet /*this should be POST*/, "/api/v1/communities/new", test.MakeJsonBody(t, map[string]any{
 		"name": "community name",
 	}))
 	httpCreateCommunityApi(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
 
 func TestCreateCommunityBadJSON(t *testing.T) {
@@ -37,23 +38,23 @@ func TestCreateCommunityBadJSON(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/new", notJsonBody)
 	httpCreateCommunityApi(api, w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assertApiError(t, w, "M_BAD_JSON", "Error")
+	test.AssertApiError(t, w, "M_BAD_JSON", "Error")
 
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodPost, "/api/v1/communities/new", makeJsonBody(t, map[string]any{
+	r = httptest.NewRequest(http.MethodPost, "/api/v1/communities/new", test.MakeJsonBody(t, map[string]any{
 		"not_name": "name should be required",
 	}))
 	httpCreateCommunityApi(api, w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assertApiError(t, w, "M_BAD_JSON", "Name is required")
+	test.AssertApiError(t, w, "M_BAD_JSON", "Name is required")
 
 	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodPost, "/api/v1/communities/new", makeJsonBody(t, map[string]any{
+	r = httptest.NewRequest(http.MethodPost, "/api/v1/communities/new", test.MakeJsonBody(t, map[string]any{
 		"name": "               ", // but empty, so should be "missing"
 	}))
 	httpCreateCommunityApi(api, w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assertApiError(t, w, "M_BAD_JSON", "Name is required")
+	test.AssertApiError(t, w, "M_BAD_JSON", "Name is required")
 }
 
 func TestCreateCommunityCreate(t *testing.T) {
@@ -63,7 +64,7 @@ func TestCreateCommunityCreate(t *testing.T) {
 
 	communityName := "Test Community"
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/new", makeJsonBody(t, map[string]any{
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/new", test.MakeJsonBody(t, map[string]any{
 		"name": communityName,
 	}))
 	httpCreateCommunityApi(api, w, r)
@@ -95,7 +96,7 @@ func TestGetCommunityWrongMethod(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost /*this should be GET*/, "/api/v1/communities/not_a_real_id", nil)
 	httpGetCommunityApi(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
 
 func TestGetCommunityNotFound(t *testing.T) {
@@ -108,7 +109,7 @@ func TestGetCommunityNotFound(t *testing.T) {
 	r.SetPathValue("id", "not_a_real_id")
 	httpGetCommunityApi(api, w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
-	assertApiError(t, w, "M_NOT_FOUND", "Community not found")
+	test.AssertApiError(t, w, "M_NOT_FOUND", "Community not found")
 }
 
 func TestGetCommunity(t *testing.T) {
@@ -146,7 +147,7 @@ func TestSetCommunityConfigWrongMethod(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet /*this should be POST*/, "/api/v1/communities/not_a_real_id/config", nil)
 	httpSetCommunityConfigApi(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
 
 func TestSetCommunityConfigNotFound(t *testing.T) {
@@ -158,11 +159,11 @@ func TestSetCommunityConfigNotFound(t *testing.T) {
 		KeywordFilterKeywords: &[]string{"keyword1", "keyword2"},
 	}
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/not_a_real_id/config", makeJsonBody(t, cnf))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/not_a_real_id/config", test.MakeJsonBody(t, cnf))
 	r.SetPathValue("id", "not_a_real_id")
 	httpSetCommunityConfigApi(api, w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
-	assertApiError(t, w, "M_NOT_FOUND", "Community not found")
+	test.AssertApiError(t, w, "M_NOT_FOUND", "Community not found")
 }
 
 func TestSetCommunityConfig(t *testing.T) {
@@ -181,7 +182,7 @@ func TestSetCommunityConfig(t *testing.T) {
 		KeywordFilterKeywords: &[]string{"keyword1", "keyword2"},
 	}
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/"+community.CommunityId+"/config", makeJsonBody(t, cnf))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/communities/"+community.CommunityId+"/config", test.MakeJsonBody(t, cnf))
 	r.SetPathValue("id", community.CommunityId)
 	httpSetCommunityConfigApi(api, w, r)
 	assert.Equal(t, http.StatusOK, w.Code)

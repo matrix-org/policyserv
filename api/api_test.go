@@ -1,10 +1,7 @@
 package api
 
 import (
-	"bytes"
 	"crypto/ed25519"
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,27 +13,6 @@ import (
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
-
-func makeJsonBody(t *testing.T, body any) io.Reader {
-	b, err := json.Marshal(body)
-	assert.NoError(t, err)
-	assert.NotNil(t, b)
-	return bytes.NewReader(b)
-}
-
-func assertApiError(t *testing.T, w *httptest.ResponseRecorder, errcode string, error string) {
-	jsonErr := make(map[string]any)
-	err := json.Unmarshal(w.Body.Bytes(), &jsonErr)
-	assert.NoError(t, err)
-	assert.Equal(t, errcode, jsonErr["errcode"])
-	assert.Equal(t, error, jsonErr["error"])
-}
-
-func assertJsonBody(t *testing.T, w *httptest.ResponseRecorder, expected any) {
-	expectedJson, err := json.Marshal(expected)
-	assert.NoError(t, err)
-	assert.JSONEq(t, string(expectedJson), w.Body.String())
-}
 
 const testApiKey = "do_not_use_in_production_otherwise_sadness_will_be_created"
 
@@ -98,7 +74,7 @@ func TestAuthenticatedApiNoAuth(t *testing.T) {
 	handler := api.httpAuthenticatedRequestHandler(upstream)
 	handler.ServeHTTP(w, r)
 	assert.Equal(t, w.Code, http.StatusUnauthorized)
-	assertApiError(t, w, "M_UNAUTHORIZED", "Not allowed")
+	test.AssertApiError(t, w, "M_UNAUTHORIZED", "Not allowed")
 }
 
 func TestAuthenticatedApiWrongAuth(t *testing.T) {
@@ -115,7 +91,7 @@ func TestAuthenticatedApiWrongAuth(t *testing.T) {
 	handler := api.httpAuthenticatedRequestHandler(upstream)
 	handler.ServeHTTP(w, r)
 	assert.Equal(t, w.Code, http.StatusUnauthorized)
-	assertApiError(t, w, "M_UNAUTHORIZED", "Not allowed")
+	test.AssertApiError(t, w, "M_UNAUTHORIZED", "Not allowed")
 }
 
 func TestAuthenticatedApi(t *testing.T) {

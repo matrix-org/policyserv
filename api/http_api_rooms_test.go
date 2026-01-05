@@ -9,6 +9,7 @@ import (
 
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/storage"
+	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +23,7 @@ func TestGetRoomWrongMethod(t *testing.T) {
 	r.SetPathValue("id", "!room:example.org")
 	httpGetRoomApi(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
 
 func TestGetRoomNotFound(t *testing.T) {
@@ -35,7 +36,7 @@ func TestGetRoomNotFound(t *testing.T) {
 	r.SetPathValue("id", "not_a_real_id")
 	httpGetRoomApi(api, w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
-	assertApiError(t, w, "M_NOT_FOUND", "Room not found")
+	test.AssertApiError(t, w, "M_NOT_FOUND", "Room not found")
 }
 
 func TestGetRoom(t *testing.T) {
@@ -74,7 +75,7 @@ func TestAddRoomWrongMethod(t *testing.T) {
 	r.SetPathValue("roomId", "!room:example.org")
 	httpAddRoomApi(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
 
 func TestAddRoomUnknownCommunity(t *testing.T) {
@@ -83,12 +84,12 @@ func TestAddRoomUnknownCommunity(t *testing.T) {
 	api := makeApi(t)
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", makeJsonBody(t, map[string]any{
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", test.MakeJsonBody(t, map[string]any{
 		"community_id": "does_not_exist",
 	}))
 	r.SetPathValue("roomId", "!room:example.org")
 	httpAddRoomApi(api, w, r)
-	assertApiError(t, w, "M_BAD_STATE", "Community not found")
+	test.AssertApiError(t, w, "M_BAD_STATE", "Community not found")
 }
 
 func TestAddRoomUnknownCommunityWhenNoneSupplied(t *testing.T) {
@@ -97,12 +98,12 @@ func TestAddRoomUnknownCommunityWhenNoneSupplied(t *testing.T) {
 	api := makeApi(t)
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", makeJsonBody(t, map[string]any{
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", test.MakeJsonBody(t, map[string]any{
 		//"community_id": "ID goes here", // we're testing what happens when we don't supply this, so don't.
 	}))
 	r.SetPathValue("roomId", "!room:example.org")
 	httpAddRoomApi(api, w, r)
-	assertApiError(t, w, "M_BAD_STATE", "Community not found")
+	test.AssertApiError(t, w, "M_BAD_STATE", "Community not found")
 }
 
 func TestAddRoomAlreadyJoined(t *testing.T) {
@@ -112,7 +113,7 @@ func TestAddRoomAlreadyJoined(t *testing.T) {
 	api := makeApi(t)
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", makeJsonBody(t, map[string]any{
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", test.MakeJsonBody(t, map[string]any{
 		"community_id": "default",
 	}))
 	r.SetPathValue("roomId", "!room:example.org")
@@ -133,7 +134,7 @@ func TestAddRoomAlreadyJoined(t *testing.T) {
 	err = api.storage.UpsertRoom(ctx, room)
 	assert.NoError(t, err)
 	httpAddRoomApi(api, w, r)
-	assertApiError(t, w, "M_BAD_STATE", "Room already exists")
+	test.AssertApiError(t, w, "M_BAD_STATE", "Room already exists")
 }
 
 func TestAddRoom(t *testing.T) {
@@ -146,7 +147,7 @@ func TestAddRoom(t *testing.T) {
 	t.Skip("skip because the homeserver cannot be mocked at the moment. See https://github.com/matrix-org/policyserv/issues/20")
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", makeJsonBody(t, map[string]any{
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/rooms/!room:example.org/join", test.MakeJsonBody(t, map[string]any{
 		"community_id": "non_default",
 	}))
 	r.SetPathValue("roomId", "!room:example.org")

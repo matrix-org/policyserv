@@ -2,16 +2,17 @@ package homeserver
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/matrix-org/policyserv/metrics"
-	"github.com/matrix-org/policyserv/version"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/metrics"
+	"github.com/matrix-org/policyserv/version"
 )
 
 func httpDiscovery(srv *Homeserver, w http.ResponseWriter, r *http.Request) {
@@ -28,6 +29,28 @@ func httpDiscovery(srv *Homeserver, w http.ResponseWriter, r *http.Request) {
 	defer metrics.RecordHttpResponse(r.Method, "httpDiscovery", http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(fmt.Sprintf(`{"m.server":"%s:443"}`, srv.ServerName)))
+}
+
+func httpKeyDiscovery(server *Homeserver, w http.ResponseWriter, r *http.Request) {
+	metrics.RecordHttpRequest(r.Method, "httpKeyDiscovery")
+	t := metrics.StartRequestTimer(r.Method, "httpKeyDiscovery")
+	defer t.ObserveDuration()
+
+	if r.Method != http.MethodGet && r.Method != http.MethodOptions { // OPTIONS is for CORS support
+		defer metrics.RecordHttpResponse(r.Method, "httpKeyDiscovery", http.StatusMethodNotAllowed)
+		MatrixHttpError(w, http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
+		return
+	}
+
+	// Set CORS headers per https://spec.matrix.org/v1.17/client-server-api/#web-browser-clients
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization")
+
+	defer metrics.RecordHttpResponse(r.Method, "httpKeyDiscovery", http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(server.GetPublicEventSigningKey())
+	_, _ = w.Write([]byte(fmt.Sprintf(`{"public_key":"%s"}`, b64)))
 }
 
 func httpVersion(server *Homeserver, w http.ResponseWriter, r *http.Request) {

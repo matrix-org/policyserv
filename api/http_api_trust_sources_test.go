@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/matrix-org/policyserv/test"
 	"github.com/matrix-org/policyserv/trust"
 	"github.com/stretchr/testify/assert"
 )
@@ -71,5 +72,5 @@ func TestSetMuninnHallSourceDataWrongMethod(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPut /*should be POST*/, "/api/v1/sources/muninn/set_member_directory_event", bytes.NewReader([]byte(sampleEvent)))
 	httpSetMuninnSourceData(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
