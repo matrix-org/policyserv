@@ -2,16 +2,18 @@ package homeserver
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/matrix-org/policyserv/metrics"
-	"github.com/matrix-org/policyserv/version"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/metrics"
+	"github.com/matrix-org/policyserv/version"
 )
 
 func httpDiscovery(srv *Homeserver, w http.ResponseWriter, r *http.Request) {
@@ -28,6 +30,102 @@ func httpDiscovery(srv *Homeserver, w http.ResponseWriter, r *http.Request) {
 	defer metrics.RecordHttpResponse(r.Method, "httpDiscovery", http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(fmt.Sprintf(`{"m.server":"%s:443"}`, srv.ServerName)))
+}
+
+func httpKeyDiscovery(server *Homeserver, w http.ResponseWriter, r *http.Request) {
+	metrics.RecordHttpRequest(r.Method, "httpKeyDiscovery")
+	t := metrics.StartRequestTimer(r.Method, "httpKeyDiscovery")
+	defer t.ObserveDuration()
+
+	if r.Method != http.MethodGet && r.Method != http.MethodOptions { // OPTIONS is for CORS support
+		defer metrics.RecordHttpResponse(r.Method, "httpKeyDiscovery", http.StatusMethodNotAllowed)
+		MatrixHttpError(w, http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
+		return
+	}
+
+	// Set CORS headers per https://spec.matrix.org/v1.17/client-server-api/#web-browser-clients
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization")
+
+	defer metrics.RecordHttpResponse(r.Method, "httpKeyDiscovery", http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(server.GetPublicEventSigningKey())
+	_, _ = w.Write([]byte(fmt.Sprintf(`{"public_key":"%s"}`, b64)))
+}
+
+type wellknownSupportContact struct {
+	// Per https://spec.matrix.org/v1.17/client-server-api/#getwell-knownmatrixsupport
+
+	Email  string `json:"email_address,omitempty"`
+	UserId string `json:"matrix_id,omitempty"`
+	Role   string `json:"role"`
+}
+
+type wellknownSupport struct {
+	// Per https://spec.matrix.org/v1.17/client-server-api/#getwell-knownmatrixsupport
+
+	Contacts   []wellknownSupportContact `json:"contacts,omitempty"`
+	SupportUrl string                    `json:"support_page,omitempty"`
+}
+
+func httpSupport(server *Homeserver, w http.ResponseWriter, r *http.Request) {
+	metrics.RecordHttpRequest(r.Method, "httpSupport")
+	t := metrics.StartRequestTimer(r.Method, "httpSupport")
+	defer t.ObserveDuration()
+
+	if r.Method != http.MethodGet && r.Method != http.MethodOptions { // OPTIONS is for CORS support
+		defer metrics.RecordHttpResponse(r.Method, "httpSupport", http.StatusMethodNotAllowed)
+		MatrixHttpError(w, http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
+		return
+	}
+
+	// Set CORS headers per https://spec.matrix.org/v1.17/client-server-api/#web-browser-clients
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization")
+
+	if server.supportUrl == "" && len(server.adminContacts) == 0 && len(server.securityContacts) == 0 {
+		// No support means 404 per spec
+		defer metrics.RecordHttpResponse(r.Method, "httpSupport", http.StatusNotFound)
+		w.Header().Set("Content-Type", "application/json")
+		MatrixHttpError(w, http.StatusNotFound, "M_NOT_FOUND", "No support information available")
+		return
+	}
+
+	val := wellknownSupport{
+		Contacts:   make([]wellknownSupportContact, 0),
+		SupportUrl: server.supportUrl,
+	}
+	appendContact := func(role string, contact *config.SupportContact) {
+		wkContact := wellknownSupportContact{
+			Role: role,
+		}
+		if contact.Type == config.SupportContactTypeEmail {
+			wkContact.Email = contact.Value
+		} else if contact.Type == config.SupportContactTypeMatrixUserId {
+			wkContact.UserId = contact.Value
+		} else {
+			return // skip, but "should never happen"
+		}
+		val.Contacts = append(val.Contacts, wkContact)
+	}
+	for _, c := range server.adminContacts {
+		appendContact("m.role.admin", c)
+	}
+	for _, c := range server.securityContacts {
+		appendContact("m.role.security", c)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	b, err := json.Marshal(val)
+	if err != nil {
+		defer metrics.RecordHttpResponse(r.Method, "httpSupport", http.StatusInternalServerError)
+		MatrixHttpError(w, http.StatusInternalServerError, "M_UNKNOWN", "Unable to marshal response")
+		return
+	}
+	defer metrics.RecordHttpResponse(r.Method, "httpSupport", http.StatusOK)
+	_, _ = w.Write(b)
 }
 
 func httpVersion(server *Homeserver, w http.ResponseWriter, r *http.Request) {

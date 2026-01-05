@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/matrix-org/policyserv/storage"
+	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +28,7 @@ func TestKeywordTemplate(t *testing.T) {
 	r.SetPathValue("name", template.Name)
 	httpKeywordTemplates(api, w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
-	assertApiError(t, w, "M_NOT_FOUND", "Template not found")
+	test.AssertApiError(t, w, "M_NOT_FOUND", "Template not found")
 
 	// Now we can populate it
 	w = httptest.NewRecorder()
@@ -35,7 +36,7 @@ func TestKeywordTemplate(t *testing.T) {
 	r.SetPathValue("name", template.Name)
 	httpKeywordTemplates(api, w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assertJsonBody(t, w, template)
+	test.AssertJsonBody(t, w, template)
 
 	// Verify it was persisted
 	val, err := api.storage.GetKeywordTemplate(context.Background(), template.Name)
@@ -48,7 +49,7 @@ func TestKeywordTemplate(t *testing.T) {
 	r.SetPathValue("name", template.Name)
 	httpKeywordTemplates(api, w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assertJsonBody(t, w, template)
+	test.AssertJsonBody(t, w, template)
 
 	// Set it to something different
 	template.Body = "ALTERED"
@@ -57,7 +58,7 @@ func TestKeywordTemplate(t *testing.T) {
 	r.SetPathValue("name", template.Name)
 	httpKeywordTemplates(api, w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assertJsonBody(t, w, template)
+	test.AssertJsonBody(t, w, template)
 
 	// Verify it was persisted
 	val, err = api.storage.GetKeywordTemplate(context.Background(), template.Name)
@@ -75,5 +76,5 @@ func TestKeywordTemplateWrongMethod(t *testing.T) {
 	r.SetPathValue("name", "TESTING")
 	httpKeywordTemplates(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	assertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
+	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
