@@ -97,7 +97,7 @@ func httpSupport(server *Homeserver, w http.ResponseWriter, r *http.Request) {
 		Contacts:   make([]wellknownSupportContact, 0),
 		SupportUrl: server.supportUrl,
 	}
-	appendContact := func(role string, contact *config.SupportContact) {
+	appendContact := func(role string, contact config.SupportContact) {
 		wkContact := wellknownSupportContact{
 			Role: role,
 		}

@@ -36,8 +36,8 @@ type Config struct {
 	EnableDirectKeyFetching bool
 	MediaClientUrl          string
 	MediaClientAccessToken  string
-	AdminContacts           []*config.SupportContact
-	SecurityContacts        []*config.SupportContact
+	AdminContacts           []config.SupportContact
+	SecurityContacts        []config.SupportContact
 	SupportUrl              string
 }
 
@@ -58,8 +58,8 @@ type Homeserver struct {
 	stateLearnCache        *cache.Cache[string, bool] // room ID -> literally anything because we don't really care about the value
 	mediaClientUrl         string
 	mediaClientAccessToken string
-	adminContacts          []*config.SupportContact
-	securityContacts       []*config.SupportContact
+	adminContacts          []config.SupportContact
+	securityContacts       []config.SupportContact
 	supportUrl             string
 }
 

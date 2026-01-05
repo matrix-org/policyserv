@@ -19,17 +19,20 @@ func (c *SupportContact) Decode(value string) error {
 	// Implements envconfig.Decoder
 
 	if !strings.Contains(value, "@") {
-		c.Value = ""
-		c.Type = ""
+		*c = SupportContact{
+			Value: "",
+			Type:  "",
+		}
 		return fmt.Errorf("invalid support contact value: %s", value)
 	}
 
-	c.Value = value
-
+	contactType := SupportContactTypeEmail
 	if value[0] == '@' {
-		c.Type = SupportContactTypeMatrixUserId
-	} else {
-		c.Type = SupportContactTypeEmail
+		contactType = SupportContactTypeMatrixUserId
+	}
+	*c = SupportContact{
+		Value: value,
+		Type:  contactType,
 	}
 
 	return nil
