@@ -43,6 +43,9 @@ func setupHomeserver(instanceConfig *config.InstanceConfig, storage storage.Pers
 		EnableDirectKeyFetching: instanceConfig.EnableDirectKeyFetching,
 		MediaClientUrl:          instanceConfig.HomeserverMediaClientUrl,
 		MediaClientAccessToken:  instanceConfig.HomeserverMediaClientAccessToken,
+		AdminContacts:           instanceConfig.SupportAdminContacts,
+		SecurityContacts:        instanceConfig.SupportSecurityContacts,
+		SupportUrl:              instanceConfig.SupportUrl,
 		KeyQueryServer: &homeserver.KeyQueryServer{
 			Name:           instanceConfig.KeyQueryServer[0],
 			PreferredKeyId: instanceConfig.KeyQueryServer[1],
