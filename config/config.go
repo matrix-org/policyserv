@@ -56,9 +56,9 @@ type InstanceConfig struct {
 	HMAApiUrl string `envconfig:"hma_api_url" default:""`
 	HMAApiKey string `envconfig:"hma_api_key" default:""`
 
-	SupportAdminContacts    []*SupportContact `envconfig:"support_admin_contacts" default:""`
-	SupportSecurityContacts []*SupportContact `envconfig:"support_security_contacts" default:""`
-	SupportUrl              string            `envconfig:"support_url" default:""`
+	SupportAdminContacts    []SupportContact `envconfig:"support_admin_contacts" default:""`
+	SupportSecurityContacts []SupportContact `envconfig:"support_security_contacts" default:""`
+	SupportUrl              string           `envconfig:"support_url" default:""`
 }
 
 func NewInstanceConfig() (*InstanceConfig, error) {

@@ -54,12 +54,12 @@ func TestHttpSupport(t *testing.T) {
 	// Because we're interacting with very little of the interface, we can create a Homeserver instance without using
 	// the NewHomeserver() function.
 	server := &Homeserver{
-		adminContacts: []*config.SupportContact{
+		adminContacts: []config.SupportContact{
 			{Value: "@admin:example.org", Type: config.SupportContactTypeMatrixUserId},
 			{Value: "admin@example.org", Type: config.SupportContactTypeEmail},
 			{Value: "skipped@example.org", Type: "UNKNOWN"},
 		},
-		securityContacts: []*config.SupportContact{
+		securityContacts: []config.SupportContact{
 			{Value: "@security:example.org", Type: config.SupportContactTypeMatrixUserId},
 			{Value: "security@example.org", Type: config.SupportContactTypeEmail},
 			{Value: "skipped@example.org", Type: "UNKNOWN"},
@@ -87,7 +87,7 @@ func TestHttpSupport(t *testing.T) {
 
 	// Now start removing things from the support object to ensure it still generates a response
 
-	server.adminContacts = make([]*config.SupportContact, 0)
+	server.adminContacts = make([]config.SupportContact, 0)
 	for _, method := range []string{http.MethodGet, http.MethodOptions} {
 		log.Println("Testing method", method)
 		res := httptest.NewRecorder()
@@ -104,7 +104,7 @@ func TestHttpSupport(t *testing.T) {
 		})
 	}
 
-	server.securityContacts = make([]*config.SupportContact, 0)
+	server.securityContacts = make([]config.SupportContact, 0)
 	for _, method := range []string{http.MethodGet, http.MethodOptions} {
 		log.Println("Testing method", method)
 		res := httptest.NewRecorder()
@@ -129,7 +129,7 @@ func TestHttpSupport(t *testing.T) {
 	}
 
 	// Then, if we add back some contacts, we should get a useful response again
-	server.adminContacts = []*config.SupportContact{
+	server.adminContacts = []config.SupportContact{
 		{Value: "admin@example.org", Type: config.SupportContactTypeEmail},
 	}
 	for _, method := range []string{http.MethodGet, http.MethodOptions} {
