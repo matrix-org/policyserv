@@ -66,6 +66,13 @@ Everything else is optional, though may be useful for some deployments:
 * `PS_HOMESERVER_MEDIA_CLIENT_URL` (default `https://matrix-client.matrix.org`) - The client-server API URL to use for fetching media.
 * `PS_HOMESERVER_MEDIA_CLIENT_ACCESS_TOKEN` (default empty value) - The access token to use for fetching media on the above client-server API URL.
 
+Support information can be supplied using the following environment variables. These are used to populate the [`/.well-known/matrix/support`](https://spec.matrix.org/v1.17/client-server-api/#getwell-knownmatrixsupport)
+endpoint, and may be used by clients to help communities get set up using your policyserv instance.
+
+* `PS_SUPPORT_ADMIN_CONTACTS` (default empty value) - CSV list of email addresses or Matrix user IDs which can be contacted for general support.
+* `PS_SUPPORT_SECURITY_CONTACTS` (default empty value) - CSV list of email addresses or Matrix user IDs which can be contacted for security issues.
+* `PS_SUPPORT_URL` (default empty value) - The URL where users can find more information or support for the policyserv instance. Typically, this is an instance-specific user guide.
+
 Some environment variables that can be set explicitly but shouldn't in most cases are:
 
 * `PS_DATABASE_MIGRATIONS_DIR` (default `/opt/migrations` in Docker, `./migrations` otherwise) - The directory where database migrations reside. Should not need changing in Docker.
