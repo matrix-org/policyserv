@@ -2,12 +2,13 @@ package pubsub
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sync"
 	"time"
 
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/lib/pq"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 type PostgresPubsubConnectionConfig struct {
@@ -83,7 +84,8 @@ func (p *PostgresPubsub) Subscribe(ctx context.Context, topic string) (<-chan st
 	// Only subscribe to the topic (channel) once.
 	if chans, ok := p.channels[topic]; !ok || len(chans) == 0 {
 		err := p.listener.Listen(topic)
-		if err != nil {
+		// Ignore "channel already open" - it just means we called `Listen` more than once.
+		if err != nil && !errors.Is(err, pq.ErrChannelAlreadyOpen) {
 			return nil, err
 		}
 	}
