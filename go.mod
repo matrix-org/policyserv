@@ -19,7 +19,7 @@ require (
 	github.com/t2bot/go-matrix-signing-key v0.0.0-20250823034611-5de5f6ca0042
 	github.com/t2bot/go-typed-singleflight v0.0.3
 	golang.org/x/crypto v0.46.0
-	golang.org/x/sync v0.17.0
+	golang.org/x/sync v0.19.0
 )
 
 require (
