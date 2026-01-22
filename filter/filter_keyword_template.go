@@ -47,14 +47,16 @@ func (k *KeywordTemplateFilter) MakeFor(set *Set) (Instanced, error) {
 	}
 
 	return &InstancedKeywordTemplateFilter{
-		set:       set,
-		templates: templates,
+		set:          set,
+		templates:    templates,
+		useFullEvent: internal.Dereference(set.communityConfig.KeywordTemplateFilterUseFullEvent),
 	}, nil
 }
 
 type InstancedKeywordTemplateFilter struct {
-	set       *Set
-	templates []*pslib.KeywordTemplate
+	set          *Set
+	templates    []*pslib.KeywordTemplate
+	useFullEvent bool
 }
 
 func (f *InstancedKeywordTemplateFilter) Name() string {
@@ -67,19 +69,24 @@ func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *
 		return nil, nil
 	}
 
-	content := &event.MessageEventContent{}
-	err := json.Unmarshal(input.Event.Content(), &content)
-	if err != nil {
-		// Probably not a string
-		return nil, err
-	}
+	var toScan string
+	if f.useFullEvent {
+		toScan = string(input.Event.JSON())
+	} else {
+		content := &event.MessageEventContent{}
+		err := json.Unmarshal(input.Event.Content(), &content)
+		if err != nil {
+			// Probably not a string
+			return nil, err
+		}
 
-	combinedBody := content.Body + " " + content.FormattedBody
+		toScan = content.Body + " " + content.FormattedBody
+	}
 
 	harms := make([]string, 0)
 	for _, tmpl := range f.templates {
 		log.Printf("[%s | %s] Checking template '%s'", input.Event.EventID(), input.Event.RoomID().String(), tmpl.Name)
-		returnedHarms, err := tmpl.IdentifyHarms(combinedBody)
+		returnedHarms, err := tmpl.IdentifyHarms(toScan)
 		if err != nil {
 			return nil, err
 		}

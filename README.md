@@ -171,8 +171,10 @@ sending another event).
 The keyword filter is the most basic of the filters. If a user sends an event containing any of the listed keywords, that
 event will be marked as spam.
 
-* `PS_KEYWORD_FILTER_KEYWORDS` (default `spammy spam`) - Keywords in CSV format. Events with any one of these keywords 
+* `PS_KEYWORD_FILTER_KEYWORDS` (default `spammy spam`) - Keywords in CSV format. Event `content`s with any one of these keywords 
   will be marked as spam. Set to an empty value to disable the filter.
+* `PS_KEYWORD_FILTER_USE_FULL_EVENT` (default `false`) - When true, the full event JSON will be compared against the
+  keywords instead of just the `content`.
 
 ### Keyword template filter
 
@@ -214,6 +216,9 @@ the [API](./docs/api.md).
 * `PS_KEYWORD_TEMPLATE_FILTER_TEMPLATE_NAMES` (default empty value) - The CSV-formatted names of keyword templates to 
   use. If a listed filter is not found, it is skipped. Set to an empty value to disable the filter. Template names are
   set when uploading them via the policyserv API.
+* `PS_KEYWORD_TEMPLATE_USE_FULL_EVENT` (default `false`) - When true, the full event JSON will be compared against the
+  keyword templates instead of just the `body` and `formatted_body`. "Words" will still be split on whitespace, which may
+  lead to non-alphanumeric characters being present.
 
 ### Mention filter
 
