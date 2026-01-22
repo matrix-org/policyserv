@@ -7,6 +7,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,8 @@ func TestKeywordTemplateFilter(t *testing.T) {
 		CommunityConfig: &config.CommunityConfig{
 			// The filter should skip unknown template names, so we ask for one we won't be populating early on to
 			// see if the code will explode at such a reference.
+			// Note: "example" is here to ensure the default for KeywordTemplateFilterUseFullEvent is false. If it was true,
+			// the filter would pick up on the "example.org" in the various IDs.
 			KeywordTemplateFilterTemplateNames: &[]string{"example", "this_one_doesnt_exist_but_thats_okay"},
 		},
 		Groups: []*SetGroupConfig{{
@@ -110,4 +113,51 @@ func TestKeywordTemplateFilter(t *testing.T) {
 	assertSpamVector(spammyEvent2, true)
 	assertSpamVector(spammyEvent3, true)
 	assertSpamVector(neutralEvent, false)
+}
+
+func TestKeywordTemplateFilterWithFullEvent(t *testing.T) {
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			KeywordTemplateFilterTemplateNames: &[]string{"example"},
+			KeywordTemplateFilterUseFullEvent:  internal.Pointer(true), // this is what we're testing
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{KeywordTemplateFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+
+	err := memStorage.UpsertKeywordTemplate(context.Background(), &storage.StoredKeywordTemplate{
+		Name: "example", // the template name from the config
+		Body: `
+			{{/* In a real filter, we wouldn't be doing simple "contains" checks. */}}
+			{{ if StringContains .BodyRaw "user_id_has_the_keyword_instead" }}
+				org.matrix.msc4387.spam
+			{{ end }}
+        `,
+	})
+	assert.NoError(t, err)
+
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	spammyEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$spam",
+		RoomId:  "!foo:example.org",
+		Type:    "m.room.message",
+		Sender:  "@the_user_id_has_the_keyword_instead_of_the_event_content:example.org",
+		Content: map[string]any{
+			"body": "not applicable",
+		},
+	})
+
+	vecs, err := set.CheckEvent(context.Background(), spammyEvent, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
 }

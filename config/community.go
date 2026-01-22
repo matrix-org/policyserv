@@ -15,6 +15,8 @@ type CommunityConfig struct {
 
 	KeywordFilterKeywords                    *[]string `json:"keyword_filter_keywords,omitempty" envconfig:"keyword_filter_keywords" default:"spammy spam"`
 	KeywordTemplateFilterTemplateNames       *[]string `json:"keyword_template_filter_template_names,omitempty" envconfig:"keyword_template_filter_template_names" default:""`
+	KeywordFilterUseFullEvent                *bool     `json:"keyword_filter_use_full_event,omitempty" envconfig:"keyword_filter_use_full_event" default:"false"`
+	KeywordTemplateFilterUseFullEvent        *bool     `json:"keyword_template_filter_use_full_event,omitempty" envconfig:"keyword_template_filter_use_full_event" default:"false"`
 	MentionFilterMaxMentions                 *int      `json:"mention_filter_max_mentions,omitempty" envconfig:"mention_filter_max_mentions" default:"20"`
 	MentionFilterMinPlaintextLength          *int      `json:"mention_filter_min_plaintext_length,omitempty" envconfig:"mention_filter_min_plaintext_length" default:"5"`
 	ManyAtsFilterMaxAts                      *int      `json:"many_ats_filter_max_ats,omitempty" envconfig:"many_ats_filter_max_ats" default:"20"`

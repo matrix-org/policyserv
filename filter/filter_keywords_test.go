@@ -7,6 +7,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,6 +15,8 @@ import (
 func TestKeywordsFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
+			// Note: "example" is here to ensure the default for KeywordFilterUseFullEvent is false. If it was true,
+			// the filter would pick up on the "example.org" in the various IDs.
 			KeywordFilterKeywords: &[]string{"spammy spam", "example"},
 		},
 		Groups: []*SetGroupConfig{{
@@ -68,4 +71,39 @@ func TestKeywordsFilter(t *testing.T) {
 	assertSpamVector(spammyEvent1, true)
 	assertSpamVector(spammyEvent2, true)
 	assertSpamVector(neutralEvent, false)
+}
+
+func TestKeywordsFilterWithFullEvent(t *testing.T) {
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			KeywordFilterKeywords:     &[]string{"spammy spam", "user_id_has_the_keyword_instead"},
+			KeywordFilterUseFullEvent: internal.Pointer(true), // this is what we're testing
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{KeywordFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	spammyEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$spam",
+		RoomId:  "!foo:example.org",
+		Type:    "m.room.message",
+		Sender:  "@the_user_id_has_the_keyword_instead_of_the_event_content:example.org",
+		Content: map[string]any{
+			"body": "not applicable",
+		},
+	})
+
+	vecs, err := set.CheckEvent(context.Background(), spammyEvent, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
 }
