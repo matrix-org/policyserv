@@ -40,6 +40,12 @@ type CommunityConfig struct {
 	OpenAIFilterFailSecure                   *bool     `json:"openai_filter_fail_secure,omitempty" envconfig:"openai_filter_fail_secure" default:"true"`
 	StickyEventsFilterAllowStickyEvents      *bool     `json:"sticky_events_filter_allow_sticky_events,omitempty" envconfig:"sticky_events_filter_allow_sticky_events" default:"true"`
 	HMAFilterEnabledBanks                    *[]string `json:"hma_filter_enabled_banks,omitempty" envconfig:"hma_filter_enabled_banks" default:""`
+
+	// Link filter configuration.
+	// AllowList: If set, only URLs matching one of these globs are allowed. All others are spam.
+	// DenyList: If set, any URL matching one of these globs is spam. AllowList takes precedence.
+	LinkFilterAllowList *[]string `json:"link_filter_allow_list,omitempty" envconfig:"link_filter_allow_list" default:""`
+	LinkFilterDenyList  *[]string `json:"link_filter_deny_list,omitempty" envconfig:"link_filter_deny_list" default:""`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {

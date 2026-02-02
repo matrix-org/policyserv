@@ -363,6 +363,20 @@ Server-side configuration cannot be changed by communities:
   the HMA filter.
 * `PS_HMA_API_KEY` (default empty value) - The API key for your HMA instance.
 
+### Link filter
+
+The link filter allows communities to define allow-lists and deny-lists for hyperlinks. This is useful for communities
+that want to block NSFW or spam links while allowing specific domains (like GitHub or Matrix Spec), or conversely, to
+block specific known bad domains while allowing everything else.
+
+* `PS_LINK_FILTER_ALLOW_LIST` (default empty value) - CSV-formatted glob patterns for allowed URLs. If set, only links
+  matching at least one pattern are allowed. All other links are marked as spam. Example: `https://github.com/*,https://spec.matrix.org/*`
+* `PS_LINK_FILTER_DENY_LIST` (default empty value) - CSV-formatted glob patterns for denied URLs. Any link matching a
+  pattern is marked as spam. Example: `*nsfw-site.example*,*malware.example*`
+
+If both lists are configured, a URL must match the allow list AND not match the deny list to be allowed. The filter
+uses glob matching, where `*` matches any sequence of characters.
+
 ## Contributing
 
 We're always happy to accept new features and bug fixes! Please see our [contributing guide](./CONTRIBUTING.md) for more 
