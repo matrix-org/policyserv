@@ -365,17 +365,14 @@ Server-side configuration cannot be changed by communities:
 
 ### Link filter
 
-The link filter allows communities to define allow-lists and deny-lists for hyperlinks. This is useful for communities
-that want to block NSFW or spam links while allowing specific domains (like GitHub or Matrix Spec), or conversely, to
-block specific known bad domains while allowing everything else.
+Allows or denies HTTP(S) links contained in events.
 
-* `PS_LINK_FILTER_ALLOW_LIST` (default empty value) - CSV-formatted glob patterns for allowed URLs. If set, only links
+* `PS_LINK_FILTER_ALLOWED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for allowed URLs. If set, only links
   matching at least one pattern are allowed. All other links are marked as spam. Example: `https://github.com/*,https://spec.matrix.org/*`
-* `PS_LINK_FILTER_DENY_LIST` (default empty value) - CSV-formatted glob patterns for denied URLs. Any link matching a
+* `PS_LINK_FILTER_DENIED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for denied URLs. Any link matching a
   pattern is marked as spam. Example: `*nsfw-site.example*,*malware.example*`
 
-If both lists are configured, a URL must match the allow list AND not match the deny list to be allowed. The filter
-uses glob matching, where `*` matches any sequence of characters.
+If both lists are configured, deny wins - a URL matching the deny list is blocked even if it matches the allow list. The filter uses glob matching, where `*` matches any sequence of characters.
 
 ## Contributing
 

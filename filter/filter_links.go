@@ -20,24 +20,23 @@ func init() {
 
 // LinkFilter is a filter that checks for URLs in the event content.
 // It can be configured with an allow list and/or a deny list.
+//   - If a DenyList is specified, any URL matching the deny list is flagged as spam (deny wins).
 //   - If an AllowList is specified, any URL NOT matching the allow list is flagged as spam.
-//   - If a DenyList is specified, any URL matching the deny list is flagged as spam.
-//   - If both are specified, a URL is allowed if it matches the AllowList AND does not match the DenyList.
-//     In practice, the AllowList check happens first; if a URL passes, it is then checked against the DenyList.
+//   - Deny list takes priority over allow list.
 type LinkFilter struct{}
 
 func (l *LinkFilter) MakeFor(set *Set) (Instanced, error) {
 	return &InstancedLinkFilter{
-		set:       set,
-		allowList: internal.Dereference(set.communityConfig.LinkFilterAllowList),
-		denyList:  internal.Dereference(set.communityConfig.LinkFilterDenyList),
+		set:             set,
+		allowedUrlGlobs: internal.Dereference(set.communityConfig.LinkFilterAllowedUrlGlobs),
+		deniedUrlGlobs:  internal.Dereference(set.communityConfig.LinkFilterDeniedUrlGlobs),
 	}, nil
 }
 
 type InstancedLinkFilter struct {
-	set       *Set
-	allowList []string
-	denyList  []string
+	set             *Set
+	allowedUrlGlobs []string
+	deniedUrlGlobs  []string
 }
 
 func (f *InstancedLinkFilter) Name() string {
@@ -46,7 +45,7 @@ func (f *InstancedLinkFilter) Name() string {
 
 func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
 	// If neither list is configured, this filter has no opinion.
-	if len(f.allowList) == 0 && len(f.denyList) == 0 {
+	if len(f.allowedUrlGlobs) == 0 && len(f.deniedUrlGlobs) == 0 {
 		return nil, nil
 	}
 
@@ -60,7 +59,7 @@ func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *Input) ([]c
 	}
 
 	for _, url := range urls {
-		if !f.isURLAllowed(url) {
+		if !f.isUrlAllowed(url) {
 			return []classification.Classification{classification.Spam}, nil
 		}
 	}
@@ -68,29 +67,24 @@ func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *Input) ([]c
 	return nil, nil
 }
 
-// isURLAllowed checks if a URL is allowed based on the configured allow and deny lists.
-func (f *InstancedLinkFilter) isURLAllowed(url string) bool {
-	// If an allow list is configured, the URL must match at least one pattern.
-	if len(f.allowList) > 0 {
-		matched := false
-		for _, pattern := range f.allowList {
-			if glob.Glob(pattern, url) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false // URL does not match allow list.
+// isUrlAllowed checks if a URL is allowed based on the configured allow and deny lists.
+// Deny list takes priority (deny wins).
+func (f *InstancedLinkFilter) isUrlAllowed(url string) bool {
+	// Check deny list first - deny wins.
+	for _, pattern := range f.deniedUrlGlobs {
+		if glob.Glob(pattern, url) {
+			return false // URL matches deny list.
 		}
 	}
 
-	// If a deny list is configured, the URL must NOT match any pattern.
-	if len(f.denyList) > 0 {
-		for _, pattern := range f.denyList {
+	// If an allow list is configured, the URL must match at least one pattern.
+	if len(f.allowedUrlGlobs) > 0 {
+		for _, pattern := range f.allowedUrlGlobs {
 			if glob.Glob(pattern, url) {
-				return false // URL matches deny list.
+				return true // URL matches allow list.
 			}
 		}
+		return false // URL does not match allow list.
 	}
 
 	return true

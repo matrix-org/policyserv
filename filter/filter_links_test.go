@@ -4,201 +4,202 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestLinkFilter_NoListsConfigured(t *testing.T) {
-	f := &InstancedLinkFilter{
-		allowList: []string{},
-		denyList:  []string{},
-	}
+func TestLinkFilter(t *testing.T) {
+	t.Parallel()
 
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test1",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			LinkFilterAllowedUrlGlobs: &[]string{"https://github.com/*", "https://spec.matrix.org/*"},
+			LinkFilterDeniedUrlGlobs:  &[]string{"https://github.com/banned-user/*"},
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{LinkFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	// Event with allowed URL
+	allowedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$allowed1",
+		RoomId:  "!foo:example.org",
 		Sender:  "@user:example.org",
+		Type:    "m.room.message",
 		Content: map[string]any{
-			"body":    "Check this out: https://example.com/page",
 			"msgtype": "m.text",
+			"body":    "Check this out: https://github.com/matrix-org/policyserv",
 		},
 	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Nil(t, result, "No lists configured, filter should have no opinion")
-}
 
-func TestLinkFilter_NoLinks(t *testing.T) {
-	f := &InstancedLinkFilter{
-		allowList: []string{"https://github.com/*"},
-		denyList:  []string{},
-	}
-
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test2",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
+	// Event with denied URL (banned user repo, even though github.com is allowed)
+	deniedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$denied1",
+		RoomId:  "!foo:example.org",
 		Sender:  "@user:example.org",
+		Type:    "m.room.message",
 		Content: map[string]any{
-			"body":    "Hello world, no links here!",
 			"msgtype": "m.text",
-		},
-	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Nil(t, result, "No links in message, filter should have no opinion")
-}
-
-func TestLinkFilter_AllowList_Match(t *testing.T) {
-	f := &InstancedLinkFilter{
-		allowList: []string{"https://github.com/*", "https://spec.matrix.org/*"},
-		denyList:  []string{},
-	}
-
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test3",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
-		Sender:  "@user:example.org",
-		Content: map[string]any{
-			"body":    "Issue: https://github.com/matrix-org/policyserv/issues/123",
-			"msgtype": "m.text",
-		},
-	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Nil(t, result, "Link matches allow list, should be allowed")
-}
-
-func TestLinkFilter_AllowList_NoMatch(t *testing.T) {
-	f := &InstancedLinkFilter{
-		allowList: []string{"https://github.com/*"},
-		denyList:  []string{},
-	}
-
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test4",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
-		Sender:  "@user:example.org",
-		Content: map[string]any{
-			"body":    "See: https://nsfw-site.example/bad-stuff",
-			"msgtype": "m.text",
-		},
-	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Equal(t, []classification.Classification{classification.Spam}, result, "Link does not match allow list, should be spam")
-}
-
-func TestLinkFilter_DenyList_Match(t *testing.T) {
-	f := &InstancedLinkFilter{
-		allowList: []string{},
-		denyList:  []string{"*nsfw-site.example*"},
-	}
-
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test5",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
-		Sender:  "@user:example.org",
-		Content: map[string]any{
-			"body":    "Check this: https://nsfw-site.example/path",
-			"msgtype": "m.text",
-		},
-	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Equal(t, []classification.Classification{classification.Spam}, result, "Link matches deny list, should be spam")
-}
-
-func TestLinkFilter_DenyList_NoMatch(t *testing.T) {
-	f := &InstancedLinkFilter{
-		allowList: []string{},
-		denyList:  []string{"*nsfw-site.example*"},
-	}
-
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test6",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
-		Sender:  "@user:example.org",
-		Content: map[string]any{
-			"body":    "Good site: https://example.org/page",
-			"msgtype": "m.text",
-		},
-	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Nil(t, result, "Link does not match deny list, should be allowed")
-}
-
-func TestLinkFilter_BothLists_AllowAndDeny(t *testing.T) {
-	// Scenario: AllowList permits github, but DenyList bans a specific subdirectory.
-	f := &InstancedLinkFilter{
-		allowList: []string{"https://github.com/*"},
-		denyList:  []string{"https://github.com/banned-user/*"},
-	}
-
-	// Allowed
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test7a",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
-		Sender:  "@user:example.org",
-		Content: map[string]any{
-			"body":    "https://github.com/matrix-org/policyserv",
-			"msgtype": "m.text",
-		},
-	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Nil(t, result, "Link matches allow list and not deny list, should be allowed")
-
-	// Denied
-	event = test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test7b",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
-		Sender:  "@user:example.org",
-		Content: map[string]any{
 			"body":    "https://github.com/banned-user/repo",
-			"msgtype": "m.text",
 		},
 	})
-	input = &Input{Event: event}
-	result, err = f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Equal(t, []classification.Classification{classification.Spam}, result, "Link matches deny list, should be spam")
-}
 
-func TestLinkFilter_MultipleLinks_OneBad(t *testing.T) {
-	f := &InstancedLinkFilter{
-		allowList: []string{"https://github.com/*"},
-		denyList:  []string{},
+	// Event with URL not on allow list
+	notAllowedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$notallowed1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "See: https://nsfw-site.example/bad-stuff",
+		},
+	})
+
+	// Event with no URLs
+	noUrlEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$nourl1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "Hello world, no links here!",
+		},
+	})
+
+	// Event with multiple URLs (one good, one bad)
+	mixedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$mixed1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "Good: https://github.com/foo Bad: https://evil.com/path",
+		},
+	})
+
+	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
+		vecs, err := set.CheckEvent(context.Background(), event, nil)
+		assert.NoError(t, err)
+		if isSpam {
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
+			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+		}
 	}
 
+	assertSpamVector(allowedEvent, false)
+	assertSpamVector(deniedEvent, true) // deny wins over allow
+	assertSpamVector(notAllowedEvent, true)
+	assertSpamVector(noUrlEvent, false)
+	assertSpamVector(mixedEvent, true) // one bad URL = spam
+}
+
+func TestLinkFilterDenyWins(t *testing.T) {
+	t.Parallel()
+
+	// This test specifically verifies that deny list takes priority over allow list
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			LinkFilterAllowedUrlGlobs: &[]string{"https://example.com/*"},
+			LinkFilterDeniedUrlGlobs:  &[]string{"https://example.com/blocked*"},
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{LinkFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	// URL matches both allow and deny - deny should win
 	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$test8",
-		RoomId:  "!test:example.org",
-		Type:    "m.room.message",
+		EventId: "$denywins1",
+		RoomId:  "!foo:example.org",
 		Sender:  "@user:example.org",
+		Type:    "m.room.message",
 		Content: map[string]any{
-			"body":    "Good: https://github.com/foo Bad: https://evil.com/path",
 			"msgtype": "m.text",
+			"body":    "https://example.com/blocked-page",
 		},
 	})
-	input := &Input{Event: event}
-	result, err := f.CheckEvent(context.Background(), input)
-	require.NoError(t, err)
-	require.Equal(t, []classification.Classification{classification.Spam}, result, "One link is not on allow list, should be spam")
+
+	vecs, err := set.CheckEvent(context.Background(), event, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam), "Deny list should take priority over allow list")
+}
+
+func TestLinkFilterDenyListOnly(t *testing.T) {
+	t.Parallel()
+
+	// Test with only deny list configured
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			LinkFilterDeniedUrlGlobs: &[]string{"*nsfw-site.example*"},
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{LinkFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	deniedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$denied1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "https://nsfw-site.example/path",
+		},
+	})
+
+	allowedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$allowed1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "https://example.org/page",
+		},
+	})
+
+	vecs, err := set.CheckEvent(context.Background(), deniedEvent, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+
+	vecs, err = set.CheckEvent(context.Background(), allowedEvent, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
 }

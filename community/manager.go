@@ -145,7 +145,7 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 	if !internal.Dereference(communityConfig.StickyEventsFilterAllowStickyEvents) {
 		filters = append(filters, filter.StickyEventsFilterName)
 	}
-	if len(internal.Dereference(communityConfig.LinkFilterAllowList)) > 0 || len(internal.Dereference(communityConfig.LinkFilterDenyList)) > 0 {
+	if len(internal.Dereference(communityConfig.LinkFilterAllowedUrlGlobs)) > 0 || len(internal.Dereference(communityConfig.LinkFilterDeniedUrlGlobs)) > 0 {
 		filters = append(filters, filter.LinkFilterName)
 	}
 	var scanner content.Scanner

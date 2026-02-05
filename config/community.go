@@ -42,10 +42,10 @@ type CommunityConfig struct {
 	HMAFilterEnabledBanks                    *[]string `json:"hma_filter_enabled_banks,omitempty" envconfig:"hma_filter_enabled_banks" default:""`
 
 	// Link filter configuration.
-	// AllowList: If set, only URLs matching one of these globs are allowed. All others are spam.
-	// DenyList: If set, any URL matching one of these globs is spam. AllowList takes precedence.
-	LinkFilterAllowList *[]string `json:"link_filter_allow_list,omitempty" envconfig:"link_filter_allow_list" default:""`
-	LinkFilterDenyList  *[]string `json:"link_filter_deny_list,omitempty" envconfig:"link_filter_deny_list" default:""`
+	// AllowedUrlGlobs: If set, only URLs matching one of these globs are allowed. All others are spam.
+	// DeniedUrlGlobs: If set, any URL matching one of these globs is spam. Deny list takes precedence.
+	LinkFilterAllowedUrlGlobs *[]string `json:"link_filter_allowed_url_globs,omitempty" envconfig:"link_filter_allowed_url_globs" default:""`
+	LinkFilterDeniedUrlGlobs  *[]string `json:"link_filter_denied_url_globs,omitempty" envconfig:"link_filter_denied_url_globs" default:""`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {
