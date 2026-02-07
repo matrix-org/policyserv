@@ -363,6 +363,17 @@ Server-side configuration cannot be changed by communities:
   the HMA filter.
 * `PS_HMA_API_KEY` (default empty value) - The API key for your HMA instance.
 
+### Link filter
+
+Allows or denies HTTP(S) links contained in events.
+
+* `PS_LINK_FILTER_ALLOWED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for allowed URLs. If set, only links
+  matching at least one pattern are allowed. All other links are marked as spam. Example: `https://allowed.example.org/*`
+* `PS_LINK_FILTER_DENIED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for denied URLs. Any link matching a
+  pattern is marked as spam. Example: `https://denied.example.org/*`
+
+If both lists are configured, deny wins - a URL matching the deny list is blocked even if it matches the allow list. The filter uses glob matching, where `*` matches any sequence of characters.
+
 ## Contributing
 
 We're always happy to accept new features and bug fixes! Please see our [contributing guide](./CONTRIBUTING.md) for more 
