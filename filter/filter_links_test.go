@@ -16,8 +16,8 @@ func TestLinkFilter(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			LinkFilterAllowedUrlGlobs: &[]string{"https://github.com/*", "https://spec.matrix.org/*"},
-			LinkFilterDeniedUrlGlobs:  &[]string{"https://github.com/banned-user/*"},
+			LinkFilterAllowedUrlGlobs: &[]string{"https://allowed.example.org/*", "https://also-allowed.example.org/*"},
+			LinkFilterDeniedUrlGlobs:  &[]string{"https://allowed.example.org/blocked/*"},
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{LinkFilterName},
@@ -33,7 +33,6 @@ func TestLinkFilter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
-	// Event with allowed URL
 	allowedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$allowed1",
 		RoomId:  "!foo:example.org",
@@ -41,11 +40,10 @@ func TestLinkFilter(t *testing.T) {
 		Type:    "m.room.message",
 		Content: map[string]any{
 			"msgtype": "m.text",
-			"body":    "Check this out: https://github.com/matrix-org/policyserv",
+			"body":    "Check this out: https://allowed.example.org/page",
 		},
 	})
 
-	// Event with denied URL (banned user repo, even though github.com is allowed)
 	deniedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$denied1",
 		RoomId:  "!foo:example.org",
@@ -53,11 +51,10 @@ func TestLinkFilter(t *testing.T) {
 		Type:    "m.room.message",
 		Content: map[string]any{
 			"msgtype": "m.text",
-			"body":    "https://github.com/banned-user/repo",
+			"body":    "https://allowed.example.org/blocked/page",
 		},
 	})
 
-	// Event with URL not on allow list
 	notAllowedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$notallowed1",
 		RoomId:  "!foo:example.org",
@@ -65,11 +62,10 @@ func TestLinkFilter(t *testing.T) {
 		Type:    "m.room.message",
 		Content: map[string]any{
 			"msgtype": "m.text",
-			"body":    "See: https://nsfw-site.example/bad-stuff",
+			"body":    "See: https://other.example.org/page",
 		},
 	})
 
-	// Event with no URLs
 	noUrlEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$nourl1",
 		RoomId:  "!foo:example.org",
@@ -81,7 +77,6 @@ func TestLinkFilter(t *testing.T) {
 		},
 	})
 
-	// Event with multiple URLs (one good, one bad)
 	mixedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$mixed1",
 		RoomId:  "!foo:example.org",
@@ -89,7 +84,7 @@ func TestLinkFilter(t *testing.T) {
 		Type:    "m.room.message",
 		Content: map[string]any{
 			"msgtype": "m.text",
-			"body":    "Good: https://github.com/foo Bad: https://evil.com/path",
+			"body":    "https://allowed.example.org/ok is allowed but https://other.example.org/path is not allowed",
 		},
 	})
 
@@ -99,7 +94,6 @@ func TestLinkFilter(t *testing.T) {
 		if isSpam {
 			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
 		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
 			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
 		}
 	}
@@ -108,47 +102,7 @@ func TestLinkFilter(t *testing.T) {
 	assertSpamVector(deniedEvent, true) // deny wins over allow
 	assertSpamVector(notAllowedEvent, true)
 	assertSpamVector(noUrlEvent, false)
-	assertSpamVector(mixedEvent, true) // one bad URL = spam
-}
-
-func TestLinkFilterDenyWins(t *testing.T) {
-	t.Parallel()
-
-	// This test specifically verifies that deny list takes priority over allow list
-	cnf := &SetConfig{
-		CommunityConfig: &config.CommunityConfig{
-			LinkFilterAllowedUrlGlobs: &[]string{"https://example.com/*"},
-			LinkFilterDeniedUrlGlobs:  &[]string{"https://example.com/blocked*"},
-		},
-		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{LinkFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
-		}},
-	}
-	memStorage := test.NewMemoryStorage(t)
-	defer memStorage.Close()
-	ps := test.NewMemoryPubsub(t)
-	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, set)
-
-	// URL matches both allow and deny - deny should win
-	event := test.MustMakePDU(&test.BaseClientEvent{
-		EventId: "$denywins1",
-		RoomId:  "!foo:example.org",
-		Sender:  "@user:example.org",
-		Type:    "m.room.message",
-		Content: map[string]any{
-			"msgtype": "m.text",
-			"body":    "https://example.com/blocked-page",
-		},
-	})
-
-	vecs, err := set.CheckEvent(context.Background(), event, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam), "Deny list should take priority over allow list")
+	assertSpamVector(mixedEvent, true) //contains a default-denied URL.
 }
 
 func TestLinkFilterDenyListOnly(t *testing.T) {
@@ -157,7 +111,7 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 	// Test with only deny list configured
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			LinkFilterDeniedUrlGlobs: &[]string{"*nsfw-site.example*"},
+			LinkFilterDeniedUrlGlobs: &[]string{"*denied.example.org/path*"},
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{LinkFilterName},
@@ -180,7 +134,7 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 		Type:    "m.room.message",
 		Content: map[string]any{
 			"msgtype": "m.text",
-			"body":    "https://nsfw-site.example/path",
+			"body":    "http://denied.example.org/path",  // we're using http instead of https intentionally to ensure we pick up the scheme
 		},
 	})
 
@@ -191,7 +145,7 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 		Type:    "m.room.message",
 		Content: map[string]any{
 			"msgtype": "m.text",
-			"body":    "https://example.org/page",
+			"body":    "https://denied.example.org/another/page",
 		},
 	})
 

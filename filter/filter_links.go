@@ -11,7 +11,6 @@ import (
 
 const LinkFilterName = "LinkFilter"
 
-// urlRegex is a regex to detect URLs in text. It looks for http:// or https:// followed by non-whitespace characters.
 var urlRegex = regexp.MustCompile(`https?://[^\s"<>\x60]+`)
 
 func init() {
@@ -19,10 +18,7 @@ func init() {
 }
 
 // LinkFilter is a filter that checks for URLs in the event content.
-// It can be configured with an allow list and/or a deny list.
-//   - If a DenyList is specified, any URL matching the deny list is flagged as spam (deny wins).
-//   - If an AllowList is specified, any URL NOT matching the allow list is flagged as spam.
-//   - Deny list takes priority over allow list.
+// It's configured with a deny list and an allow list. Matches against the deny list win.
 type LinkFilter struct{}
 
 func (l *LinkFilter) MakeFor(set *Set) (Instanced, error) {
@@ -44,16 +40,13 @@ func (f *InstancedLinkFilter) Name() string {
 }
 
 func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
-	// If neither list is configured, this filter has no opinion.
 	if len(f.allowedUrlGlobs) == 0 && len(f.deniedUrlGlobs) == 0 {
 		return nil, nil
 	}
 
-	// Scan event content for URLs.
 	content := string(input.Event.Content())
 	urls := urlRegex.FindAllString(content, -1)
 
-	// No URLs found, so nothing to check.
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -67,24 +60,20 @@ func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *Input) ([]c
 	return nil, nil
 }
 
-// isUrlAllowed checks if a URL is allowed based on the configured allow and deny lists.
-// Deny list takes priority (deny wins).
 func (f *InstancedLinkFilter) isUrlAllowed(url string) bool {
-	// Check deny list first - deny wins.
 	for _, pattern := range f.deniedUrlGlobs {
 		if glob.Glob(pattern, url) {
-			return false // URL matches deny list.
+			return false
 		}
 	}
 
-	// If an allow list is configured, the URL must match at least one pattern.
 	if len(f.allowedUrlGlobs) > 0 {
 		for _, pattern := range f.allowedUrlGlobs {
 			if glob.Glob(pattern, url) {
-				return true // URL matches allow list.
+				return true
 			}
 		}
-		return false // URL does not match allow list.
+		return false
 	}
 
 	return true

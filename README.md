@@ -368,9 +368,9 @@ Server-side configuration cannot be changed by communities:
 Allows or denies HTTP(S) links contained in events.
 
 * `PS_LINK_FILTER_ALLOWED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for allowed URLs. If set, only links
-  matching at least one pattern are allowed. All other links are marked as spam. Example: `https://github.com/*,https://spec.matrix.org/*`
+  matching at least one pattern are allowed. All other links are marked as spam. Example: `https://allowed.example.org/*`
 * `PS_LINK_FILTER_DENIED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for denied URLs. Any link matching a
-  pattern is marked as spam. Example: `*nsfw-site.example*,*malware.example*`
+  pattern is marked as spam. Example: `https://denied.example.org/*`
 
 If both lists are configured, deny wins - a URL matching the deny list is blocked even if it matches the allow list. The filter uses glob matching, where `*` matches any sequence of characters.
 
