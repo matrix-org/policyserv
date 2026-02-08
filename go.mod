@@ -18,7 +18,6 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/t2bot/go-matrix-signing-key v0.0.0-20250823034611-5de5f6ca0042
 	github.com/t2bot/go-typed-singleflight v0.0.3
-	golang.org/x/crypto v0.47.0
 	golang.org/x/sync v0.19.0
 )
 
@@ -47,6 +46,7 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect

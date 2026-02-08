@@ -153,6 +153,9 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 			return nil, fmt.Errorf("failed to create HMA scanner: %w", err)
 		}
 	}
+	if communityConfig.UnsafeSigningKeyFilterEnabled {
+		prefilters = append(prefilters, filter.UnsafeSigningKeyFilterName)
+	}
 	setConfig := &filter.SetConfig{
 		CommunityConfig: communityConfig,
 		CommunityId:     communityId,

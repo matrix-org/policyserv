@@ -40,6 +40,7 @@ type CommunityConfig struct {
 	OpenAIFilterFailSecure                   *bool     `json:"openai_filter_fail_secure,omitempty" envconfig:"openai_filter_fail_secure" default:"true"`
 	StickyEventsFilterAllowStickyEvents      *bool     `json:"sticky_events_filter_allow_sticky_events,omitempty" envconfig:"sticky_events_filter_allow_sticky_events" default:"true"`
 	HMAFilterEnabledBanks                    *[]string `json:"hma_filter_enabled_banks,omitempty" envconfig:"hma_filter_enabled_banks" default:""`
+	UnsafeSigningKeyFilterEnabled            bool     `json:"unsafe_signing_key_filter_enabled,omitempty" envconfig:"unsafe_signing_key_filter_enabled" default:"true"`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {
