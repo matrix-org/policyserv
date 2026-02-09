@@ -9,6 +9,7 @@ import (
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 )
 
 func TestLinkFilter(t *testing.T) {
@@ -109,6 +110,24 @@ func TestLinkFilter(t *testing.T) {
 	assertSpamVector(notAllowedEvent, true)
 	assertSpamVector(noUrlEvent, false)
 	assertSpamVector(mixedEvent, true) //contains a default-denied URL.
+
+	// Also test the text filter implementation
+	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
+		body := gjson.Get(string(event.Content()), "body").String()
+		vecs, err := set.CheckText(context.Background(), body)
+		assert.NoError(t, err)
+		if isSpam {
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
+			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+		}
+	}
+	assertTextSpamVector(allowedEvent, false)
+	assertTextSpamVector(deniedEvent, true) // deny wins over allow
+	assertTextSpamVector(notAllowedEvent, true)
+	assertTextSpamVector(noUrlEvent, false)
+	assertTextSpamVector(mixedEvent, true) //contains a default-denied URL.
 }
 
 func TestLinkFilterDenyListOnly(t *testing.T) {
@@ -160,6 +179,18 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
 
 	vecs, err = set.CheckEvent(context.Background(), allowedEvent, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+
+	// Also test the text filter implementation
+
+	body := gjson.Get(string(deniedEvent.Content()), "body").String()
+	vecs, err = set.CheckText(context.Background(), body)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+
+	body = gjson.Get(string(allowedEvent.Content()), "body").String()
+	vecs, err = set.CheckText(context.Background(), body)
 	assert.NoError(t, err)
 	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
 }
