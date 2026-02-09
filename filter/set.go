@@ -97,8 +97,8 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 		if mediaDownloader != nil {
 			// Extract media items from event, if possible.
 			// TODO: In future, we'll also want to capture custom emoji and similar
-			content := &mediaUrlsOnly{}
-			err = json.Unmarshal(input.Event.Content(), &content)
+			eventContent := &mediaUrlsOnly{}
+			err = json.Unmarshal(input.Event.Content(), &eventContent)
 			if err != nil {
 				// Probably not a string
 				return nil, err
@@ -114,8 +114,8 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 				log.Printf("[%s | %s] Discovered media on event: %s", event.EventID(), event.RoomID().String(), m)
 				input.Medias = append(input.Medias, m)
 			}
-			tryAppendMedia(content.Url)
-			tryAppendMedia(content.Info.ThumbnailUrl)
+			tryAppendMedia(eventContent.Url)
+			tryAppendMedia(eventContent.Info.ThumbnailUrl)
 		} else {
 			log.Printf("[%s | %s] Skipping media extraction as mediaDownloader is nil", event.EventID(), event.RoomID().String())
 		}
@@ -124,14 +124,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 		if err != nil {
 			return nil, errors.Join(fmt.Errorf("error at group %d", i), err)
 		}
-		for cls, val := range v {
-			// If we've already flagged an event as spam, don't allow that to be un-flagged.
-			// Note: we compare using .String() because it returns the uninverted value, if inverted.
-			if cls.String() == classification.Spam.String() && vecs.GetVector(classification.Spam) > 0.5 { // 0.5 to escape the seed value
-				continue
-			}
-			vecs.SetVector(cls, val) // overwrite rather than average
-		}
+		vecs = s.combineVectors(vecs, v)
 
 		auditCtx.AppendSetGroupVectors(v)
 	}
@@ -144,6 +137,33 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 		}
 	}(auditCtx, s)
 	return vecs, nil
+}
+
+func (s *Set) CheckText(ctx context.Context, text string) (confidence.Vectors, error) {
+	log.Printf("[CheckText | %s] Checking text", s.communityId)
+	vecs := confidence.NewConfidenceVectors()
+	vecs.SetVector(classification.Spam, 0.5) // per docs elsewhere, start by assuming 50% likelihood of spam
+	// TODO: Audit context/webhooks
+	for i, group := range s.groups {
+		v, err := group.checkText(ctx, vecs, text)
+		if err != nil {
+			return nil, errors.Join(fmt.Errorf("error at group %d", i), err)
+		}
+		vecs = s.combineVectors(vecs, v)
+	}
+	return vecs, nil
+}
+
+func (s *Set) combineVectors(incremental confidence.Vectors, group confidence.Vectors) confidence.Vectors {
+	for cls, val := range group {
+		// If we've already flagged some content as spam, don't allow that to be un-flagged.
+		// Note: we compare using .String() because it returns the uninverted value, if inverted.
+		if cls.String() == classification.Spam.String() && incremental.GetVector(classification.Spam) > 0.5 { // 0.5 to escape the seed value
+			continue
+		}
+		incremental.SetVector(cls, val) // overwrite rather than average
+	}
+	return incremental
 }
 
 func (s *Set) IsSpamResponse(ctx context.Context, vecs confidence.Vectors) bool {

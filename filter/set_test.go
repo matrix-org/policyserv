@@ -211,6 +211,104 @@ func TestCheckEventWithErrorInGroup(t *testing.T) {
 	assert.Nil(t, vecs)
 }
 
+func TestSetCheckText(t *testing.T) {
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{},
+		// We want to ensure we call *all* groups, so specify 2 to call
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{FixedFilterName},
+			MinimumSpamVectorValue: 0,
+			MaximumSpamVectorValue: 1,
+		}, {
+			EnabledNames:           []string{FixedFilterName},
+			MinimumSpamVectorValue: 0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	// Set up the fixed filters for testing
+	f1 := set.groups[0].filters[0].(*FixedInstancedFilter)
+	f1.T = t
+	f2 := set.groups[1].filters[0].(*FixedInstancedFilter)
+	f2.T = t
+
+	// Set our expectations and return values
+	// Note: internally, sets start with a 0.5 spam vector, so things get divided by 3 rather than 2
+	f1.ExpectText = "Hello world"
+	f2.ExpectText = "Hello world"
+	f1.ReturnClasses = []classification.Classification{
+		classification.Spam,
+		classification.Mentions,
+	}
+	f2.ReturnClasses = []classification.Classification{
+		classification.Spam.Invert(),
+		classification.Volumetric,
+	}
+
+	vecs, err := set.CheckText(context.Background(), "Hello world")
+	assert.NoError(t, err)
+	assert.NotNil(t, vecs)
+	assert.Equal(t, confidence.Vectors{
+		classification.Spam:       1.0,
+		classification.Mentions:   1.0,
+		classification.Volumetric: 1.0,
+	}, vecs)
+}
+
+func TestSetCheckTextWithErrorInGroup(t *testing.T) {
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{FixedFilterName},
+			MinimumSpamVectorValue: 0,
+			MaximumSpamVectorValue: 1,
+		}, {
+			EnabledNames:           []string{FixedFilterName},
+			MinimumSpamVectorValue: 0,
+			MaximumSpamVectorValue: 1.0,
+		}, {
+			EnabledNames:           []string{FixedFilterName},
+			MinimumSpamVectorValue: 0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	for i, group := range set.groups {
+		for _, f := range group.filters {
+			ff := f.(*FixedInstancedFilter)
+			ff.T = t
+			ff.ReturnClasses = []classification.Classification{classification.Spam}
+			if i > 1 {
+				ff.ReturnErr = errors.New("should never happen")
+				ff.ExpectText = "if you see this in the test output, it broke"
+			} else {
+				ff.ExpectText = "Hello world"
+			}
+		}
+	}
+	errorFilter := set.groups[1].filters[0].(*FixedInstancedFilter)
+	errorFilter.ReturnErr = errors.New("error within filter group")
+	errorFilter.ReturnClasses = nil
+
+	vecs, err := set.CheckText(context.Background(), "Hello world")
+	assert.ErrorContains(t, err, "error at group 1")
+	assert.Nil(t, vecs)
+}
+
 func TestSetSpamThreshold(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
