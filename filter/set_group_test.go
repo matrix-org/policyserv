@@ -22,7 +22,7 @@ func TestSetGroupCheck(t *testing.T) {
 	auditCtx, err := newAuditContext(&config.InstanceConfig{}, event, "")
 	assert.NoError(t, err)
 	assert.NotNil(t, auditCtx)
-	input := &Input{
+	input := &EventInput{
 		Event:                        event,
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
 		auditContext:                 auditCtx,

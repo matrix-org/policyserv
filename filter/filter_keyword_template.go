@@ -63,7 +63,7 @@ func (f *InstancedKeywordTemplateFilter) Name() string {
 	return KeywordTemplateFilterName
 }
 
-func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	if input.Event.Type() != "m.room.message" {
 		// no-op and return the same vectors
 		return nil, nil

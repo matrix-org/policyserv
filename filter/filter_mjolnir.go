@@ -31,7 +31,7 @@ func (f *InstancedMjolnirFilter) Name() string {
 	return MjolnirFilterName
 }
 
-func (f *InstancedMjolnirFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedMjolnirFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	// Return early on non-message events
 	if input.Event.Type() != "m.room.message" {
 		return nil, nil

@@ -32,7 +32,7 @@ func (f *InstancedLengthFilter) Name() string {
 	return LengthFilterName
 }
 
-func (f *InstancedLengthFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedLengthFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	if input.Event.Type() != "m.room.message" {
 		// not an event we're interested in
 		return nil, nil

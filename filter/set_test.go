@@ -120,14 +120,14 @@ func TestSetCheckEvent(t *testing.T) {
 		Type:    "m.room.message",
 		Content: make(map[string]any),
 	})
-	f1.Expect = &Input{Event: event, Medias: make([]*media.Item, 0), IncrementalConfidenceVectors: confidence.Vectors{
+	f1.Expect = &EventInput{Event: event, Medias: make([]*media.Item, 0), IncrementalConfidenceVectors: confidence.Vectors{
 		classification.Spam: 0.5,
 	}}
 	f1.ReturnClasses = []classification.Classification{
 		classification.Spam,
 		classification.Mentions,
 	}
-	f2.Expect = &Input{Event: event, Medias: make([]*media.Item, 0), IncrementalConfidenceVectors: confidence.Vectors{
+	f2.Expect = &EventInput{Event: event, Medias: make([]*media.Item, 0), IncrementalConfidenceVectors: confidence.Vectors{
 		classification.Spam:     1.0,
 		classification.Mentions: 1.0,
 	}}
@@ -177,7 +177,7 @@ func TestCheckEventWithErrorInGroup(t *testing.T) {
 		Type:    "m.room.message",
 		Content: make(map[string]any),
 	})
-	inputs := []*Input{
+	inputs := []*EventInput{
 		{
 			Event:  event,
 			Medias: make([]*media.Item, 0),
@@ -316,7 +316,7 @@ func TestCallsWebhook(t *testing.T) {
 		fixedFilter := set.groups[i].filters[0].(*FixedInstancedFilter)
 		fixedFilter.T = t
 		fixedFilter.Set = set
-		fixedFilter.Expect = &Input{
+		fixedFilter.Expect = &EventInput{
 			Event:                        event,
 			Medias:                       make([]*media.Item, 0),
 			IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
@@ -392,7 +392,7 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 	fixedFilter := set.groups[0].filters[0].(*FixedInstancedFilter)
 	fixedFilter.T = t
 	fixedFilter.Set = set
-	fixedFilter.Expect = &Input{
+	fixedFilter.Expect = &EventInput{
 		Event:                        event,
 		Medias:                       make([]*media.Item, 0),
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
@@ -455,7 +455,7 @@ func TestExtractsMedia(t *testing.T) {
 	fixedFilter := set.groups[0].filters[0].(*FixedInstancedFilter)
 	fixedFilter.T = t
 	fixedFilter.Set = set
-	fixedFilter.Expect = &Input{
+	fixedFilter.Expect = &EventInput{
 		Event:                        event,
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
 		Medias: []*media.Item{
@@ -476,7 +476,7 @@ func TestExtractsMedia(t *testing.T) {
 	assert.NotNil(t, res)
 
 	// Now test that there are no media items extracted when no downloader is supplied.
-	fixedFilter.Expect = &Input{
+	fixedFilter.Expect = &EventInput{
 		Event:                        event,
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
 		Medias:                       make([]*media.Item, 0),

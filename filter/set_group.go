@@ -31,7 +31,7 @@ type setGroup struct {
 // checkEvent - If the input's spam vector is within range, processes the event through the group's filters and returns
 // the confidence vectors of all filters combined. If the input's spam vector is out of range, returns empty confidence
 // vectors. Errors are collated into a single error. Filters are run concurrently.
-func (g *setGroup) checkEvent(ctx context.Context, input *Input) (confidence.Vectors, error) {
+func (g *setGroup) checkEvent(ctx context.Context, input *EventInput) (confidence.Vectors, error) {
 	// First, are we within range to actually process anything?
 	spamVec := input.IncrementalConfidenceVectors.GetVector(classification.Spam)
 	if spamVec < g.minSpamVectorValue || spamVec > g.maxSpamVectorValue { // don't use equality here because it'll exclude "max: 1.0" configs
@@ -50,8 +50,16 @@ func (g *setGroup) checkEvent(ctx context.Context, input *Input) (confidence.Vec
 	defer close(ch)
 
 	// Run all the filters concurrently
-	for _, filter := range g.filters {
-		go func(filter Instanced, ch chan ret, input *Input) {
+	for _, f := range g.filters {
+		go func(unknownFilter Instanced, ch chan ret, input *EventInput) {
+			filter, ok := unknownFilter.(InstancedEventFilter)
+			if !ok {
+				log.Printf("[%s | %s] Filter %T is not an InstancedEventFilter - skipping", input.Event.EventID(), input.Event.RoomID().String(), unknownFilter)
+				// we force a nil response rather than an error to ensure we simply skip it
+				ch <- ret{unknownFilter, nil, nil}
+				return
+			}
+
 			log.Printf("[%s | %s] Running filter %T", input.Event.EventID(), input.Event.RoomID().String(), filter)
 			t := metrics.StartFilterTimer(input.Event.RoomID().String(), filter.Name())
 			classifications, err := filter.CheckEvent(ctx, input)
@@ -68,7 +76,7 @@ func (g *setGroup) checkEvent(ctx context.Context, input *Input) (confidence.Vec
 				// don't return early - we want to pass all the things through at the same time
 			}
 			ch <- ret{filter, classifications, err}
-		}(filter, ch, input)
+		}(f, ch, input)
 	}
 
 	// Capture all of the results

@@ -39,7 +39,7 @@ func (f *InstancedDensityFilter) Name() string {
 	return DensityFilterName
 }
 
-func (f *InstancedDensityFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedDensityFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	eventId := input.Event.EventID()
 	roomId := input.Event.RoomID().String()
 

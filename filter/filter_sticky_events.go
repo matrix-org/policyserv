@@ -30,7 +30,7 @@ func (f *InstancedStickyEventsFilter) Name() string {
 	return StickyEventsFilterName
 }
 
-func (f *InstancedStickyEventsFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedStickyEventsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	if input.Event.IsSticky(time.Now(), time.Now()) {
 		return []classification.Classification{classification.Spam, classification.Volumetric}, nil
 	}

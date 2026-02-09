@@ -32,7 +32,7 @@ func (f *FixedCanBeInstancedFilter) MakeFor(set *Set) (Instanced, error) {
 type FixedInstancedFilter struct {
 	T             *testing.T
 	Set           *Set
-	Expect        *Input
+	Expect        *EventInput
 	ReturnClasses []classification.Classification
 	ReturnErr     error
 }
@@ -41,7 +41,7 @@ func (f *FixedInstancedFilter) Name() string {
 	return FixedFilterName
 }
 
-func (f *FixedInstancedFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *FixedInstancedFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	assert.NotNil(f.T, ctx, "context is required")
 
 	if f.Expect != nil {

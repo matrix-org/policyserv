@@ -35,7 +35,7 @@ func (f *InstancedKeywordFilter) Name() string {
 	return KeywordFilterName
 }
 
-func (f *InstancedKeywordFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedKeywordFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	toScan := string(input.Event.Content())
 	if f.useFullEvent {
 		toScan = string(input.Event.JSON())

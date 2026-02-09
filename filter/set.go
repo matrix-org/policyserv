@@ -87,7 +87,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 		return nil, err
 	}
 	for i, group := range s.groups {
-		input := &Input{
+		input := &EventInput{
 			Event:                        event,
 			IncrementalConfidenceVectors: vecs,
 			auditContext:                 auditCtx,
