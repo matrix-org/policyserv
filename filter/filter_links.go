@@ -11,6 +11,7 @@ import (
 
 const LinkFilterName = "LinkFilter"
 
+// urlRegex is a regex to detect URLs in text. It looks for http:// or https:// followed by non-whitespace characters.
 var urlRegex = regexp.MustCompile(`https?://[^\s"<>\x60]+`)
 
 func init() {
@@ -40,13 +41,16 @@ func (f *InstancedLinkFilter) Name() string {
 }
 
 func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+	// If neither list is configured, this filter has no opinion.
 	if len(f.allowedUrlGlobs) == 0 && len(f.deniedUrlGlobs) == 0 {
 		return nil, nil
 	}
 
+	// Scan event content for URLs.
 	content := string(input.Event.Content())
 	urls := urlRegex.FindAllString(content, -1)
 
+	// No URLs found, so nothing to check.
 	if len(urls) == 0 {
 		return nil, nil
 	}

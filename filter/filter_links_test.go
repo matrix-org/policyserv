@@ -33,6 +33,7 @@ func TestLinkFilter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
+	// Event with allowed URL
 	allowedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$allowed1",
 		RoomId:  "!foo:example.org",
@@ -44,6 +45,7 @@ func TestLinkFilter(t *testing.T) {
 		},
 	})
 
+	// Event with a denied URL (path is blocked)
 	deniedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$denied1",
 		RoomId:  "!foo:example.org",
@@ -55,6 +57,7 @@ func TestLinkFilter(t *testing.T) {
 		},
 	})
 
+	// Event with a URL not on the allowed list
 	notAllowedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$notallowed1",
 		RoomId:  "!foo:example.org",
@@ -66,6 +69,7 @@ func TestLinkFilter(t *testing.T) {
 		},
 	})
 
+	// Event with no URLs
 	noUrlEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$nourl1",
 		RoomId:  "!foo:example.org",
@@ -77,6 +81,7 @@ func TestLinkFilter(t *testing.T) {
 		},
 	})
 
+	// Event with some allowed and some denied URLs
 	mixedEvent := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$mixed1",
 		RoomId:  "!foo:example.org",
@@ -94,6 +99,7 @@ func TestLinkFilter(t *testing.T) {
 		if isSpam {
 			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
 		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
 			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
 		}
 	}
@@ -134,7 +140,7 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 		Type:    "m.room.message",
 		Content: map[string]any{
 			"msgtype": "m.text",
-			"body":    "http://denied.example.org/path",  // we're using http instead of https intentionally to ensure we pick up the scheme
+			"body":    "http://denied.example.org/path", // we're using http instead of https intentionally to ensure we pick up the scheme
 		},
 	})
 
