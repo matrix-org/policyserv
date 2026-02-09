@@ -31,6 +31,7 @@ func TestSetGroupCheck(t *testing.T) {
 		filters: []Instanced{&FixedInstancedFilter{
 			T:             t,
 			Expect:        input,
+			ExpectText:    "hello world",
 			ReturnClasses: []classification.Classification{classification.Spam, classification.Volumetric},
 			ReturnErr:     nil,
 		}},
@@ -58,6 +59,30 @@ func TestSetGroupCheck(t *testing.T) {
 	}
 	expectClasses := sg.filters[0].(*FixedInstancedFilter).ReturnClasses
 	// Note: we sort because the order of values is not guaranteed on our custom types.
+	slices.Sort(classes)
+	slices.Sort(expectClasses)
+	assert.Equal(t, expectClasses, classes)
+
+	// Repeat the above tests, except for checkText instead
+
+	// no-op when out of range
+	textIncrementalVectors := confidence.Vectors{classification.Spam: 0.1}
+	vecs, err = sg.checkText(context.Background(), textIncrementalVectors, "hello world")
+	assert.NoError(t, err)
+	assert.Equal(t, confidence.NewConfidenceVectors(), vecs) // no-op is to return a zero value
+	textIncrementalVectors.SetVector(classification.Spam, 0.9)
+	vecs, err = sg.checkText(context.Background(), textIncrementalVectors, "hello world")
+	assert.NoError(t, err)
+	assert.Equal(t, confidence.NewConfidenceVectors(), vecs) // no-op is to return a zero value
+
+	// does it actually work
+	textIncrementalVectors.SetVector(classification.Spam, 0.5)
+	vecs, err = sg.checkText(context.Background(), textIncrementalVectors, "hello world")
+	assert.NoError(t, err)
+	classes = make([]classification.Classification, 0)
+	for cls, _ := range vecs {
+		classes = append(classes, cls)
+	}
 	slices.Sort(classes)
 	slices.Sort(expectClasses)
 	assert.Equal(t, expectClasses, classes)
