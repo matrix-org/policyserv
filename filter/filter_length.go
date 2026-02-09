@@ -39,7 +39,11 @@ func (f *InstancedLengthFilter) CheckEvent(ctx context.Context, input *EventInpu
 	}
 
 	b := input.Event.JSON()
-	if len(b) > f.maxLength {
+	return f.CheckText(ctx, string(b))
+}
+
+func (f *InstancedLengthFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+	if len(text) > f.maxLength {
 		return []classification.Classification{
 			classification.Spam,
 			classification.Volumetric,

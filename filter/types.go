@@ -46,3 +46,12 @@ type InstancedEventFilter interface {
 	// array will be nil/empty.
 	CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error)
 }
+
+type InstancedTextFilter interface {
+	Instanced // parent type
+
+	// CheckText - Processes the given text, returning classifications about it. If an error occurred, the classifications
+	// array will be nil/empty. The input text string is assumed to be user-generated (message body, search query, etc)
+	// rather than structured (JSON, CSV, etc).
+	CheckText(ctx context.Context, input string) ([]classification.Classification, error)
+}

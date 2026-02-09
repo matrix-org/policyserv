@@ -46,8 +46,12 @@ func (f *InstancedTrimLengthFilter) CheckEvent(ctx context.Context, input *Event
 		return nil, err
 	}
 
-	beforeTrim := len(content.Body)
-	afterTrim := len(strings.TrimSpace(content.Body))
+	return f.CheckText(ctx, content.Body)
+}
+
+func (f *InstancedTrimLengthFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+	beforeTrim := len(text)
+	afterTrim := len(strings.TrimSpace(text))
 
 	if (beforeTrim - afterTrim) >= f.maxDifference {
 		return []classification.Classification{

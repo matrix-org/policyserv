@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -83,18 +84,26 @@ func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *
 		toScan = content.Body + " " + content.FormattedBody
 	}
 
+	return f.checkTextWithLogging(ctx, toScan, fmt.Sprintf("%s | %s", input.Event.EventID(), input.Event.RoomID().String()))
+}
+
+func (f *InstancedKeywordTemplateFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+	return f.checkTextWithLogging(ctx, text, "CheckText")
+}
+
+func (f *InstancedKeywordTemplateFilter) checkTextWithLogging(ctx context.Context, text string, logPrefix string) ([]classification.Classification, error) {
 	harms := make([]string, 0)
 	for _, tmpl := range f.templates {
-		log.Printf("[%s | %s] Checking template '%s'", input.Event.EventID(), input.Event.RoomID().String(), tmpl.Name)
-		returnedHarms, err := tmpl.IdentifyHarms(toScan)
+		log.Printf("[%s] Checking template '%s'", logPrefix, tmpl.Name)
+		returnedHarms, err := tmpl.IdentifyHarms(text)
 		if err != nil {
 			return nil, err
 		}
 		if len(returnedHarms) > 0 {
-			log.Printf("[%s | %s] Template '%s' matched: %v", input.Event.EventID(), input.Event.RoomID().String(), tmpl.Name, returnedHarms)
+			log.Printf("[%s] Template '%s' matched: %v", logPrefix, tmpl.Name, returnedHarms)
 			harms = append(harms, returnedHarms...)
 		} else {
-			log.Printf("[%s | %s] Template '%s' matched nothing", input.Event.EventID(), input.Event.RoomID().String(), tmpl.Name)
+			log.Printf("[%s] Template '%s' matched nothing", logPrefix, tmpl.Name)
 		}
 	}
 

@@ -34,7 +34,11 @@ func (f *InstancedManyAtsFilter) Name() string {
 }
 
 func (f *InstancedManyAtsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
-	if strings.Count(string(input.Event.Content()), "@") >= f.maxAts {
+	return f.CheckText(ctx, string(input.Event.Content()))
+}
+
+func (f *InstancedManyAtsFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+	if strings.Count(text, "@") >= f.maxAts {
 		return []classification.Classification{
 			classification.Spam,
 			classification.Mentions,
