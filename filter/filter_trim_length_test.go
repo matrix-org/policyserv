@@ -10,6 +10,7 @@ import (
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 )
 
 func TestTrimLengthFilter(t *testing.T) {
@@ -98,4 +99,25 @@ func TestTrimLengthFilter(t *testing.T) {
 	assertSpamVector(spammyEvent4, true)
 	assertSpamVector(neutralEvent1, false)
 	assertSpamVector(noopEvent1, false)
+
+	// Also test the text filter implementation
+	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
+		body := gjson.Get(string(event.Content()), "body").String()
+		vecs, err := set.CheckText(context.Background(), body)
+		assert.NoError(t, err)
+		if isSpam {
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Volumetric))
+		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
+			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+			assert.Equal(t, 0.0, vecs.GetVector(classification.Volumetric))
+		}
+	}
+	assertTextSpamVector(spammyEvent1, true)
+	assertTextSpamVector(spammyEvent2, true)
+	assertTextSpamVector(spammyEvent3, true)
+	assertTextSpamVector(spammyEvent4, true)
+	assertTextSpamVector(neutralEvent1, false)
+	//assertTextSpamVector(noopEvent1, false) // text doesn't have a concept of event types, so skip this one
 }
