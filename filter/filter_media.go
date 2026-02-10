@@ -33,7 +33,7 @@ func (f *InstancedMediaFilter) Name() string {
 	return MediaFilterName
 }
 
-func (f *InstancedMediaFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedMediaFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	// Check event type (for stickers) first
 	for _, mediaType := range f.mediaTypes {
 		if mediaType == input.Event.Type() {

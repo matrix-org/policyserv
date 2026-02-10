@@ -40,15 +40,19 @@ func (f *InstancedLinkFilter) Name() string {
 	return LinkFilterName
 }
 
-func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+	content := string(input.Event.Content())
+	return f.CheckText(ctx, content)
+}
+
+func (f *InstancedLinkFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
 	// If neither list is configured, this filter has no opinion.
 	if len(f.allowedUrlGlobs) == 0 && len(f.deniedUrlGlobs) == 0 {
 		return nil, nil
 	}
 
-	// Scan event content for URLs.
-	content := string(input.Event.Content())
-	urls := urlRegex.FindAllString(content, -1)
+	// Find all of the URLs in the text
+	urls := urlRegex.FindAllString(text, -1)
 
 	// No URLs found, so nothing to check.
 	if len(urls) == 0 {
