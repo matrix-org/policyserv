@@ -52,6 +52,7 @@ type PostgresStorage struct {
 	banRulesSelectForRoom                *sql.Stmt
 	communityUpsert                      *sql.Stmt
 	communitySelect                      *sql.Stmt
+	communitySelectByAccessToken         *sql.Stmt
 	stateLearnQueueInsert                *sql.Stmt
 	trustDataSelect                      *sql.Stmt
 	trustDataUpsert                      *sql.Stmt
@@ -133,6 +134,9 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 		return err
 	}
 	if s.communitySelect, err = s.readonlyDb.Prepare("SELECT id, name, config, api_access_token FROM communities WHERE id = $1"); err != nil {
+		return err
+	}
+	if s.communitySelectByAccessToken, err = s.readonlyDb.Prepare("SELECT id, name, config, api_access_token FROM communities WHERE api_access_token = $1;"); err != nil {
 		return err
 	}
 	if s.stateLearnQueueInsert, err = s.db.Prepare("INSERT INTO state_learn_queue (room_id, at_event_id, via, after_ts) VALUES ($1, $2, $3, $4) ON CONFLICT (room_id) DO NOTHING;"); err != nil {
@@ -416,6 +420,20 @@ func (s *PostgresStorage) GetCommunity(ctx context.Context, communityId string) 
 
 	community := &StoredCommunity{}
 	if err := s.communitySelect.QueryRowContext(ctx, communityId).Scan(&community.CommunityId, &community.Name, &community.Config, &community.ApiAccessToken); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return community, nil
+}
+
+func (s *PostgresStorage) GetCommunityByAccessToken(ctx context.Context, accessToken string) (*StoredCommunity, error) {
+	t := dbmetrics.StartSelfDatabaseTimer("GetCommunityByAccessToken")
+	defer t.ObserveDuration()
+
+	community := &StoredCommunity{}
+	if err := s.communitySelectByAccessToken.QueryRowContext(ctx, accessToken).Scan(&community.CommunityId, &community.Name, &community.Config, &community.ApiAccessToken); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}

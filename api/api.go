@@ -1,9 +1,12 @@
 package api
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/matrix-org/policyserv/community"
 	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/storage"
@@ -16,18 +19,20 @@ type Config struct {
 }
 
 type Api struct {
-	storage       storage.PersistentStorage
-	hs            *homeserver.Homeserver
-	apiKey        string
-	joinViaServer string
+	storage          storage.PersistentStorage
+	hs               *homeserver.Homeserver
+	communityManager *community.Manager
+	apiKey           string
+	joinViaServer    string
 }
 
-func NewApi(config *Config, storage storage.PersistentStorage, hs *homeserver.Homeserver) (*Api, error) {
+func NewApi(config *Config, storage storage.PersistentStorage, hs *homeserver.Homeserver, communityManager *community.Manager) (*Api, error) {
 	return &Api{
-		storage:       storage,
-		hs:            hs,
-		apiKey:        config.ApiKey,
-		joinViaServer: config.JoinViaServer,
+		storage:          storage,
+		hs:               hs,
+		communityManager: communityManager,
+		apiKey:           config.ApiKey,
+		joinViaServer:    config.JoinViaServer,
 	}, nil
 }
 
@@ -46,6 +51,37 @@ func (a *Api) httpAuthenticatedRequestHandler(upstream func(api *Api, w http.Res
 		}
 
 		upstream(a, w, r)
+	})
+}
+
+func (a *Api) httpCommunityAuthenticatedRequestHandler(upstream func(api *Api, community *storage.StoredCommunity, w http.ResponseWriter, r *http.Request)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if len(authHeader) <= len("Bearer ") {
+			defer metrics.RecordHttpResponse(r.Method, "httpCommunityAuthenticatedRequestHandler", http.StatusUnauthorized)
+			homeserver.MatrixHttpError(w, http.StatusUnauthorized, "M_UNAUTHORIZED", "Not allowed")
+			return
+		}
+
+		// Set a quick timeout that only affects the community lookup/authentication
+		fastContext, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+
+		accessToken := authHeader[len("Bearer "):]
+		community, err := a.storage.GetCommunityByAccessToken(fastContext, accessToken)
+		if err != nil {
+			log.Println(err)
+			defer metrics.RecordHttpResponse(r.Method, "httpCommunityAuthenticatedRequestHandler", http.StatusInternalServerError)
+			homeserver.MatrixHttpError(w, http.StatusInternalServerError, "M_UNKNOWN", "Server error")
+			return
+		}
+		if community == nil {
+			defer metrics.RecordHttpResponse(r.Method, "httpCommunityAuthenticatedRequestHandler", http.StatusUnauthorized)
+			homeserver.MatrixHttpError(w, http.StatusUnauthorized, "M_UNAUTHORIZED", "Not allowed")
+			return
+		}
+
+		upstream(a, community, w, r)
 	})
 }
 
