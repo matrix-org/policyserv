@@ -241,16 +241,16 @@ func (m *MemoryStorage) UpsertKeywordTemplate(ctx context.Context, template *sto
 }
 
 func mustClone[T any](t *testing.T, val *T) *T {
-	b, err := json.Marshal(val)
-	assert.NoError(t, err)
+	if val == nil {
+		return nil
+	}
 
-	second := new(T)
-	err = json.Unmarshal(b, &second)
-	assert.NoError(t, err)
-
-	assert.Equal(t, val, second)
-
-	return second
+	raw := *val
+	raw2 := raw // this is where the clone happens. See https://stackoverflow.com/a/51638160
+	cloned := &raw2
+	assert.False(t, cloned == val)
+	assert.Equal(t, val, cloned)
+	return cloned
 }
 
 type MemoryTransaction struct { // Implements storage.Transaction
