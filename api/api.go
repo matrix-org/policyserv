@@ -90,6 +90,10 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 	mux.Handle("/health", a.httpRequestHandler(httpHealth))
 	mux.Handle("/ready", a.httpRequestHandler(httpReady))
 
+	// Server-centric community API
+	mux.Handle("/_policyserv/v1/check/text", a.httpCommunityAuthenticatedRequestHandler(httpCheckTextCommunityApi))
+
+	// Admin API
 	if a.apiKey != "" {
 		log.Println("Enabling policyserv API")
 		mux.Handle("/api/v1/rooms", a.httpAuthenticatedRequestHandler(httpGetRoomsApi))
