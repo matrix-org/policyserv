@@ -78,7 +78,7 @@ func invalidateCacheOnChannel[V any](cacheInstance *cache.Cache[string, V], cach
 	}
 }
 
-func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string) (*filter.Set, error) {
+func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId string) (*filter.Set, error) {
 	fromCache, ok := m.communityFilterCache.Get(communityId)
 	if ok {
 		return fromCache, nil
@@ -256,5 +256,5 @@ func (m *Manager) GetFilterSetForRoomId(ctx context.Context, roomId string) (*fi
 		return nil, nil
 	}
 
-	return m.getCommunityFilterSet(ctx, communityId)
+	return m.GetFilterSetForCommunityId(ctx, communityId)
 }

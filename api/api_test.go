@@ -56,7 +56,7 @@ func makeApi(t *testing.T) *Api {
 
 	api, err := NewApi(&Config{
 		ApiKey: testApiKey,
-	}, db, hs)
+	}, db, hs, communityManager)
 	assert.NoError(t, err)
 	assert.NotNil(t, api)
 
