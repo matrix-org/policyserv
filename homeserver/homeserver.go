@@ -97,6 +97,9 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 			},
 		}, keyFetchers...)
 	}
+	for i, fetcher := range keyFetchers {
+		keyFetchers[i] = NewExcludeUnsafeKeysFetcher(fetcher)
+	}
 	hs := &Homeserver{
 		ServerName:             serverName,
 		KeyId:                  keyId,

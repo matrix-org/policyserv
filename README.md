@@ -374,6 +374,15 @@ Allows or denies HTTP(S) links contained in events.
 
 If both lists are configured, deny wins - a URL matching the deny list is blocked even if it matches the allow list. The filter uses glob matching, where `*` matches any sequence of characters.
 
+### Unsafe signing key filter
+
+Some signing keys are known to be unsafe or compromised. If an event is signed with one of these keys, this filter will
+flag it as spammy to prevent that key from proliferating. This filter should not be used in new communities because old
+events might not have been scanned by policyserv yet, so history may get considered spam.
+
+* `PS_UNSAFE_SIGNING_KEY_FILTER_ENABLED` (default `true`) - Whether events signed with known-unsafe signing keys are 
+  considered spam.
+
 ## Contributing
 
 We're always happy to accept new features and bug fixes! Please see our [contributing guide](./CONTRIBUTING.md) for more 

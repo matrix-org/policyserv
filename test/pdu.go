@@ -1,23 +1,24 @@
 package test
 
 import (
+	"crypto/ed25519"
 	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
-	"golang.org/x/crypto/ed25519"
 )
 
 type BaseClientEvent struct {
-	RoomId      string         `json:"room_id"`
-	EventId     string         `json:"event_id"`
-	Type        string         `json:"type"`
-	StateKey    *string        `json:"state_key"`
-	Sender      string         `json:"sender"`
-	Content     map[string]any `json:"content"`
-	StickyUntil time.Time      `json:"-"` // exclude from JSON to avoid making the event improper/too large
+	RoomId      string                       `json:"room_id"`
+	EventId     string                       `json:"event_id"`
+	Type        string                       `json:"type"`
+	StateKey    *string                      `json:"state_key"`
+	Sender      string                       `json:"sender"`
+	Content     map[string]any               `json:"content"`
+	StickyUntil time.Time                    `json:"-"` // exclude from JSON to avoid making the event improper/too large
+	Signatures  map[string]map[string]string `json:"signatures,omitempty"`
 }
 
 func MustMakePDU(event *BaseClientEvent) gomatrixserverlib.PDU {
@@ -86,6 +87,36 @@ func (n *noopPDU) StickyEndTime(received time.Time) time.Time {
 	return n.base.StickyUntil
 }
 
+func (n *noopPDU) Sign(signingName string, keyID gomatrixserverlib.KeyID, privateKey ed25519.PrivateKey) gomatrixserverlib.PDU {
+	// Get the room version and redact the event accordingly. Note that in testing we hardcode the room version, so it
+	// shouldn't fail.
+	ver, err := gomatrixserverlib.GetRoomVersion(n.Version())
+	if err != nil {
+		panic(err) // "should never happen"
+	}
+	redacted, err := ver.RedactEventJSON(n.JSON())
+	if err != nil {
+		panic(err) // "should never happen"
+	}
+
+	// Get a copy of our "event" that's signed with the given key.
+	signed, err := gomatrixserverlib.SignJSON(signingName, keyID, privateKey, redacted)
+	if err != nil {
+		panic(err) // "should never happen"
+	}
+
+	// Extract the signatures object and copy it into our base event
+	base := &BaseClientEvent{}
+	err = json.Unmarshal(signed, &base)
+	if err != nil {
+		panic(err) // "should never happen"
+	}
+	n.base.Signatures = base.Signatures // copy the signatures
+
+	// We're supposed to clone the event according to the interface, but we aren't worried about mutation here.
+	return n
+}
+
 // ----- below here are template functions -----
 
 func (n *noopPDU) Version() gomatrixserverlib.RoomVersion {
@@ -138,10 +169,6 @@ func (n *noopPDU) SetUnsigned(unsigned interface{}) (gomatrixserverlib.PDU, erro
 
 func (n *noopPDU) SetUnsignedField(path string, value interface{}) error {
 	return errors.New("unsupported")
-}
-
-func (n *noopPDU) Sign(signingName string, keyID gomatrixserverlib.KeyID, privateKey ed25519.PrivateKey) gomatrixserverlib.PDU {
-	return nil
 }
 
 func (n *noopPDU) Depth() int64 {

@@ -42,6 +42,7 @@ type CommunityConfig struct {
 	HMAFilterEnabledBanks                    *[]string `json:"hma_filter_enabled_banks,omitempty" envconfig:"hma_filter_enabled_banks" default:""`
 	LinkFilterAllowedUrlGlobs 				 *[]string `json:"link_filter_allowed_url_globs,omitempty" envconfig:"link_filter_allowed_url_globs" default:""`
 	LinkFilterDeniedUrlGlobs 				 *[]string `json:"link_filter_denied_url_globs,omitempty" envconfig:"link_filter_denied_url_globs" default:""`
+	UnsafeSigningKeyFilterEnabled            bool     `json:"unsafe_signing_key_filter_enabled,omitempty" envconfig:"unsafe_signing_key_filter_enabled" default:"true"`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {
