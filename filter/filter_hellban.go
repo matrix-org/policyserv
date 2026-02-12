@@ -110,7 +110,7 @@ func (f *InstancedHellbanFilter) Name() string {
 	return mode
 }
 
-func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	mode := f.Name()
 
 	eventId := input.Event.EventID()

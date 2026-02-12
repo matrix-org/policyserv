@@ -11,6 +11,7 @@ import (
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 )
 
 func TestKeywordTemplateFilter(t *testing.T) {
@@ -113,6 +114,23 @@ func TestKeywordTemplateFilter(t *testing.T) {
 	assertSpamVector(spammyEvent2, true)
 	assertSpamVector(spammyEvent3, true)
 	assertSpamVector(neutralEvent, false)
+
+	// Also test the text filter implementation
+	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
+		body := gjson.Get(string(event.Content()), "body").String()
+		vecs, err := set.CheckText(context.Background(), body)
+		assert.NoError(t, err)
+		if isSpam {
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
+			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+		}
+	}
+	assertTextSpamVector(spammyEvent1, true)
+	assertTextSpamVector(spammyEvent2, true)
+	//assertTextSpamVector(spammyEvent3, true) // this tests HTML, which we're not extracting here, so skip it
+	assertTextSpamVector(neutralEvent, false)
 }
 
 func TestKeywordTemplateFilterWithFullEvent(t *testing.T) {

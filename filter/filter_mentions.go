@@ -37,7 +37,7 @@ func (f *InstancedMentionsFilter) Name() string {
 	return MentionsFilterName
 }
 
-func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	roomId := input.Event.RoomID().String()
 
 	// Return early on non-message events

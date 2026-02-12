@@ -1,0 +1,196 @@
+package filter
+
+import (
+	"context"
+	"testing"
+
+	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
+)
+
+func TestLinkFilter(t *testing.T) {
+	t.Parallel()
+
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			LinkFilterAllowedUrlGlobs: &[]string{"https://allowed.example.org/*", "https://also-allowed.example.org/*"},
+			LinkFilterDeniedUrlGlobs:  &[]string{"https://allowed.example.org/blocked/*"},
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{LinkFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	// Event with allowed URL
+	allowedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$allowed1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "Check this out: https://allowed.example.org/page",
+		},
+	})
+
+	// Event with a denied URL (path is blocked)
+	deniedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$denied1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "https://allowed.example.org/blocked/page",
+		},
+	})
+
+	// Event with a URL not on the allowed list
+	notAllowedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$notallowed1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "See: https://other.example.org/page",
+		},
+	})
+
+	// Event with no URLs
+	noUrlEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$nourl1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "Hello world, no links here!",
+		},
+	})
+
+	// Event with some allowed and some denied URLs
+	mixedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$mixed1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "https://allowed.example.org/ok is allowed but https://other.example.org/path is not allowed",
+		},
+	})
+
+	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
+		vecs, err := set.CheckEvent(context.Background(), event, nil)
+		assert.NoError(t, err)
+		if isSpam {
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
+			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+		}
+	}
+
+	assertSpamVector(allowedEvent, false)
+	assertSpamVector(deniedEvent, true) // deny wins over allow
+	assertSpamVector(notAllowedEvent, true)
+	assertSpamVector(noUrlEvent, false)
+	assertSpamVector(mixedEvent, true) //contains a default-denied URL.
+
+	// Also test the text filter implementation
+	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
+		body := gjson.Get(string(event.Content()), "body").String()
+		vecs, err := set.CheckText(context.Background(), body)
+		assert.NoError(t, err)
+		if isSpam {
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
+			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+		}
+	}
+	assertTextSpamVector(allowedEvent, false)
+	assertTextSpamVector(deniedEvent, true) // deny wins over allow
+	assertTextSpamVector(notAllowedEvent, true)
+	assertTextSpamVector(noUrlEvent, false)
+	assertTextSpamVector(mixedEvent, true) //contains a default-denied URL.
+}
+
+func TestLinkFilterDenyListOnly(t *testing.T) {
+	t.Parallel()
+
+	// Test with only deny list configured
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			LinkFilterDeniedUrlGlobs: &[]string{"*denied.example.org/path*"},
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{LinkFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	deniedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$denied1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "http://denied.example.org/path", // we're using http instead of https intentionally to ensure we pick up the scheme
+		},
+	})
+
+	allowedEvent := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$allowed1",
+		RoomId:  "!foo:example.org",
+		Sender:  "@user:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype": "m.text",
+			"body":    "https://denied.example.org/another/page",
+		},
+	})
+
+	vecs, err := set.CheckEvent(context.Background(), deniedEvent, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+
+	vecs, err = set.CheckEvent(context.Background(), allowedEvent, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+
+	// Also test the text filter implementation
+
+	body := gjson.Get(string(deniedEvent.Content()), "body").String()
+	vecs, err = set.CheckText(context.Background(), body)
+	assert.NoError(t, err)
+	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+
+	body = gjson.Get(string(allowedEvent.Content()), "body").String()
+	vecs, err = set.CheckText(context.Background(), body)
+	assert.NoError(t, err)
+	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+}

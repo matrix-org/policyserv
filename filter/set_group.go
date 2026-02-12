@@ -3,6 +3,7 @@ package filter
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/matrix-org/policyserv/filter/classification"
@@ -31,48 +32,76 @@ type setGroup struct {
 // checkEvent - If the input's spam vector is within range, processes the event through the group's filters and returns
 // the confidence vectors of all filters combined. If the input's spam vector is out of range, returns empty confidence
 // vectors. Errors are collated into a single error. Filters are run concurrently.
-func (g *setGroup) checkEvent(ctx context.Context, input *Input) (confidence.Vectors, error) {
-	// First, are we within range to actually process anything?
+func (g *setGroup) checkEvent(ctx context.Context, input *EventInput) (confidence.Vectors, error) {
 	spamVec := input.IncrementalConfidenceVectors.GetVector(classification.Spam)
+	return g.runFilters(spamVec, func(unknownFilter Instanced, ch chan setGroupRet) {
+		filter, ok := unknownFilter.(InstancedEventFilter)
+		if !ok {
+			log.Printf("[%s | %s] Filter %T is not an InstancedEventFilter - skipping", input.Event.EventID(), input.Event.RoomID().String(), unknownFilter)
+			// we force a nil response rather than an error to ensure we simply skip it
+			ch <- setGroupRet{unknownFilter, nil, nil}
+			return
+		}
+
+		log.Printf("[%s | %s] Running filter %T", input.Event.EventID(), input.Event.RoomID().String(), filter)
+		t := metrics.StartFilterTimer(input.Event.RoomID().String(), filter.Name())
+		classifications, err := filter.CheckEvent(ctx, input)
+		t.ObserveDuration()
+		g.logFilterClassifications(fmt.Sprintf("%s | %s", input.Event.EventID(), input.Event.RoomID().String()), filter, classifications, err)
+		ch <- setGroupRet{filter, classifications, err}
+	})
+}
+
+// checkText - The same as checkEvent, but for text content.
+func (g *setGroup) checkText(ctx context.Context, incrementalVectors confidence.Vectors, input string) (confidence.Vectors, error) {
+	spamVec := incrementalVectors.GetVector(classification.Spam)
+	return g.runFilters(spamVec, func(unknownFilter Instanced, ch chan setGroupRet) {
+		filter, ok := unknownFilter.(InstancedTextFilter)
+		if !ok {
+			log.Printf("[CheckText] Filter %T is not an InstancedTextFilter - skipping", unknownFilter)
+			// we force a nil response rather than an error to ensure we simply skip it
+			ch <- setGroupRet{unknownFilter, nil, nil}
+			return
+		}
+
+		log.Printf("[CheckText] Running filter %T", filter)
+		// TODO: Metrics
+		// TODO: Audit context/webhooks
+		classifications, err := filter.CheckText(ctx, input)
+		g.logFilterClassifications("CheckText", filter, classifications, err)
+		ch <- setGroupRet{filter, classifications, err}
+	})
+}
+
+func (g *setGroup) logFilterClassifications(prefix string, filter Instanced, classifications []classification.Classification, err error) {
+	strClassifications := make([]string, 0, len(classifications))
+	for _, cls := range classifications {
+		// We don't use .String() here because that will uninvert values, making logs harder to follow.
+		strClassifications = append(strClassifications, string(cls))
+	}
+	log.Printf("[%s] Filter %T returned %v", prefix, filter, strClassifications)
+	if err != nil {
+		log.Printf("[%s] Filter %T returned error: %s", prefix, filter, err)
+	}
+}
+
+func (g *setGroup) runFilters(spamVec float64, checkFn func(f Instanced, ch chan setGroupRet)) (confidence.Vectors, error) {
+	// First, are we within range to actually process anything?
 	if spamVec < g.minSpamVectorValue || spamVec > g.maxSpamVectorValue { // don't use equality here because it'll exclude "max: 1.0" configs
 		// No - return nothing
 		return confidence.NewConfidenceVectors(), nil
 	}
 
-	// This is just a small container type to make passing values over channels easier
-	type ret struct {
-		Instanced
-		Classifications []classification.Classification
-		error
-	}
-
-	ch := make(chan ret, len(g.filters))
+	ch := make(chan setGroupRet, len(g.filters))
 	defer close(ch)
 
 	// Run all the filters concurrently
-	for _, filter := range g.filters {
-		go func(filter Instanced, ch chan ret, input *Input) {
-			log.Printf("[%s | %s] Running filter %T", input.Event.EventID(), input.Event.RoomID().String(), filter)
-			t := metrics.StartFilterTimer(input.Event.RoomID().String(), filter.Name())
-			classifications, err := filter.CheckEvent(ctx, input)
-			t.ObserveDuration()
-			strClassifications := make([]string, 0, len(classifications))
-			for _, cls := range classifications {
-				// We don't use .String() here because that will uninvert values, making logs harder to follow.
-				strClassifications = append(strClassifications, string(cls))
-			}
-			input.auditContext.AppendFilterResponse(filter.Name(), classifications)
-			log.Printf("[%s | %s] Filter %T returned %v", input.Event.EventID(), input.Event.RoomID().String(), filter, strClassifications)
-			if err != nil {
-				log.Printf("[%s | %s] Filter %T returned error: %s", input.Event.EventID(), input.Event.RoomID().String(), filter, err)
-				// don't return early - we want to pass all the things through at the same time
-			}
-			ch <- ret{filter, classifications, err}
-		}(filter, ch, input)
+	for _, f := range g.filters {
+		go checkFn(f, ch)
 	}
 
 	// Capture all of the results
-	rets := make([]ret, len(g.filters))
+	rets := make([]setGroupRet, len(g.filters))
 	for i := 0; i < len(g.filters); i++ {
 		rets[i] = <-ch
 	}
@@ -81,8 +110,8 @@ func (g *setGroup) checkEvent(ctx context.Context, input *Input) (confidence.Vec
 	vecs := confidence.NewConfidenceVectors()
 	errs := make([]error, 0)
 	for _, r := range rets {
-		if r.error != nil {
-			errs = append(errs, r.error)
+		if r.Err != nil {
+			errs = append(errs, r.Err)
 			continue
 		}
 		for _, cls := range r.Classifications {
@@ -99,4 +128,10 @@ func (g *setGroup) checkEvent(ctx context.Context, input *Input) (confidence.Vec
 		return nil, errors.Join(errs...)
 	}
 	return vecs, nil
+}
+
+type setGroupRet struct {
+	Filter          Instanced
+	Classifications []classification.Classification
+	Err             error
 }
