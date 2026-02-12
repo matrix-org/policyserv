@@ -11,7 +11,7 @@ name: Create and publish a Docker image
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "travis/do-not-use-2026021208344601"]
     tags: ["*"]
 
 env:
