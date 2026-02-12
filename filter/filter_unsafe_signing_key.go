@@ -54,7 +54,7 @@ func (f *InstancedUnsafeSigningKeyFilter) Name() string {
 	return UnsafeSigningKeyFilterName
 }
 
-func (f *InstancedUnsafeSigningKeyFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedUnsafeSigningKeyFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	// Start by generating our own signature for the event. This requires redaction, so do that first.
 	roomVer := gomatrixserverlib.MustGetRoomVersion(input.Event.Version())
 	redacted, err := roomVer.RedactEventJSON(input.Event.JSON())
