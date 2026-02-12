@@ -108,7 +108,7 @@ curl -s -X POST -H "Authorization: Bearer ${APIKEY}" --data-binary '{"keyword_fi
 
 See above for implied request methods and bodies. Note: it is not currently possible to change the community name via the API.
 
-All endpoints return standard error responses upon error, or the following with 200 OK on success:
+All of the above endpoints return standard error responses upon error, or the following with 200 OK on success:
 
 ```json
 {
@@ -121,6 +121,32 @@ All endpoints return standard error responses upon error, or the following with 
 ```
 
 **Note**: The instance's config can be retrieved via `GET /api/v1/instance/community_config`.
+
+### Access tokens
+
+Policyserv has a concept of "server-centric communities", where with applicable homeserver/tooling support, some parts of policyserv's API can be used to check content outside of a room/event. For example, homeservers can check search queries or user IDs of newly registered users against policyserv.
+
+The API server-centric communities can use is described in [`./server_centric_api.md`](./server_centric_api.md). 
+
+To use that API, the caller will need an "access token" which belongs to a designated community. It's recommended to use a dedicated community for each reason to call the API so filters can be configured independently.
+
+To get an access token, call `POST /api/v1/communities/{communityId}/rotate_access_token`. As the name suggests, this endpoint can also be used to rotate the token after the fact. When rotating, the old token stops working immediately.
+
+Example:
+```bash
+APIKEY=changeme
+curl -s -X POST -H "Authorization: Bearer ${APIKEY}" https://example.org/api/v1/communities/33DDrMuWa8IxiRupoG6fTLbEoBP/rotate_access_token
+```
+
+The response will be a JSON object containing the old and new access tokens:
+```json
+{
+  "old_access_token": "pst_old",
+  "new_access_token": "pst_new"
+}
+```
+
+**Note**: If the community has never had an access token before, `old_access_token` will be an empty string.
 
 ### Set Muninn Hall Source Data (Member Directory Event)
 

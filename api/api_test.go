@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/ed25519"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,9 @@ import (
 	"github.com/matrix-org/policyserv/community"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/homeserver"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/queue"
+	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,7 +56,7 @@ func makeApi(t *testing.T) *Api {
 
 	api, err := NewApi(&Config{
 		ApiKey: testApiKey,
-	}, db, hs)
+	}, db, hs, communityManager)
 	assert.NoError(t, err)
 	assert.NotNil(t, api)
 
@@ -108,6 +111,71 @@ func TestAuthenticatedApi(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}
 	handler := api.httpAuthenticatedRequestHandler(upstream)
+	handler.ServeHTTP(w, r)
+	assert.Equal(t, w.Code, http.StatusOK)
+	assert.True(t, called)
+}
+
+func TestCommunityAuthenticatedApiNoAuth(t *testing.T) {
+	t.Parallel()
+
+	api := makeApi(t)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/example", nil)
+	//r.Header.Set("Authorization", "Bearer WRONG_TOKEN") // we don't want auth on this test, so don't set it
+	upstream := func(a *Api, c *storage.StoredCommunity, w http.ResponseWriter, r *http.Request) {
+		assert.Fail(t, "should not be called")
+	}
+	handler := api.httpCommunityAuthenticatedRequestHandler(upstream)
+	handler.ServeHTTP(w, r)
+	assert.Equal(t, w.Code, http.StatusUnauthorized)
+	test.AssertApiError(t, w, "M_UNAUTHORIZED", "Not allowed")
+}
+
+func TestCommunityAuthenticatedApiWrongAuth(t *testing.T) {
+	t.Parallel()
+
+	api := makeApi(t)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/example", nil)
+	r.Header.Set("Authorization", "Bearer WRONG_TOKEN")
+	upstream := func(a *Api, c *storage.StoredCommunity, w http.ResponseWriter, r *http.Request) {
+		assert.Fail(t, "should not be called")
+	}
+	handler := api.httpCommunityAuthenticatedRequestHandler(upstream)
+	handler.ServeHTTP(w, r)
+	assert.Equal(t, w.Code, http.StatusUnauthorized)
+	test.AssertApiError(t, w, "M_UNAUTHORIZED", "Not allowed")
+}
+
+func createCommunityWithAccessToken(t *testing.T, api *Api) *storage.StoredCommunity {
+	serverCommunity, err := api.storage.CreateCommunity(context.Background(), "Test Community")
+	assert.NoError(t, err)
+	assert.NotNil(t, serverCommunity)
+	serverCommunity.ApiAccessToken = internal.Pointer("pst_TESTING_COMMUNITY")
+	err = api.storage.UpsertCommunity(context.Background(), serverCommunity)
+	assert.NoError(t, err)
+	return serverCommunity
+}
+
+func TestCommunityAuthenticatedApi(t *testing.T) {
+	t.Parallel()
+
+	api := makeApi(t)
+	serverCommunity := createCommunityWithAccessToken(t, api)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/example", nil)
+	r.Header.Set("Authorization", "Bearer "+internal.Dereference(serverCommunity.ApiAccessToken))
+	called := false
+	upstream := func(a *Api, c *storage.StoredCommunity, w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, serverCommunity, c)
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}
+	handler := api.httpCommunityAuthenticatedRequestHandler(upstream)
 	handler.ServeHTTP(w, r)
 	assert.Equal(t, w.Code, http.StatusOK)
 	assert.True(t, called)

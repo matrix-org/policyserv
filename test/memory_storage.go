@@ -9,6 +9,7 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/ryanuber/go-glob"
 	"github.com/stretchr/testify/assert"
@@ -170,6 +171,19 @@ func (m *MemoryStorage) GetCommunity(ctx context.Context, communityId string) (*
 	return mustClone(m.t, m.communities[communityId]), nil
 }
 
+func (m *MemoryStorage) GetCommunityByAccessToken(ctx context.Context, accessToken string) (*storage.StoredCommunity, error) {
+	assert.NotNil(m.t, ctx, "context is required")
+
+	for _, community := range m.communities {
+		if internal.Dereference(community.ApiAccessToken) == accessToken {
+			// We clone to prevent mutations causing the storage to also be updated
+			return mustClone(m.t, community), nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (m *MemoryStorage) UpsertCommunity(ctx context.Context, community *storage.StoredCommunity) error {
 	assert.NotNil(m.t, ctx, "context is required")
 	// We clone to prevent mutations causing the storage to also be updated
@@ -241,16 +255,16 @@ func (m *MemoryStorage) UpsertKeywordTemplate(ctx context.Context, template *sto
 }
 
 func mustClone[T any](t *testing.T, val *T) *T {
-	b, err := json.Marshal(val)
-	assert.NoError(t, err)
+	if val == nil {
+		return nil
+	}
 
-	second := new(T)
-	err = json.Unmarshal(b, &second)
-	assert.NoError(t, err)
-
-	assert.Equal(t, val, second)
-
-	return second
+	raw := *val
+	raw2 := raw // this is where the clone happens. See https://stackoverflow.com/a/51638160
+	cloned := &raw2
+	assert.False(t, cloned == val)
+	assert.Equal(t, val, cloned)
+	return cloned
 }
 
 type MemoryTransaction struct { // Implements storage.Transaction
