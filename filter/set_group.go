@@ -47,6 +47,7 @@ func (g *setGroup) checkEvent(ctx context.Context, input *EventInput) (confidenc
 		t := metrics.StartFilterTimer(input.Event.RoomID().String(), filter.Name())
 		classifications, err := filter.CheckEvent(ctx, input)
 		t.ObserveDuration()
+		input.auditContext.AppendFilterResponse(filter.Name(), classifications)
 		g.logFilterClassifications(fmt.Sprintf("%s | %s", input.Event.EventID(), input.Event.RoomID().String()), filter, classifications, err)
 		ch <- setGroupRet{filter, classifications, err}
 	})
