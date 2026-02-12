@@ -254,6 +254,8 @@ func (m *MemoryStorage) UpsertKeywordTemplate(ctx context.Context, template *sto
 	return nil
 }
 
+// mustClone - clones structs for reuse elsewhere. This does a relatively shallow clone using primitives.
+// See implementation for details.
 func mustClone[T any](t *testing.T, val *T) *T {
 	if val == nil {
 		return nil
