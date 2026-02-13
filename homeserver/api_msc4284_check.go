@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/gomatrixserverlib/fclient"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/redaction"
 	"github.com/matrix-org/policyserv/storage"
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/fclient"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 )
 
 var msc4284NeutralResponse = []byte(`{"recommendation": "ok"}`) // MSC4284 uses the word "ok" to mean neutral.
@@ -86,7 +86,10 @@ func httpMSC4284Check(server *Homeserver, w http.ResponseWriter, r *http.Request
 	if res.IsProbablySpam {
 		senderDomain := spec.ServerName("example.org")
 		if event.SenderID().IsUserID() {
-			senderDomain = event.SenderID().ToUserID().Domain()
+			uid := event.SenderID().ToUserID()
+			if uid != nil {
+				senderDomain = uid.Domain()
+			}
 		}
 		if senderDomain != fedReq.Origin() {
 			for _, origin := range server.trustedOrigins {

@@ -80,6 +80,15 @@ func (s *Set) GetStorage() storage.PersistentStorage {
 // Note: the mediaDownloader may be nil to prevent parsing and downloading of media. This should only be done in test environments.
 func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, mediaDownloader media.Downloader) (confidence.Vectors, error) {
 	log.Printf("[%s | %s | %s] Checking event", event.EventID(), event.RoomID().String(), s.communityId)
+
+	if !event.SenderID().IsUserID() || event.SenderID().ToUserID() == nil {
+		log.Printf("[%s | %s] Skipping event and flagging as spam because sender is not a user", event.EventID(), event.RoomID().String())
+		return confidence.Vectors{
+			classification.Spam:          1,
+			classification.NonCompliance: 1,
+		}, nil
+	}
+
 	vecs := confidence.NewConfidenceVectors()
 	vecs.SetVector(classification.Spam, 0.5) // per docs elsewhere, start by assuming 50% likelihood of spam
 	auditCtx, err := newAuditContext(s.instanceConfig, event, internal.Dereference(s.communityConfig.WebhookUrl))
