@@ -75,10 +75,6 @@ func (f *InstancedUntrustedMediaFilter) Name() string {
 }
 
 func (f *InstancedUntrustedMediaFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
-	if !input.Event.SenderID().IsUserID() {
-		return nil, nil // unable to form an opinion on this event
-	}
-
 	userId := input.Event.SenderID().ToUserID().String()
 	isTrusted := false
 	for _, source := range f.trustSources {
