@@ -11,11 +11,11 @@ import (
 
 	cache "github.com/Code-Hex/go-generics-cache"
 	"github.com/DavidHuie/gomigrate"
+	_ "github.com/lib/pq"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/confidence"
 	"github.com/matrix-org/policyserv/metrics/dbmetrics"
-	_ "github.com/lib/pq"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/ryanuber/go-glob"
 	"golang.org/x/sync/singleflight"
 )
@@ -394,7 +394,7 @@ func (s *PostgresStorage) CreateCommunity(ctx context.Context, name string) (*St
 		Name:        name,
 		Config:      &config.CommunityConfig{}, // empty by default
 	}
-	_, err := s.communityUpsert.ExecContext(ctx, community.CommunityId, community.Name, community.Config)
+	_, err := s.communityUpsert.ExecContext(ctx, community.CommunityId, community.Name, community.Config, community.ApiAccessToken)
 	if err != nil {
 		return nil, err
 	}
