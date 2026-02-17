@@ -6,11 +6,11 @@ require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
 	github.com/DavidHuie/gomigrate v0.0.0-20190826182718-4adc4b3de142
 	github.com/deckarep/golang-set v1.8.0
-	github.com/go-co-op/gocron/v2 v2.19.0
+	github.com/go-co-op/gocron/v2 v2.19.1
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.11.1
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20251103190139-eb14008fe6d1
-	github.com/openai/openai-go/v3 v3.16.0
+	github.com/openai/openai-go/v3 v3.17.0
 	github.com/panjf2000/ants/v2 v2.11.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/ryanuber/go-glob v1.0.0
@@ -18,6 +18,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/t2bot/go-matrix-signing-key v0.0.0-20250823034611-5de5f6ca0042
 	github.com/t2bot/go-typed-singleflight v0.0.3
+	github.com/tidwall/gjson v1.18.0
 	golang.org/x/sync v0.19.0
 )
 
@@ -41,7 +42,6 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
