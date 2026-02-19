@@ -68,20 +68,26 @@ func newPrefilterHellban(set *Set, forTime time.Duration) (*InstancedHellbanFilt
 		},
 	}
 	go func(ch <-chan string, f *InstancedHellbanFilter) {
-		for {
+		keepLoop := true
+		for keepLoop {
 			select {
-			case encoded := <-ch:
+			case encoded, stillOpen := <-ch:
 				if encoded == pubsub.ClosingValue {
 					log.Println("Closing hellban cache listener")
-					break
+					keepLoop = false
+					break // `select`
 				}
 				if encoded == "" { // sometimes when closing we also get an empty string over the channel
-					continue
+					if !stillOpen {
+						keepLoop = false
+						break // `select`
+					}
+					continue // `for` loop
 				}
 
 				communityId, userId := mustDecodeHellban(encoded)
 				if communityId != f.set.communityId {
-					continue
+					continue // `for` loop
 				}
 
 				// Double check that the user isn't already hellbanned, otherwise we'll effectively permaban
