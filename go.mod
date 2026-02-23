@@ -10,8 +10,8 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.11.1
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20251103190139-eb14008fe6d1
-	github.com/openai/openai-go/v3 v3.17.0
-	github.com/panjf2000/ants/v2 v2.11.4
+	github.com/openai/openai-go/v3 v3.18.0
+	github.com/panjf2000/ants/v2 v2.11.5
 	github.com/prometheus/client_golang v1.23.2
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/segmentio/ksuid v1.0.4
