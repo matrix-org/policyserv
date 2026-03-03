@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	goSet "github.com/deckarep/golang-set"
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/internal"
 )
@@ -37,54 +38,49 @@ func (f *InstancedMentionsFilter) Name() string {
 	return MentionsFilterName
 }
 
-func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
-	roomId := input.Event.RoomID().String()
+func (f *InstancedMentionsFilter) CountMentionsToLimit(ctx context.Context, event gomatrixserverlib.PDU, limit int) (int, error) {
+	roomId := event.RoomID().String()
 
 	// Return early on non-message events
-	if input.Event.Type() != "m.room.message" {
-		return nil, nil
+	if event.Type() != "m.room.message" {
+		return 0, nil
 	}
 
 	content := &mentionsContent{}
-	err := json.Unmarshal(input.Event.Content(), &content)
+	err := json.Unmarshal(event.Content(), &content)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	rawUserIds, rawDisplayNames, err := f.set.storage.GetUserIdsAndDisplayNamesByRoomId(ctx, roomId)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	displayNames := goSet.NewSet()
 	for _, displayName := range rawDisplayNames {
-		if len(displayName) == 0 || len(displayName) < f.minNameLength {
-			continue
+		if len(displayName) > 0 && len(displayName) >= f.minNameLength {
+			displayNames.Add(displayName)
 		}
-		displayNames.Add(displayName)
 	}
 	userIds := goSet.NewSet()
 	for _, userId := range rawUserIds {
-		if len(userId) == 0 {
-			continue
+		if len(userId) > 0 {
+			userIds.Add(userId)
 		}
-		userIds.Add(userId)
 	}
 	mentionedUserIds := goSet.NewSet()
 	for _, userId := range content.Mentions.UserIDs {
 		mentionedUserIds.Add(userId)
 	}
 
-	// get the number of user IDs mentioned
+	// Start with counting the obvious mentions
 	numMentionedUserIds := userIds.Intersect(mentionedUserIds).Cardinality()
-	if numMentionedUserIds >= f.maxMentions {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Mentions,
-		}, nil
+	if numMentionedUserIds >= limit {
+		return numMentionedUserIds, nil
 	}
 
-	// now we check the body for either user ID or display name matches.
+	// Now move on to checking the body for user ID or display name matches.
 	// Attackers may be funny and set their display name to 'the' to try to trip this up,
 	// so we care about the variety in the display names, which is why we use a set of display
 	// names and not the total list of display names.
@@ -95,16 +91,26 @@ func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *EventIn
 		} else if strings.Contains(content.FormattedBody, userIdOrDisplayName) {
 			numMentionedUserIds++
 		}
-		return numMentionedUserIds >= f.maxMentions
+		return numMentionedUserIds >= limit
 	}
 	userIds.Each(loopIter)
-	if numMentionedUserIds >= f.maxMentions {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Mentions,
-		}, nil
+	if numMentionedUserIds >= limit {
+		return numMentionedUserIds, nil
 	}
 	displayNames.Each(loopIter)
+	if numMentionedUserIds >= limit {
+		return numMentionedUserIds, nil
+	}
+
+	return numMentionedUserIds, nil
+}
+
+func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+	numMentionedUserIds, err := f.CountMentionsToLimit(ctx, input.Event, f.maxMentions)
+	if err != nil {
+		return nil, err
+	}
+
 	if numMentionedUserIds >= f.maxMentions {
 		return []classification.Classification{
 			classification.Spam,

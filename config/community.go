@@ -19,6 +19,8 @@ type CommunityConfig struct {
 	KeywordTemplateFilterUseFullEvent        *bool     `json:"keyword_template_filter_use_full_event,omitempty" envconfig:"keyword_template_filter_use_full_event" default:"false"`
 	MentionFilterMaxMentions                 *int      `json:"mention_filter_max_mentions,omitempty" envconfig:"mention_filter_max_mentions" default:"20"`
 	MentionFilterMinPlaintextLength          *int      `json:"mention_filter_min_plaintext_length,omitempty" envconfig:"mention_filter_min_plaintext_length" default:"5"`
+	MentionFrequencyFilterRateLimit          *float64  `json:"mention_frequency_filter_rate_limit,omitempty" envconfig:"mention_frequency_filter_rate_limit" default:"0"`
+	MentionFrequencyFilterMinPlaintextLength *int      `json:"mention_frequency_filter_min_plaintext_length,omitempty" envconfig:"mention_frequency_filter_min_plaintext_length" default:"5"`
 	ManyAtsFilterMaxAts                      *int      `json:"many_ats_filter_max_ats,omitempty" envconfig:"many_ats_filter_max_ats" default:"20"`
 	MediaFilterMediaTypes                    *[]string `json:"media_filter_media_types,omitempty" envconfig:"media_filter_media_types" default:"m.sticker,m.image,m.video,m.file,m.audio"`
 	UntrustedMediaFilterMediaTypes           *[]string `json:"untrusted_media_filter_media_types,omitempty" envconfig:"untrusted_media_filter_media_types" default:"m.sticker,m.image,m.video,m.file,m.audio"`

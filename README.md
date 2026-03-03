@@ -255,6 +255,25 @@ more than the configured number of mentions, that event will be marked as spam.
 * `PS_MENTION_FILTER_MIN_PLAINTEXT_LENGTH` (default `5`) - The minimum length a displayname must be to be considered a 
   mention in a message.
 
+### Mention frequency filter
+
+This filter is similar to the regular frequency filter, but only applies to mentions. It applies the regular mention filter
+above over time on a per-user basis. This is primarily useful for detecting messages with few mentions in them individually,
+but are sent quickly.
+
+**Note**: a message with more than one mention will be counted accordingly. 
+
+**Note**: refer to the frequency filter documentation for more details on how the rate limit is applied.
+
+**Note**: the implied max mentions (`rate_limit * 60`) plus one is as far as the filter will count for performance reasons.
+This means that if the rate limit is 0.5 (30 mentions per minute) and a message with 200 mentions is sent, only the first
+31 mentions will be counted.
+
+* `PS_MENTION_FREQUENCY_FILTER_RATE_LIMIT` (default `0`) - The mentions per second (over a 60 second window) to allow before rate 
+  limiting. Set to zero (the default) or negative to disable the filter. Example: `0.25` for ~15 mentions in a minute (15/60 = 0.25).
+* `PS_MENTION_FREQUENCY_FILTER_MIN_PLAINTEXT_LENGTH` (default `5`) - The minimum length a displayname must be to be considered a 
+  mention in a message. It's recommended to have this match `PS_MENTION_FILTER_MIN_PLAINTEXT_LENGTH`.
+
 ### Many "ats" filter
 
 Simply the number of `@` symbols allowed in an event. This is useful as a rudimentary backup to the mentions filter.
