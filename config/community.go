@@ -40,9 +40,11 @@ type CommunityConfig struct {
 	OpenAIFilterFailSecure                   *bool     `json:"openai_filter_fail_secure,omitempty" envconfig:"openai_filter_fail_secure" default:"true"`
 	StickyEventsFilterAllowStickyEvents      *bool     `json:"sticky_events_filter_allow_sticky_events,omitempty" envconfig:"sticky_events_filter_allow_sticky_events" default:"true"`
 	HMAFilterEnabledBanks                    *[]string `json:"hma_filter_enabled_banks,omitempty" envconfig:"hma_filter_enabled_banks" default:""`
-	LinkFilterAllowedUrlGlobs 				 *[]string `json:"link_filter_allowed_url_globs,omitempty" envconfig:"link_filter_allowed_url_globs" default:""`
-	LinkFilterDeniedUrlGlobs 				 *[]string `json:"link_filter_denied_url_globs,omitempty" envconfig:"link_filter_denied_url_globs" default:""`
-	UnsafeSigningKeyFilterEnabled            bool     `json:"unsafe_signing_key_filter_enabled,omitempty" envconfig:"unsafe_signing_key_filter_enabled" default:"true"`
+	LinkFilterAllowedUrlGlobs                *[]string `json:"link_filter_allowed_url_globs,omitempty" envconfig:"link_filter_allowed_url_globs" default:""`
+	LinkFilterDeniedUrlGlobs                 *[]string `json:"link_filter_denied_url_globs,omitempty" envconfig:"link_filter_denied_url_globs" default:""`
+	UnsafeSigningKeyFilterEnabled            bool      `json:"unsafe_signing_key_filter_enabled,omitempty" envconfig:"unsafe_signing_key_filter_enabled" default:"true"`
+	FrequencyFilterEventTypes                *[]string `json:"frequency_filter_event_types,omitempty" envconfig:"frequency_filter_event_types" default:"m.room.message,m.sticker,m.reaction"`
+	FrequencyFilterRateLimit                 *float64  `json:"frequency_filter_rate_limit,omitempty" envconfig:"frequency_filter_rate_limit" default:"0"`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {

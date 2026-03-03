@@ -166,6 +166,31 @@ and the timeout will end after the prescribed number of minutes. This is to prev
 if their client tries to automatically retry sending spammy events (or the user waits 4 minutes instead of 5 before
 sending another event). 
 
+### Frequency filter
+
+Rate limits senders on specific event types. If a user sends too many events with types from the configured set, any events
+sent by that user using those event types will be marked as spam until the rate is lowered again.
+
+For example, using the default configuration and a rate limit of 0.05 (~3 events per minute), if a user sends an `m.room.message`
+event, then an `m.sticker` event, then another `m.room.message` event, that user will be at the maximum allowed rate. If
+they then try to send another `m.room.message` event, that event will be marked as spam until the 60 second window has 
+elapsed.
+
+**Note**: it's recommended to use this filter alongside the hellban filter to prevent users getting stuck in a rate limit.
+If a user hits a rate limit and continues to try sending events, the hellban filter will prevent those events from counting
+towards the user's rate limit, allowing the rate limit to reset. However, this can also cause slightly more events to be 
+sent to the room: if a user is rate limited, they will enter the hellban timeout. After the (forced) timeout, the user's 
+60 second window will be fully reset, allowing them to send more events again (possibly before being rate limited again too).
+
+**Note**: if using multiple policyserv processes, users might be able to get a couple more events beyond the rate limit 
+through if they are faster than the underlying cross-process frequency counter.
+
+* `PS_FREQUENCY_FILTER_EVENT_TYPES` (default `m.room.message,m.sticker,m.reaction`) - The event types in CSV format to 
+  rate limit on a per-user basis. Events not part of these types will not be rate limited and do not affect the rate limit. 
+  Set to an empty value to disable the filter.
+* `PS_FREQUENCY_FILTER_RATE_LIMIT` (default `0`) - The events per second (over a 60 second window) to allow before rate 
+  limiting. Set to zero (the default) or negative to disable the filter. Example: `0.25` for ~15 events in a minute (15/60 = 0.25).
+
 ### Keyword filter
 
 The keyword filter is the most basic of the filters. If a user sends an event containing any of the listed keywords, that

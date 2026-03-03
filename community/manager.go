@@ -148,6 +148,9 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 	if len(internal.Dereference(communityConfig.LinkFilterAllowedUrlGlobs)) > 0 || len(internal.Dereference(communityConfig.LinkFilterDeniedUrlGlobs)) > 0 {
 		filters = append(filters, filter.LinkFilterName)
 	}
+	if len(internal.Dereference(communityConfig.FrequencyFilterEventTypes)) > 0 && internal.Dereference(communityConfig.FrequencyFilterRateLimit) > 0 {
+		filters = append(filters, filter.FrequencyFilterName)
+	}
 	var scanner content.Scanner
 	if m.instanceConfig.HMAApiUrl != "" && len(internal.Dereference(communityConfig.HMAFilterEnabledBanks)) > 0 {
 		filters = append(filters, filter.MediaScanningFilterName)
