@@ -61,7 +61,7 @@ func TestCounterOldEntries(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	c, err := NewCounter(ps, "TestCounter_2", 250*time.Millisecond) // short window to avoid long test delays
+	c, err := NewCounter(ps, "TestCounter_2", 1000*time.Millisecond) // short window to avoid long test delays
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
 	defer c.Close()
@@ -72,8 +72,13 @@ func TestCounterOldEntries(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	// Allow the entries to settle before we test that they actually made it (1 key and 10 entries)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, 1, len(c.values))
+	assert.Equal(t, 10, len(c.values[entity]))
+
 	// Wait for the entries to expire/exceed the window (with some buffer)
-	time.Sleep(275 * time.Millisecond)
+	time.Sleep(1100 * time.Millisecond)
 
 	// Verify the rate is zero as a result
 	rate, err := c.Get(entity)
@@ -134,6 +139,10 @@ func TestCounterCleanup(t *testing.T) {
 	manualIncrement(t, c, "@user1:example.org", time.Now().Add(-1500*time.Millisecond))
 	manualIncrement(t, c, "@user2:example.org", time.Now())
 	manualIncrement(t, c, "@user3:example.org", time.Now().Add(1500*time.Millisecond))
+
+	// Allow the entries to settle before we test that they actually made it
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, 3, len(c.values))
 
 	// Wait for the first cleanup job to run (with some buffer)
 	time.Sleep(1250 * time.Millisecond)

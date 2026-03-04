@@ -85,7 +85,6 @@ func (c *Counter) start() error {
 				arr, ok := c.values[rec.Entity]
 				if !ok {
 					arr = make([]time.Time, 0)
-					c.values[val] = arr
 				}
 				c.values[rec.Entity] = append(arr, rec.Timestamp)
 				log.Printf("Incremented %s (at %s) on %s", rec.Entity, rec.Timestamp.Format(time.RFC1123Z), c.pubsubId)
