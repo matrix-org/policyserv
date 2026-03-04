@@ -19,6 +19,8 @@ type CommunityConfig struct {
 	KeywordTemplateFilterUseFullEvent        *bool     `json:"keyword_template_filter_use_full_event,omitempty" envconfig:"keyword_template_filter_use_full_event" default:"false"`
 	MentionFilterMaxMentions                 *int      `json:"mention_filter_max_mentions,omitempty" envconfig:"mention_filter_max_mentions" default:"20"`
 	MentionFilterMinPlaintextLength          *int      `json:"mention_filter_min_plaintext_length,omitempty" envconfig:"mention_filter_min_plaintext_length" default:"5"`
+	MentionFrequencyFilterRateLimit          *float64  `json:"mention_frequency_filter_rate_limit,omitempty" envconfig:"mention_frequency_filter_rate_limit" default:"0"`
+	MentionFrequencyFilterMinPlaintextLength *int      `json:"mention_frequency_filter_min_plaintext_length,omitempty" envconfig:"mention_frequency_filter_min_plaintext_length" default:"5"`
 	ManyAtsFilterMaxAts                      *int      `json:"many_ats_filter_max_ats,omitempty" envconfig:"many_ats_filter_max_ats" default:"20"`
 	MediaFilterMediaTypes                    *[]string `json:"media_filter_media_types,omitempty" envconfig:"media_filter_media_types" default:"m.sticker,m.image,m.video,m.file,m.audio"`
 	UntrustedMediaFilterMediaTypes           *[]string `json:"untrusted_media_filter_media_types,omitempty" envconfig:"untrusted_media_filter_media_types" default:"m.sticker,m.image,m.video,m.file,m.audio"`
@@ -40,9 +42,11 @@ type CommunityConfig struct {
 	OpenAIFilterFailSecure                   *bool     `json:"openai_filter_fail_secure,omitempty" envconfig:"openai_filter_fail_secure" default:"true"`
 	StickyEventsFilterAllowStickyEvents      *bool     `json:"sticky_events_filter_allow_sticky_events,omitempty" envconfig:"sticky_events_filter_allow_sticky_events" default:"true"`
 	HMAFilterEnabledBanks                    *[]string `json:"hma_filter_enabled_banks,omitempty" envconfig:"hma_filter_enabled_banks" default:""`
-	LinkFilterAllowedUrlGlobs 				 *[]string `json:"link_filter_allowed_url_globs,omitempty" envconfig:"link_filter_allowed_url_globs" default:""`
-	LinkFilterDeniedUrlGlobs 				 *[]string `json:"link_filter_denied_url_globs,omitempty" envconfig:"link_filter_denied_url_globs" default:""`
-	UnsafeSigningKeyFilterEnabled            bool     `json:"unsafe_signing_key_filter_enabled,omitempty" envconfig:"unsafe_signing_key_filter_enabled" default:"true"`
+	LinkFilterAllowedUrlGlobs                *[]string `json:"link_filter_allowed_url_globs,omitempty" envconfig:"link_filter_allowed_url_globs" default:""`
+	LinkFilterDeniedUrlGlobs                 *[]string `json:"link_filter_denied_url_globs,omitempty" envconfig:"link_filter_denied_url_globs" default:""`
+	UnsafeSigningKeyFilterEnabled            bool      `json:"unsafe_signing_key_filter_enabled,omitempty" envconfig:"unsafe_signing_key_filter_enabled" default:"true"`
+	FrequencyFilterEventTypes                *[]string `json:"frequency_filter_event_types,omitempty" envconfig:"frequency_filter_event_types" default:"m.room.message,m.sticker,m.reaction"`
+	FrequencyFilterRateLimit                 *float64  `json:"frequency_filter_rate_limit,omitempty" envconfig:"frequency_filter_rate_limit" default:"0"`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {
