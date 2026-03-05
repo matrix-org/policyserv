@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
@@ -78,6 +79,10 @@ func TestMatrixFoundationIntents(t *testing.T) {
 			assert.Greaterf(t, spamThreshold, vecs.GetVector(classification.Spam), "%d (%s) should NOT be spam, but was %f", i, run.Event.EventID(), vecs.GetVector(classification.Spam))
 		}
 	}
+
+	// We deferred a bunch of close operations, but sometimes these operations can race with the test cases above causing
+	// a hellban. So, give things a moment to settle before closing.
+	time.Sleep(250 * time.Millisecond)
 }
 
 type foundationTestCase struct {
