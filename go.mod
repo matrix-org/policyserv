@@ -19,6 +19,7 @@ require (
 	github.com/t2bot/go-matrix-signing-key v0.0.0-20250823035654-ee2c984dd0ca
 	github.com/t2bot/go-typed-singleflight v0.0.3
 	github.com/tidwall/gjson v1.18.0
+	github.com/tidwall/sjson v1.2.5
 	golang.org/x/sync v0.19.0
 )
 
@@ -44,7 +45,6 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
