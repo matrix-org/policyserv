@@ -2,6 +2,8 @@ package test
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"sync"
 	"testing"
 
@@ -38,6 +40,13 @@ func (m *MemoryPubsub) Close() error {
 func (m *MemoryPubsub) publishTo(ch chan string, val string, andClose bool) {
 	// Async to avoid blocking calling code
 	go func(ch chan string, val string, andClose bool) {
+		defer func() {
+			if r := recover(); r != nil {
+				err := fmt.Errorf("panic in pubsub (ch=%v,val=%s,andClose=%t)", ch, val, andClose)
+				log.Println(err)
+				m.t.Fatal(err)
+			}
+		}()
 		ch <- val
 		if andClose {
 			close(ch)
