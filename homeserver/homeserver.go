@@ -157,5 +157,6 @@ func (h *Homeserver) BindTo(mux *http.ServeMux) error {
 	mux.Handle("/_matrix/federation/v1/user/devices/{userId}", h.httpRequestHandler(httpUserDevices))
 	mux.Handle("/_matrix/policy/unstable/org.matrix.msc4284/event/{eventId}/check", h.httpRequestHandler(httpMSC4284Check))
 	mux.Handle("/_matrix/policy/unstable/org.matrix.msc4284/sign", h.httpRequestHandler(httpMSC4284Sign))
+	mux.Handle("/_matrix/policy/v1/sign", h.httpRequestHandler(httpPolicySign))
 	return nil
 }
