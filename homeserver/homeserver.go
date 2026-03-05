@@ -149,7 +149,8 @@ func (h *Homeserver) httpRequestHandler(upstream func(homeserver *Homeserver, w 
 
 func (h *Homeserver) BindTo(mux *http.ServeMux) error {
 	mux.Handle("/.well-known/matrix/server", h.httpRequestHandler(httpDiscovery))
-	mux.Handle("/.well-known/matrix/org.matrix.msc4284.policy_server", h.httpRequestHandler(httpKeyDiscovery))
+	mux.Handle("/.well-known/matrix/org.matrix.msc4284.policy_server", h.httpRequestHandler(httpUnstableKeyDiscovery))
+	mux.Handle("/.well-known/matrix/policy_server", h.httpRequestHandler(httpKeyDiscovery))
 	mux.Handle("/.well-known/matrix/support", h.httpRequestHandler(httpSupport))
 	mux.Handle("/_matrix/federation/v1/version", h.httpRequestHandler(httpVersion))
 	mux.Handle("/_matrix/key/v2/server", h.httpRequestHandler(httpSelfKey))
