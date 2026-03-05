@@ -8,6 +8,7 @@ import (
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/internal"
+	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,6 +17,7 @@ func TestFrequencyFilter(t *testing.T) {
 	t.Parallel()
 
 	cnf := &SetConfig{
+		CommunityId: storage.NextId(), // use a real community ID to ensure we don't overflow in the pubsub layer
 		CommunityConfig: &config.CommunityConfig{
 			FrequencyFilterEventTypes: &[]string{"m.room.message"},
 			FrequencyFilterRateLimit:  internal.Pointer(1.0 / 60.0), // 1 message per minute
