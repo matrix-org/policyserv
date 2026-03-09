@@ -17,7 +17,9 @@ import (
 func TestLengthFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			LengthFilterMaxLength: internal.Pointer(150),
+			// When working on an event, the full event JSON will be used. We need to have a limit that considers
+			// both the extra PDU fields and the length of the text body itself for the second set of assertions.
+			LengthFilterMaxLength: internal.Pointer(300),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{LengthFilterName},
@@ -38,7 +40,7 @@ func TestLengthFilter(t *testing.T) {
 		RoomId:  "!foo:example.org",
 		Type:    "m.room.message",
 		Content: map[string]any{
-			"body": strings.Repeat("a", 151), // enough to trip the length filter config above
+			"body": strings.Repeat("a", 301), // enough to exceed the text body limit above
 		},
 	})
 	neutralEvent1 := test.MustMakePDU(&test.BaseClientEvent{
