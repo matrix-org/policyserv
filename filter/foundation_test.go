@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
@@ -30,7 +31,7 @@ func TestMatrixFoundationIntents(t *testing.T) {
 	communityConfig.SenderPrefilterAllowedSenders = &[]string{foundationAdmin}
 	communityConfig.MjolnirFilterEnabled = internal.Pointer(true)
 	communityConfig.DensityFilterMaxDensity = internal.Pointer(0.95)
-	communityConfig.HellbanPostfilterMinutes = internal.Pointer(5)
+	communityConfig.HellbanPostfilterMinutes = internal.Pointer(60) // large number to ensure the hellban will never expire in the test
 
 	cnf := &SetConfig{
 		CommunityId: "foundation",
@@ -77,7 +78,15 @@ func TestMatrixFoundationIntents(t *testing.T) {
 		} else {
 			assert.Greaterf(t, spamThreshold, vecs.GetVector(classification.Spam), "%d (%s) should NOT be spam, but was %f", i, run.Event.EventID(), vecs.GetVector(classification.Spam))
 		}
+
+		// Give things some time to settle before moving on to the next test case. This is primarily important for the
+		// hellban test cases to ensure the cause event creates a hellban before the effect event.
+		time.Sleep(100 * time.Millisecond)
 	}
+
+	// We deferred a bunch of close operations, but sometimes these operations can race with the test cases above causing
+	// a hellban. So, give things a moment to settle before closing.
+	time.Sleep(250 * time.Millisecond)
 }
 
 type foundationTestCase struct {
