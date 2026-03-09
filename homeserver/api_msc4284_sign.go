@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/matrix-org/policyserv/metrics"
-	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/metrics"
+	"github.com/matrix-org/policyserv/queue"
 )
 
 const PolicyServerKeyID gomatrixserverlib.KeyID = "ed25519:policy_server"
@@ -24,11 +24,19 @@ func httpMSC4284Sign(server *Homeserver, w http.ResponseWriter, r *http.Request)
 	t := metrics.StartRequestTimer(r.Method, "httpMSC4284Sign")
 	defer t.ObserveDuration()
 
-	fedReq, room := decodeRoom("httpMSC4284Sign", server, w, r)
+	handlePolicySignRequest(server, w, r, false)
+}
+
+func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.Request, stable bool) {
+	funcName := "httpMSC4284Sign"
+	if stable {
+		funcName = "httpPolicySign"
+	}
+	fedReq, room := decodeRoom(funcName, server, w, r)
 	if room == nil {
 		// we must have a room_id to know if we should sign it.
 		// Notably the create event in v12 rooms will omit this.
-		refuseToSign(w, r)
+		refuseToSign(w, r, stable)
 		return
 	}
 
@@ -36,7 +44,7 @@ func httpMSC4284Sign(server *Homeserver, w http.ResponseWriter, r *http.Request)
 	event, err := roomVersion.NewEventFromUntrustedJSON(fedReq.Content())
 	if err != nil {
 		log.Println("Error parsing event:", err)
-		refuseToSign(w, r)
+		refuseToSign(w, r, stable)
 		return
 	}
 
@@ -47,7 +55,7 @@ func httpMSC4284Sign(server *Homeserver, w http.ResponseWriter, r *http.Request)
 	})
 	if err != nil {
 		log.Printf("Signature verification failed for %s: %s", event.EventID(), err)
-		refuseToSign(w, r)
+		refuseToSign(w, r, stable)
 		return
 	}
 
@@ -58,7 +66,7 @@ func httpMSC4284Sign(server *Homeserver, w http.ResponseWriter, r *http.Request)
 	err = server.runFilters(r.Context(), event, ch)
 	if err != nil {
 		log.Println("Error submitting event:", err)
-		refuseToSign(w, r)
+		refuseToSign(w, r, stable)
 		return
 	}
 
@@ -68,20 +76,20 @@ func httpMSC4284Sign(server *Homeserver, w http.ResponseWriter, r *http.Request)
 	case res = <-ch:
 	case <-r.Context().Done():
 		log.Printf("[%s | %s] Request context cancelled: %s", event.EventID(), event.RoomID().String(), r.Context().Err())
-		defer metrics.RecordHttpResponse(r.Method, "httpMSC4284Sign", http.StatusRequestTimeout)
+		defer metrics.RecordHttpResponse(r.Method, funcName, http.StatusRequestTimeout)
 		MatrixHttpError(w, http.StatusRequestTimeout, "M_UNKNOWN", "Request timed out")
 		return
 	}
 
 	if res.Err != nil {
 		log.Println("Error receiving event result:", err)
-		refuseToSign(w, r)
+		refuseToSign(w, r, stable)
 		return
 	}
 
 	if res.IsProbablySpam {
 		log.Printf("🚫 [%s] refusing to sign in %s", event.EventID(), event.RoomID().String())
-		refuseToSign(w, r)
+		refuseToSign(w, r, stable)
 		return
 	}
 
@@ -89,7 +97,13 @@ func httpMSC4284Sign(server *Homeserver, w http.ResponseWriter, r *http.Request)
 	log.Printf("✅ [%s] Signed in %s as requested by %s", event.EventID(), event.RoomID().String(), fedReq.Origin())
 }
 
-func refuseToSign(w http.ResponseWriter, r *http.Request) {
+func refuseToSign(w http.ResponseWriter, r *http.Request, stable bool) {
+	// Stable endpoints allow us to return real errors, so we should do that.
+	if stable {
+		MatrixHttpError(w, http.StatusBadRequest, "M_FORBIDDEN", "This message is not allowed by the policy server")
+		return
+	}
+
 	// We record 400 in the metrics to see how many events we are refusing, but the API
 	// always returns 200 OK
 	defer metrics.RecordHttpResponse(r.Method, "httpMSC4284Sign", http.StatusBadRequest)

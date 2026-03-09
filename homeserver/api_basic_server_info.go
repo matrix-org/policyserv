@@ -32,13 +32,25 @@ func httpDiscovery(srv *Homeserver, w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(fmt.Sprintf(`{"m.server":"%s:443"}`, srv.ServerName)))
 }
 
+func httpUnstableKeyDiscovery(server *Homeserver, w http.ResponseWriter, r *http.Request) {
+	handleKeyDiscovery(server, w, r, false)
+}
+
 func httpKeyDiscovery(server *Homeserver, w http.ResponseWriter, r *http.Request) {
-	metrics.RecordHttpRequest(r.Method, "httpKeyDiscovery")
-	t := metrics.StartRequestTimer(r.Method, "httpKeyDiscovery")
+	handleKeyDiscovery(server, w, r, true)
+}
+
+func handleKeyDiscovery(server *Homeserver, w http.ResponseWriter, r *http.Request, stable bool) {
+	funcName := "httpKeyDiscovery"
+	if !stable {
+		funcName = "httpUnstableKeyDiscovery"
+	}
+	metrics.RecordHttpRequest(r.Method, funcName)
+	t := metrics.StartRequestTimer(r.Method, funcName)
 	defer t.ObserveDuration()
 
 	if r.Method != http.MethodGet && r.Method != http.MethodOptions { // OPTIONS is for CORS support
-		defer metrics.RecordHttpResponse(r.Method, "httpKeyDiscovery", http.StatusMethodNotAllowed)
+		defer metrics.RecordHttpResponse(r.Method, funcName, http.StatusMethodNotAllowed)
 		MatrixHttpError(w, http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
 		return
 	}
@@ -48,10 +60,15 @@ func httpKeyDiscovery(server *Homeserver, w http.ResponseWriter, r *http.Request
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization")
 
-	defer metrics.RecordHttpResponse(r.Method, "httpKeyDiscovery", http.StatusOK)
+	defer metrics.RecordHttpResponse(r.Method, funcName, http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(server.GetPublicEventSigningKey())
-	_, _ = w.Write([]byte(fmt.Sprintf(`{"public_key":"%s"}`, b64)))
+
+	if stable {
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"public_keys":{"ed25519":"%s"}}`, b64)))
+	} else {
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"public_key":"%s"}`, b64)))
+	}
 }
 
 type wellknownSupportContact struct {
