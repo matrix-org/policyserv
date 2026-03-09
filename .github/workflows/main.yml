@@ -3,34 +3,34 @@ on:
   push:
 jobs:
   build:
-    name: 'Go Build (1.24)'
+    name: 'Go Build'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - run: 'GOBIN=$PWD/bin go install -v ./cmd/...'
   static:
-    name: 'Go Static (1.24)'
+    name: 'Go Static'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - name: "Prepare: staticcheck"
         run: 'go install honnef.co/go/tools/cmd/staticcheck@latest'
       - run: 'go vet ./cmd/...'
       - run: 'staticcheck ./cmd/...'
   tests:
-    name: 'Go Tests (1.24)'
+    name: 'Go Tests'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: '1.25'
       - name: "Prepare: gotestsum"
         run: 'go install gotest.tools/gotestsum@latest'
       - run: 'gotestsum --format testname'

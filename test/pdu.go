@@ -119,6 +119,10 @@ func (n *noopPDU) Sign(signingName string, keyID gomatrixserverlib.KeyID, privat
 
 // ----- below here are template functions -----
 
+func (n *noopPDU) PrevStateEventIDs() []string {
+	return make([]string, 0)
+}
+
 func (n *noopPDU) Version() gomatrixserverlib.RoomVersion {
 	return gomatrixserverlib.RoomVersionV12
 }
