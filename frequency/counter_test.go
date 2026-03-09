@@ -17,9 +17,9 @@ func TestCounterLongName(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	c, err := NewCounter(ps, strings.Repeat("x", 31), 60*time.Second)
+	c, err := NewCounter(ps, strings.Repeat("x", 32), 60*time.Second)
 	assert.Nil(t, c)
-	assert.ErrorContains(t, err, "name must be less than 30 characters")
+	assert.ErrorContains(t, err, "name must be less than 31 characters")
 }
 
 func TestCounter(t *testing.T) {

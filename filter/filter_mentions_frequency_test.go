@@ -8,6 +8,7 @@ import (
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/internal"
+	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,6 +17,7 @@ func TestMentionsFrequencyFilter(t *testing.T) {
 	t.Parallel()
 
 	cnf := &SetConfig{
+		CommunityId: storage.NextId(), // use a real community ID to ensure we don't overflow in the pubsub layer
 		CommunityConfig: &config.CommunityConfig{
 			MentionFrequencyFilterMinPlaintextLength: internal.Pointer(5),
 			MentionFrequencyFilterRateLimit:          internal.Pointer(5.0 / 60.0), // 5 mentions per minute

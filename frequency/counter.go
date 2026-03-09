@@ -27,13 +27,13 @@ type Counter struct {
 	ticker     *time.Ticker
 }
 
-// NewCounter creates a new cross-process counter. The `name` must be less than 30 characters.
+// NewCounter creates a new cross-process counter. The `name` must be less than 31 characters.
 func NewCounter(pubsub pubsub.Client, name string, window time.Duration) (*Counter, error) {
-	if len(name) >= 30 {
-		return nil, fmt.Errorf("name must be less than 30 characters")
+	if len(name) >= 31 {
+		return nil, fmt.Errorf("name must be less than 31 characters")
 	}
 	// This must be less than 64 characters.
-	// 	+29 from caller-supplied name
+	// 	+30 from caller-supplied name
 	// 	+27 from KSUID (storage.NextId())
 	//  +5  from our other templating
 	//  =61
