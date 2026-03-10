@@ -148,6 +148,9 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 	if len(internal.Dereference(communityConfig.LinkFilterAllowedUrlGlobs)) > 0 || len(internal.Dereference(communityConfig.LinkFilterDeniedUrlGlobs)) > 0 {
 		filters = append(filters, filter.LinkFilterName)
 	}
+	if internal.Dereference(communityConfig.MentionFrequencyFilterRateLimit) > 0 {
+		filters = append(filters, filter.MentionsFrequencyFilterName)
+	}
 	if len(internal.Dereference(communityConfig.FrequencyFilterEventTypes)) > 0 && internal.Dereference(communityConfig.FrequencyFilterRateLimit) > 0 {
 		filters = append(filters, filter.FrequencyFilterName)
 	}
