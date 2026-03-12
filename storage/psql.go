@@ -58,6 +58,8 @@ type PostgresStorage struct {
 	trustDataUpsert                      *sql.Stmt
 	keywordTemplateSelect                *sql.Stmt
 	keywordTemplateUpsert                *sql.Stmt
+	mediaClassificationSelect            *sql.Stmt
+	mediaClassificationUpsert            *sql.Stmt
 
 	//userIdsAndDisplayNamesByRoomIdUpsert *sql.Stmt // We do the upsert manually to enter a transaction instead
 	//banRulesUpsertForRoom                *sql.Stmt // We do the upsert manually to enter a transaction instead
@@ -152,6 +154,12 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 		return err
 	}
 	if s.keywordTemplateUpsert, err = s.db.Prepare("INSERT INTO keyword_templates (name, body) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET body = $2;"); err != nil {
+		return err
+	}
+	if s.mediaClassificationSelect, err = s.readonlyDb.Prepare("SELECT mxc_uri, community_id, classifications FROM media_classifications WHERE mxc_uri = $1 AND community_id = $2;"); err != nil {
+		return err
+	}
+	if s.mediaClassificationUpsert, err = s.db.Prepare("INSERT INTO media_classifications (mxc_uri, community_id, classifications) VALUES ($1, $2, $3) ON CONFLICT (mxc_uri, community_id) DO UPDATE SET classifications = $3;"); err != nil {
 		return err
 	}
 
@@ -533,6 +541,27 @@ func (s *PostgresStorage) GetKeywordTemplate(ctx context.Context, name string) (
 	r := s.keywordTemplateSelect.QueryRowContext(ctx, name)
 	val := &StoredKeywordTemplate{}
 	err := r.Scan(&val.Name, &val.Body)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func (s *PostgresStorage) UpsertMediaClassification(ctx context.Context, mediaClassification *StoredMediaClassification) error {
+	t := dbmetrics.StartSelfDatabaseTimer("UpsertMediaClassification")
+	defer t.ObserveDuration()
+
+	_, err := s.mediaClassificationUpsert.ExecContext(ctx, mediaClassification.MxcUri, mediaClassification.CommunityId, mediaClassification.Classifications)
+	return err
+}
+
+func (s *PostgresStorage) GetMediaClassification(ctx context.Context, mxcUri string, communityId string) (*StoredMediaClassification, error) {
+	t := dbmetrics.StartSelfDatabaseTimer("GetMediaClassification")
+	defer t.ObserveDuration()
+
+	r := s.mediaClassificationSelect.QueryRowContext(ctx, mxcUri, communityId)
+	val := &StoredMediaClassification{}
+	err := r.Scan(&val.MxcUri, &val.CommunityId, &val.Classifications)
 	if err != nil {
 		return nil, err
 	}
