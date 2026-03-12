@@ -115,17 +115,6 @@ INVALID.
 36. Performative or sentence usernames: "@im_going_to_find_you_and_hurt_you:example.org"
 37. Server names which could refer to child abuse: "cute_art.com"
 
-### SPAM EMOJI
-
-CONTENT SAMPLES with emoji or sequences of emoji similar to the following should be considered INVALID.
-
-38. Commonly used for a sexual purpose, like "🍆" and "🍑"
-39. Attention-grabbing emoji, like "🚨" and "⚠️"
-40. Associated with wealth, like "💎", "🤑", and "💰"
-41. Any combination of emoji which describes a scene, like "😈🤝🏦"
-42. Weapons, like "🔫"
-43. Emoticons which break any of the above rules.
-
 # EVALUATION
 
 Evaluate this CONTENT SAMPLE against the above policy, and respond per INSTRUCTIONS:
