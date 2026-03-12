@@ -1,10 +1,13 @@
 package api
 
 import (
+	"crypto/rand"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/metrics"
 )
 
@@ -119,6 +122,49 @@ func httpSetCommunityConfigApi(api *Api, w http.ResponseWriter, r *http.Request)
 	}
 
 	err = respondJson("httpSetCommunityConfigApi", r, w, community)
+	if err != nil {
+		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
+		return
+	}
+}
+
+func httpRotateCommunityAccessTokenApi(api *Api, w http.ResponseWriter, r *http.Request) {
+	metrics.RecordHttpRequest(r.Method, "httpRotateCommunityAccessTokenApi")
+	t := metrics.StartRequestTimer(r.Method, "httpRotateCommunityAccessTokenApi")
+	defer t.ObserveDuration()
+
+	errs := newErrorResponder("httpRotateCommunityAccessTokenApi", w, r)
+
+	if r.Method != http.MethodPost {
+		errs.text(http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
+		return
+	}
+
+	id := r.PathValue("id")
+	community, err := api.storage.GetCommunity(r.Context(), id)
+	if err != nil {
+		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
+		return
+	}
+	if community == nil {
+		errs.text(http.StatusNotFound, "M_NOT_FOUND", "Community not found")
+		return
+	}
+
+	oldAccessToken := internal.Dereference(community.ApiAccessToken)
+
+	newAccessToken := fmt.Sprintf("pst_%s", rand.Text())
+	community.ApiAccessToken = internal.Pointer(newAccessToken)
+	err = api.storage.UpsertCommunity(r.Context(), community)
+	if err != nil {
+		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
+		return
+	}
+
+	err = respondJson("httpRotateCommunityAccessTokenApi", r, w, map[string]string{
+		"old_access_token": oldAccessToken,
+		"new_access_token": newAccessToken,
+	})
 	if err != nil {
 		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
 		return

@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/storage"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/panjf2000/ants/v2"
 )
 
@@ -50,7 +50,7 @@ func MakePool(instanceConfig *config.InstanceConfig) {
 func QueueRedaction(storage storage.PersistentStorage, event gomatrixserverlib.PDU) error {
 	metrics.RecordModerationRequest(metrics.ModerationActionRedaction)
 
-	if !event.SenderID().IsUserID() {
+	if !event.SenderID().IsUserID() || event.SenderID().ToUserID() == nil {
 		log.Printf("Non-user sender '%s' in %s at %s", event.SenderID(), event.RoomID().String(), event.EventID())
 		return nil
 	}

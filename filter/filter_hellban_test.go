@@ -217,7 +217,7 @@ func TestHellbanPostfilter(t *testing.T) {
 	})
 
 	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		fixedFilter.Expect = &Input{
+		fixedFilter.Expect = &EventInput{
 			Event:                        event,
 			Medias:                       make([]*media.Item, 0),
 			IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
@@ -322,7 +322,7 @@ func TestHellbanFiltersCombined(t *testing.T) {
 	// updated, not that the filters work.
 
 	// Step 2 prep
-	fixedFilter.Expect = &Input{
+	fixedFilter.Expect = &EventInput{
 		Event:                        spammyEvent1,
 		Medias:                       make([]*media.Item, 0),
 		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5}, // just the starting value
@@ -346,7 +346,7 @@ func TestHellbanFiltersCombined(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// Step 6 prep
-	fixedFilter.Expect = &Input{
+	fixedFilter.Expect = &EventInput{
 		Event:  spammyEvent1,
 		Medias: make([]*media.Item, 0),
 		IncrementalConfidenceVectors: confidence.Vectors{

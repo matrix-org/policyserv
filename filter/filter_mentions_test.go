@@ -3,6 +3,7 @@ package filter
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -26,6 +27,7 @@ type mentionsTestCase struct {
 	Mentions      []string
 	Members       *members
 	WantNeutral   bool
+	MentionsCount int
 }
 
 func TestMentionsFilter(t *testing.T) {
@@ -59,7 +61,8 @@ func TestMentionsFilter(t *testing.T) {
 				UserIds:      []string{"@b:example.com"},
 				DisplayNames: []string{"bob"},
 			},
-			WantNeutral: true,
+			WantNeutral:   true,
+			MentionsCount: 1,
 		},
 		{
 			EventType:     "m.room.message",
@@ -71,7 +74,8 @@ func TestMentionsFilter(t *testing.T) {
 				UserIds:      []string{"@b:example.com"},
 				DisplayNames: []string{"bob"},
 			},
-			WantNeutral: true,
+			WantNeutral:   true,
+			MentionsCount: 2,
 		},
 		{
 			EventType: "m.room.message",
@@ -81,7 +85,8 @@ func TestMentionsFilter(t *testing.T) {
 				UserIds:      []string{"@a:example.com", "@b:example.com", "@c:example.com"},
 				DisplayNames: []string{"alice", "bob", "charlie"},
 			},
-			WantNeutral: false,
+			WantNeutral:   false,
+			MentionsCount: 5,
 		},
 		{
 			EventType:     "m.room.message",
@@ -93,7 +98,8 @@ func TestMentionsFilter(t *testing.T) {
 				UserIds:      []string{"@a:example.com", "@b:example.com", "@c:example.com"},
 				DisplayNames: []string{"alice", "bob", "charlie"},
 			},
-			WantNeutral: false,
+			WantNeutral:   false,
+			MentionsCount: 4,
 		},
 		{
 			EventType: "m.room.message",
@@ -103,7 +109,8 @@ func TestMentionsFilter(t *testing.T) {
 				UserIds:      []string{"@a:example.com", "@b:example.com", "@c:example.com"},
 				DisplayNames: []string{"alice", "bob", "charlie"},
 			},
-			WantNeutral: false,
+			WantNeutral:   false,
+			MentionsCount: 6,
 		},
 		{
 			EventType: "org.example.wrong_event_type_for_filter",
@@ -113,27 +120,30 @@ func TestMentionsFilter(t *testing.T) {
 				UserIds:      []string{"@b:example.com"},
 				DisplayNames: []string{"bob"},
 			},
-			WantNeutral: true,
+			WantNeutral:   true,
+			MentionsCount: 0,
 		},
 		{
 			EventType: "m.room.message",
 			TestName:  "many low-character names are not spam",
 			Body:      "a b c d e f g h i j k l m n o p q r s t u v w x y z",
 			Members: &members{
-				UserIds:      []string{"@notused:example.org"},
+				UserIds:      []string{"@still_a_mention:example.org"},
 				DisplayNames: strings.Split("a b c d e f g h i j k l m n o p q r s t u v w x y z", " "),
 			},
-			WantNeutral: true,
+			WantNeutral:   true,
+			MentionsCount: 1,
 		},
 		{
 			EventType: "m.room.message",
 			TestName:  "detects spam for names for long enough names",
 			Body:      "abcdef ghijkl mnopqr stuvwx yz",
 			Members: &members{
-				UserIds:      []string{"@notused:example.org"},
+				UserIds:      []string{"@still_a_mention:example.org"},
 				DisplayNames: []string{"abcdef", "ghijkl", "mnopqr", "stuvwx", "yz"},
 			},
-			WantNeutral: false,
+			WantNeutral:   false,
+			MentionsCount: 5,
 		},
 	}
 
@@ -153,6 +163,12 @@ func TestMentionsFilter(t *testing.T) {
 		})
 		err = memStorage.SetUserIdsAndDisplayNamesByRoomId(ctx, roomId, tc.Members.UserIds, tc.Members.DisplayNames)
 		assert.NoError(t, err, fmt.Sprintf("%s => wanted no error", tc.TestName))
+
+		mentionsFilter, ok := set.groups[0].filters[0].(*InstancedMentionsFilter)
+		assert.True(t, ok)
+		numMentions, err := mentionsFilter.CountMentionsToLimit(context.Background(), event, math.MaxInt)
+		assert.NoError(t, err)
+		assert.Equal(t, tc.MentionsCount, numMentions, fmt.Sprintf("%s => wanted %d mentions", tc.TestName, tc.MentionsCount))
 
 		vecs, err := set.CheckEvent(ctx, event, nil)
 		assert.NoError(t, err)

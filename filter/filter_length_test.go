@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/matrix-org/gomatrixserverlib"
@@ -10,12 +11,15 @@ import (
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 )
 
 func TestLengthFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			LengthFilterMaxLength: internal.Pointer(150),
+			// When working on an event, the full event JSON will be used. We need to have a limit that considers
+			// both the extra PDU fields and the length of the text body itself for the second set of assertions.
+			LengthFilterMaxLength: internal.Pointer(300),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{LengthFilterName},
@@ -36,7 +40,7 @@ func TestLengthFilter(t *testing.T) {
 		RoomId:  "!foo:example.org",
 		Type:    "m.room.message",
 		Content: map[string]any{
-			"body": "these characters are to try pushing the event size out significantly",
+			"body": strings.Repeat("a", 301), // enough to exceed the text body limit above
 		},
 	})
 	neutralEvent1 := test.MustMakePDU(&test.BaseClientEvent{
@@ -71,4 +75,22 @@ func TestLengthFilter(t *testing.T) {
 	assertSpamVector(spammyEvent1, true)
 	assertSpamVector(neutralEvent1, false)
 	assertSpamVector(noopEvent1, false)
+
+	// Also test the text filter implementation
+	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
+		body := gjson.Get(string(event.Content()), "body").String()
+		vecs, err := set.CheckText(context.Background(), body)
+		assert.NoError(t, err)
+		if isSpam {
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+			assert.Equal(t, 1.0, vecs.GetVector(classification.Volumetric))
+		} else {
+			// Because the filter doesn't flag things as "not spam", the seed value should survive
+			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+			assert.Equal(t, 0.0, vecs.GetVector(classification.Volumetric))
+		}
+	}
+	assertTextSpamVector(spammyEvent1, true)
+	assertTextSpamVector(neutralEvent1, false)
+	//assertTextSpamVector(noopEvent1, false) // text doesn't have a concept of event types, so skip this one
 }

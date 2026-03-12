@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/metrics"
 )
 
 type hashResponse map[string]string // type -> hash
@@ -44,19 +45,35 @@ func (s *HMAScanner) Scan(ctx context.Context, contentType Type, content []byte)
 		return nil, err
 	}
 
+	hadMatch := false
 	for _, matchedBankName := range matchedBankNames {
+		wasEnabled := false
 		for _, enabledBankName := range s.enabledBankNames {
 			if enabledBankName == matchedBankName {
-				// TODO: Support labeling the banks rather than assuming it's always CSAM
-				return []classification.Classification{classification.Spam, classification.CSAM}, nil
+				wasEnabled = true
+				break
 			}
 		}
+
+		metrics.RecordHMABankHit(string(contentType), matchedBankName, wasEnabled)
+		if wasEnabled {
+			hadMatch = true
+		}
+	}
+
+	if hadMatch {
+		// TODO: Support labeling the banks rather than assuming it's always CSAM
+		return []classification.Classification{classification.Spam, classification.CSAM}, nil
 	}
 
 	return nil, nil
 }
 
 func (s *HMAScanner) hash(contentType Type, content []byte) (hashResponse, error) {
+	metrics.RecordHMAHashRequest(string(contentType))
+	timer := metrics.StartHMAHashTimer(string(contentType))
+	defer timer.ObserveDuration()
+
 	// HMA uses a multipart form to hash content. We'll need to make that form first, then send it.
 
 	buf := bytes.Buffer{}
@@ -124,6 +141,10 @@ type matchResult struct {
 }
 
 func (s *HMAScanner) match(hash hashResponse) ([]string, error) {
+	metrics.RecordHMAMatchRequest()
+	timer := metrics.StartHMAMatchTimer()
+	defer timer.ObserveDuration()
+
 	matches := make([]matchResult, len(hash))
 	lock := sync.Mutex{}
 	wg := sync.WaitGroup{}

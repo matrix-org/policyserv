@@ -2,65 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 
 	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/metrics"
 )
-
-type joinRoomIdsRequest struct {
-	RoomIds []string `json:"room_ids,flow"`
-	Via     string   `json:"via"`
-}
-
-func httpJoinRoomApi(api *Api, w http.ResponseWriter, r *http.Request) {
-	metrics.RecordHttpRequest(r.Method, "httpJoinRoomApi")
-	t := metrics.StartRequestTimer(r.Method, "httpJoinRoomApi")
-	defer t.ObserveDuration()
-
-	if r.Method != http.MethodPost {
-		defer metrics.RecordHttpResponse(r.Method, "httpJoinRoomApi", http.StatusMethodNotAllowed)
-		homeserver.MatrixHttpError(w, http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
-		return
-	}
-
-	if r.Header.Get("Authorization") != "Bearer "+api.apiKey {
-		defer metrics.RecordHttpResponse(r.Method, "httpJoinRoomApi", http.StatusUnauthorized)
-		homeserver.MatrixHttpError(w, http.StatusUnauthorized, "M_UNAUTHORIZED", "Not allowed")
-		return
-	}
-
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Println(err)
-		defer metrics.RecordHttpResponse(r.Method, "httpJoinRoomApi", http.StatusBadRequest)
-		homeserver.MatrixHttpError(w, http.StatusInternalServerError, "M_UNKNOWN", "Error")
-		return
-	}
-
-	req := joinRoomIdsRequest{}
-	err = json.Unmarshal(b, &req)
-	if err != nil {
-		log.Println(err)
-		defer metrics.RecordHttpResponse(r.Method, "httpJoinRoomApi", http.StatusBadRequest)
-		homeserver.MatrixHttpError(w, http.StatusBadRequest, "M_BAD_JSON", "Bad JSON")
-		return
-	}
-
-	err = api.hs.JoinRooms(r.Context(), req.RoomIds, req.Via, "default")
-	if err != nil {
-		log.Println(err)
-		defer metrics.RecordHttpResponse(r.Method, "httpJoinRoomApi", http.StatusInternalServerError)
-		homeserver.MatrixHttpError(w, http.StatusInternalServerError, "M_UNKNOWN", "Error")
-		return
-	}
-
-	defer metrics.RecordHttpResponse(r.Method, "httpJoinRoomApi", http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"joined_all": true}`))
-}
 
 func httpGetRoomsApi(api *Api, w http.ResponseWriter, r *http.Request) {
 	metrics.RecordHttpRequest(r.Method, "httpGetRoomsApi")
@@ -70,12 +17,6 @@ func httpGetRoomsApi(api *Api, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		defer metrics.RecordHttpResponse(r.Method, "httpGetRoomsApi", http.StatusMethodNotAllowed)
 		homeserver.MatrixHttpError(w, http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
-		return
-	}
-
-	if r.Header.Get("Authorization") != "Bearer "+api.apiKey {
-		defer metrics.RecordHttpResponse(r.Method, "httpGetRoomsApi", http.StatusUnauthorized)
-		homeserver.MatrixHttpError(w, http.StatusUnauthorized, "M_UNAUTHORIZED", "Not allowed")
 		return
 	}
 

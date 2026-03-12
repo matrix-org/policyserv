@@ -83,7 +83,7 @@ func (s *CreatorSource) ImportData(ctx context.Context, roomId string, createEve
 	}
 
 	// Sanity check, because sometimes this goes wrong
-	if !createEvent.SenderID().IsUserID() {
+	if !createEvent.SenderID().IsUserID() || createEvent.SenderID().ToUserID() == nil {
 		return errors.New("sender is not a user ID for unknown reason")
 	}
 

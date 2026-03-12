@@ -44,7 +44,7 @@ func (f *InstancedMediaScanningFilter) Name() string {
 	return MediaScanningFilterName
 }
 
-func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	if len(input.Medias) == 0 {
 		return nil, nil // return early to avoid doing work
 	}

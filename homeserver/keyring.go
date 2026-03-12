@@ -76,6 +76,7 @@ func (h *Homeserver) FetchKeys(ctx context.Context, requests map[gomatrixserverl
 			continue
 		}
 
+		fetched = filterUnsafeKeysOut(fetched)
 		for req, res := range fetched {
 			// Store the longest-until-expiration result
 			if prev, ok := results[req]; ok {

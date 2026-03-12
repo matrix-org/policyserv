@@ -30,7 +30,7 @@ func (f *InstancedAIExecutorFilter[ConfigT]) Name() string {
 	return f.name
 }
 
-func (f *InstancedAIExecutorFilter[ConfigT]) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedAIExecutorFilter[ConfigT]) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	if !slices.Contains(f.inRoomIds, input.Event.RoomID().String()) {
 		return nil, nil // this filter isn't allowed to execute in here
 	}

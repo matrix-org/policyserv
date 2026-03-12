@@ -34,7 +34,7 @@ func (f *InstancedEventTypeFilter) Name() string {
 	return EventTypeFilterName
 }
 
-func (f *InstancedEventTypeFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedEventTypeFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	eventTypeSet := f.allowedEventTypes
 	if input.Event.StateKey() != nil {
 		eventTypeSet = f.allowedStateEventTypes

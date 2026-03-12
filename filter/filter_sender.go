@@ -32,7 +32,7 @@ func (f *InstancedSenderFilter) Name() string {
 	return SenderFilterName
 }
 
-func (f *InstancedSenderFilter) CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error) {
+func (f *InstancedSenderFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	for _, s := range f.allowedUserIds {
 		if s == string(input.Event.SenderID()) {
 			return []classification.Classification{

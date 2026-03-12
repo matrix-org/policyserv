@@ -1,0 +1,1 @@
+DROP TABLE keyword_templates;

@@ -162,7 +162,7 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 	retCommunityId, err := manager.getCommunityIdForRoom(ctx, roomId)
 	assert.NoError(t, err)
 	assert.Equal(t, communityId, retCommunityId)
-	set, err := manager.getCommunityFilterSet(ctx, communityId)
+	set, err := manager.GetFilterSetForCommunityId(ctx, communityId)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 

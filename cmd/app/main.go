@@ -76,7 +76,7 @@ func main() {
 	b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hs.GetPublicEventSigningKey())
 	log.Println("Public event key:", homeserver.PolicyServerKeyID, b64)
 
-	api, err := setupApi(instanceConfig, db, hs)
+	api, err := setupApi(instanceConfig, db, hs, communityManager)
 	if err != nil {
 		log.Fatal(err) // "should never happen"
 	}
@@ -124,7 +124,7 @@ func main() {
 		log.Fatal(err)
 	}
 	scheduler.Start() // start immediately so we can force jobs to run immediately too
-	err = setupScheduler(scheduler, db, instanceConfig)
+	err = setupScheduler(scheduler, hs, db, instanceConfig)
 	if err != nil {
 		log.Fatal(err)
 	}

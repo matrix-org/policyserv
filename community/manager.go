@@ -78,7 +78,7 @@ func invalidateCacheOnChannel[V any](cacheInstance *cache.Cache[string, V], cach
 	}
 }
 
-func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string) (*filter.Set, error) {
+func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId string) (*filter.Set, error) {
 	fromCache, ok := m.communityFilterCache.Get(communityId)
 	if ok {
 		return fromCache, nil
@@ -100,6 +100,9 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 	postfilters := make([]string, 0)
 	if len(internal.Dereference(communityConfig.KeywordFilterKeywords)) > 0 {
 		filters = append(filters, filter.KeywordFilterName)
+	}
+	if len(internal.Dereference(communityConfig.KeywordTemplateFilterTemplateNames)) > 0 {
+		filters = append(filters, filter.KeywordTemplateFilterName)
 	}
 	if len(internal.Dereference(communityConfig.EventTypePrefilterAllowedEventTypes)) > 0 || len(internal.Dereference(communityConfig.EventTypePrefilterAllowedStateEventTypes)) > 0 {
 		prefilters = append(prefilters, filter.EventTypeFilterName)
@@ -146,6 +149,15 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 	if !internal.Dereference(communityConfig.StickyEventsFilterAllowStickyEvents) {
 		filters = append(filters, filter.StickyEventsFilterName)
 	}
+	if len(internal.Dereference(communityConfig.LinkFilterAllowedUrlGlobs)) > 0 || len(internal.Dereference(communityConfig.LinkFilterDeniedUrlGlobs)) > 0 {
+		filters = append(filters, filter.LinkFilterName)
+	}
+	if internal.Dereference(communityConfig.MentionFrequencyFilterRateLimit) > 0 {
+		filters = append(filters, filter.MentionsFrequencyFilterName)
+	}
+	if len(internal.Dereference(communityConfig.FrequencyFilterEventTypes)) > 0 && internal.Dereference(communityConfig.FrequencyFilterRateLimit) > 0 {
+		filters = append(filters, filter.FrequencyFilterName)
+	}
 	var scanner content.Scanner
 	if m.instanceConfig.HMAApiUrl != "" && len(internal.Dereference(communityConfig.HMAFilterEnabledBanks)) > 0 {
 		filters = append(filters, filter.MediaScanningFilterName)
@@ -153,6 +165,9 @@ func (m *Manager) getCommunityFilterSet(ctx context.Context, communityId string)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create HMA scanner: %w", err)
 		}
+	}
+	if communityConfig.UnsafeSigningKeyFilterEnabled {
+		prefilters = append(prefilters, filter.UnsafeSigningKeyFilterName)
 	}
 	setConfig := &filter.SetConfig{
 		CommunityConfig: communityConfig,
@@ -254,5 +269,5 @@ func (m *Manager) GetFilterSetForRoomId(ctx context.Context, roomId string) (*fi
 		return nil, nil
 	}
 
-	return m.getCommunityFilterSet(ctx, communityId)
+	return m.GetFilterSetForCommunityId(ctx, communityId)
 }

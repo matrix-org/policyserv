@@ -70,7 +70,7 @@ func TestInstancedAIExecutorFilter(t *testing.T) {
 			"msgtype": "m.text",
 		},
 	})
-	vecs, err := instance.CheckEvent(ctx, &Input{Event: event})
+	vecs, err := instance.CheckEvent(ctx, &EventInput{Event: event})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(vecs))
 	assert.False(t, provider.Called)
@@ -86,7 +86,7 @@ func TestInstancedAIExecutorFilter(t *testing.T) {
 			"msgtype": "m.text",
 		},
 	})
-	vecs, err = instance.CheckEvent(ctx, &Input{Event: event})
+	vecs, err = instance.CheckEvent(ctx, &EventInput{Event: event})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(vecs))
 	assert.True(t, provider.Called)
@@ -94,14 +94,14 @@ func TestInstancedAIExecutorFilter(t *testing.T) {
 	// Ensure errors are passed through
 	retErr := errors.New("test error")
 	provider.ReturnErr = retErr
-	_, err = instance.CheckEvent(ctx, &Input{Event: event})
+	_, err = instance.CheckEvent(ctx, &EventInput{Event: event})
 	assert.Equal(t, retErr, err)
 
 	// Ensure classifications are passed through
 	ret := []classification.Classification{classification.Spam, classification.Volumetric}
 	provider.Return = ret
 	provider.ReturnErr = nil
-	vecs, err = instance.CheckEvent(ctx, &Input{Event: event})
+	vecs, err = instance.CheckEvent(ctx, &EventInput{Event: event})
 	assert.NoError(t, err)
 	assert.Equal(t, ret, vecs)
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/matrix-org/policyserv/media"
 )
 
-// Input - A filter input.
-type Input struct {
+// EventInput - An event with context to be provided to an InstancedEventFilter.
+type EventInput struct {
 	// The event to process/check.
 	Event gomatrixserverlib.PDU
 
@@ -28,10 +28,6 @@ type Input struct {
 type Instanced interface {
 	// Name - The name of the filter for logging and metrics.
 	Name() string
-
-	// CheckEvent - Processes the given event, returning classifications about it. If an error occurred, the classifications
-	// array will be nil/empty.
-	CheckEvent(ctx context.Context, input *Input) ([]classification.Classification, error)
 }
 
 // CanBeInstanced - The base filter type, registered at compile/run time and used by Sets to create a long-lived
@@ -40,4 +36,22 @@ type CanBeInstanced interface {
 	// MakeFor - Creates a long-lived Instanced for the provided Set. If an error occurred, the Instanced will
 	// be nil.
 	MakeFor(set *Set) (Instanced, error)
+}
+
+// InstancedEventFilter - A filter which processes events.
+type InstancedEventFilter interface {
+	Instanced // parent type
+
+	// CheckEvent - Processes the given event, returning classifications about it. If an error occurred, the classifications
+	// array will be nil/empty.
+	CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error)
+}
+
+type InstancedTextFilter interface {
+	Instanced // parent type
+
+	// CheckText - Processes the given text, returning classifications about it. If an error occurred, the classifications
+	// array will be nil/empty. The input text string is assumed to be user-generated (message body, search query, etc)
+	// rather than structured (JSON, CSV, etc).
+	CheckText(ctx context.Context, input string) ([]classification.Classification, error)
 }

@@ -54,7 +54,8 @@ Everything else is optional, though may be useful for some deployments:
 * `PS_DATABASE_READ_MAX_IDLE_CONNS` (default `5`) - The maximum number of idle connections to open to the database.
 * `PS_KEY_QUERY_SERVER` (default `matrix.org,ed25519:a_RXGa,l8Hft5qXKn1vfHrg3p4+W8gELQVo8N13JkluMfmn2sQ`) - The **trusted** server to query keys from and its key information in CSV format (`name,keyId,keyBase64`).
 * `PS_TRUSTED_ORIGINS` (default `matrix.org,element.io`) - The hostnames in CSV format which are trusted to provide information like room state to policyserv. It's best to list at least 1 server here. Do not list servers which might deliberately or accidentally return confusing/inaccurate state for rooms.
-* `PS_STATE_CACHE_MINUTES` (default `5`) - The minimum number of minutes to keep room state caches fresh.
+* `PS_STATE_CACHE_MINUTES` (default `5`) - The minimum number of minutes to keep room state caches fresh after a fetch.
+* `PS_STATE_CACHE_INTERVAL_MINUTES` (default `60`) - The target number of minutes between room state fetches for caching. The actual interval will be within 10% of this value. If negative or zero, the default of 60 minutes will be used.
 * `PS_JOIN_SERVER` (default `matrix.org`) - The server to send the join event through.
 * `PS_JOIN_ROOM_IDS` (default empty value) - The room IDs to join to receive events in, and therefore protect. Removing a room from this list does *not* unprotect it. Rooms will become part of the `default` community.
 * `PS_JOIN_LOCALPART` (default `policyserv`) - The localpart for the user ID which joins the rooms.
@@ -65,6 +66,13 @@ Everything else is optional, though may be useful for some deployments:
 * `PS_ALLOWED_WEBHOOK_DOMAINS` (default `element.ems.host`) - CSV list of the hostnames/domains policyserv is allowed to send webhooks to.
 * `PS_HOMESERVER_MEDIA_CLIENT_URL` (default `https://matrix-client.matrix.org`) - The client-server API URL to use for fetching media.
 * `PS_HOMESERVER_MEDIA_CLIENT_ACCESS_TOKEN` (default empty value) - The access token to use for fetching media on the above client-server API URL.
+
+Support information can be supplied using the following environment variables. These are used to populate the [`/.well-known/matrix/support`](https://spec.matrix.org/v1.17/client-server-api/#getwell-knownmatrixsupport)
+endpoint, and may be used by clients to help communities get set up using your policyserv instance.
+
+* `PS_SUPPORT_ADMIN_CONTACTS` (default empty value) - CSV list of email addresses or Matrix user IDs which can be contacted for general support.
+* `PS_SUPPORT_SECURITY_CONTACTS` (default empty value) - CSV list of email addresses or Matrix user IDs which can be contacted for security issues.
+* `PS_SUPPORT_URL` (default empty value) - The URL where users can find more information or support for the policyserv instance. Typically, this is an instance-specific user guide.
 
 Some environment variables that can be set explicitly but shouldn't in most cases are:
 
@@ -158,13 +166,84 @@ and the timeout will end after the prescribed number of minutes. This is to prev
 if their client tries to automatically retry sending spammy events (or the user waits 4 minutes instead of 5 before
 sending another event). 
 
+### Frequency filter
+
+Rate limits senders on specific event types. If a user sends too many events with types from the configured set, any events
+sent by that user using those event types will be marked as spam until the rate is lowered again.
+
+For example, using the default configuration and a rate limit of 0.05 (~3 events per minute), if a user sends an `m.room.message`
+event, then an `m.sticker` event, then another `m.room.message` event, that user will be at the maximum allowed rate. If
+they then try to send another `m.room.message` event, that event will be marked as spam until the 60 second window has 
+elapsed.
+
+**Note**: it's recommended to use this filter alongside the hellban filter to prevent users getting stuck in a rate limit.
+If a user hits a rate limit and continues to try sending events, the hellban filter will prevent those events from counting
+towards the user's rate limit, allowing the rate limit to reset. However, this can also cause slightly more events to be 
+sent to the room: if a user is rate limited, they will enter the hellban timeout. After the (forced) timeout, the user's 
+60 second window will be fully reset, allowing them to send more events again (possibly before being rate limited again too).
+
+**Note**: if using multiple policyserv processes, users might be able to get a couple more events beyond the rate limit 
+through if they are faster than the underlying cross-process frequency counter.
+
+* `PS_FREQUENCY_FILTER_EVENT_TYPES` (default `m.room.message,m.sticker,m.reaction`) - The event types in CSV format to 
+  rate limit on a per-user basis. Events not part of these types will not be rate limited and do not affect the rate limit. 
+  Set to an empty value to disable the filter.
+* `PS_FREQUENCY_FILTER_RATE_LIMIT` (default `0`) - The events per second (over a 60 second window) to allow before rate 
+  limiting. Set to zero (the default) or negative to disable the filter. Example: `0.25` for ~15 events in a minute (15/60 = 0.25).
+
 ### Keyword filter
 
 The keyword filter is the most basic of the filters. If a user sends an event containing any of the listed keywords, that
 event will be marked as spam.
 
-* `PS_KEYWORD_FILTER_KEYWORDS` (default `spammy spam`) - Keywords in CSV format. Events with any one of these keywords 
+* `PS_KEYWORD_FILTER_KEYWORDS` (default `spammy spam`) - Keywords in CSV format. Event `content`s with any one of these keywords 
   will be marked as spam. Set to an empty value to disable the filter.
+* `PS_KEYWORD_FILTER_USE_FULL_EVENT` (default `false`) - When true, the full event JSON will be compared against the
+  keywords instead of just the `content`.
+
+### Keyword template filter
+
+Some keyword matching sources cannot be made open source, but would ideally still be available for use within policyserv.
+This filter uses Go's [`text/template`](https://pkg.go.dev/text/template) package to allow for some amount of custom 
+scripting within the keyword template. If the template's goal is a simple "contains" check, the regular keyword filter 
+should be used instead. This filter is intended for more complex logic being applied to keywords.
+
+Templates are provided two variables: `BodyRaw` (`string`) and `BodyWords` (`[]string`). The template must then evaluate
+to a whitespace-separated list of [MSC4387](https://github.com/matrix-org/matrix-spec-proposals/pull/4387) harms the body
+(raw or words) matches. If there are no matches, the template should evaluate to an empty string.
+
+Templates additionally have the following functions available to them:
+
+* `StrSlice` - Creates a string slice. Usage: `{{ $slice := StrSlice "one" "two" "three" }}`
+* `ToLower` - Converts a string to lowercase. Usage: `{{ .BodyRaw | ToLower }}`.
+* `ToUpper` - Converts a string to uppercase. Usage: `{{ .BodyRaw | ToUpper }}`.
+* `RemovePunctuation` - Removes punctuation from a string. Usage: `{{ .BodyRaw | TrimPunctuation }}`.
+* `StrSliceContains` - Checks if a slice of strings contains a given value. Usage: `{{ if StrSliceContains .BodyWords "badword" }}...{{ end }}`
+* `StringContains` - Checks if a string contains a given substring. Usage: `{{ if StringContains .BodyRaw "badword" }}...{{ end }}`
+
+**Note**: this filter appends a message's `formatted_body` to its `body` to reduce the number of template executions.
+This also means that the `BodyWords` will contain broken formatting after splitting the combined body and formatted body.
+
+An example template might be:
+
+```template
+{{ badWords := StrSlice "one" "two" "three" }}
+{{ range $word := .BodyWords }}
+  {{ if StrSliceContains $badWords $word }}
+    org.matrix.msc4387.spam
+  {{ end }}
+{{ end }}
+```
+
+Communities cannot upload new or custom templates with this to minimize abuse. Templates are uploaded to policyserv using
+the [API](./docs/api.md).
+
+* `PS_KEYWORD_TEMPLATE_FILTER_TEMPLATE_NAMES` (default empty value) - The CSV-formatted names of keyword templates to 
+  use. If a listed filter is not found, it is skipped. Set to an empty value to disable the filter. Template names are
+  set when uploading them via the policyserv API.
+* `PS_KEYWORD_TEMPLATE_USE_FULL_EVENT` (default `false`) - When true, the full event JSON will be compared against the
+  keyword templates instead of just the `body` and `formatted_body`. "Words" will still be split on whitespace, which may
+  lead to non-alphanumeric characters being present.
 
 ### Mention filter
 
@@ -175,6 +254,25 @@ more than the configured number of mentions, that event will be marked as spam.
   event is spam. Set negative to disable the filter.
 * `PS_MENTION_FILTER_MIN_PLAINTEXT_LENGTH` (default `5`) - The minimum length a displayname must be to be considered a 
   mention in a message.
+
+### Mention frequency filter
+
+This filter is similar to the regular frequency filter, but only applies to mentions. It applies the regular mention filter
+above over time on a per-user basis. This is primarily useful for detecting messages with few mentions in them individually,
+but are sent quickly.
+
+**Note**: a message with more than one mention will be counted accordingly. 
+
+**Note**: refer to the frequency filter documentation for more details on how the rate limit is applied.
+
+**Note**: the implied max mentions (`rate_limit * 60`) plus one is as far as the filter will count for performance reasons.
+This means that if the rate limit is 0.5 (30 mentions per minute) and a message with 200 mentions is sent, only the first
+31 mentions will be counted.
+
+* `PS_MENTION_FREQUENCY_FILTER_RATE_LIMIT` (default `0`) - The mentions per second (over a 60 second window) to allow before rate 
+  limiting. Set to zero (the default) or negative to disable the filter. Example: `0.25` for ~15 mentions in a minute (15/60 = 0.25).
+* `PS_MENTION_FREQUENCY_FILTER_MIN_PLAINTEXT_LENGTH` (default `5`) - The minimum length a displayname must be to be considered a 
+  mention in a message. It's recommended to have this match `PS_MENTION_FILTER_MIN_PLAINTEXT_LENGTH`.
 
 ### Many "ats" filter
 
@@ -333,6 +431,26 @@ Server-side configuration cannot be changed by communities:
 * `PS_HMA_API_URL` (default empty value) - The base API URL for your [HMA](https://github.com/matrix-org/hma-matrix) instance. Set to an empty value to disable 
   the HMA filter.
 * `PS_HMA_API_KEY` (default empty value) - The API key for your HMA instance.
+
+### Link filter
+
+Allows or denies HTTP(S) links contained in events.
+
+* `PS_LINK_FILTER_ALLOWED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for allowed URLs. If set, only links
+  matching at least one pattern are allowed. All other links are marked as spam. Example: `https://allowed.example.org/*`
+* `PS_LINK_FILTER_DENIED_URL_GLOBS` (default empty value) - CSV-formatted glob patterns for denied URLs. Any link matching a
+  pattern is marked as spam. Example: `https://denied.example.org/*`
+
+If both lists are configured, deny wins - a URL matching the deny list is blocked even if it matches the allow list. The filter uses glob matching, where `*` matches any sequence of characters.
+
+### Unsafe signing key filter
+
+Some signing keys are known to be unsafe or compromised. If an event is signed with one of these keys, this filter will
+flag it as spammy to prevent that key from proliferating. This filter should not be used in new communities because old
+events might not have been scanned by policyserv yet, so history may get considered spam.
+
+* `PS_UNSAFE_SIGNING_KEY_FILTER_ENABLED` (default `true`) - Whether events signed with known-unsafe signing keys are 
+  considered spam.
 
 ## Contributing
 

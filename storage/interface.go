@@ -22,9 +22,10 @@ type StoredEventResult struct {
 }
 
 type StoredCommunity struct {
-	CommunityId string                  `json:"community_id"`
-	Name        string                  `json:"name"`
-	Config      *config.CommunityConfig `json:"config"`
+	CommunityId    string                  `json:"community_id"`
+	Name           string                  `json:"name"`
+	Config         *config.CommunityConfig `json:"config"`
+	ApiAccessToken *string                 `json:"-"` // don't export to/import from JSON
 }
 
 type StateLearnQueueItem struct {
@@ -32,6 +33,11 @@ type StateLearnQueueItem struct {
 	AtEventId            string
 	ViaServer            string
 	AfterTimestampMillis int64
+}
+
+type StoredKeywordTemplate struct {
+	Name string `json:"name"`
+	Body string `json:"body"`
 }
 
 type Transaction interface { // mirror of sql.Tx interface for ease of compatibility
@@ -65,6 +71,7 @@ type PersistentStorage interface {
 	CreateCommunity(ctx context.Context, name string) (*StoredCommunity, error)
 	UpsertCommunity(ctx context.Context, community *StoredCommunity) error
 	GetCommunity(ctx context.Context, id string) (*StoredCommunity, error)
+	GetCommunityByAccessToken(ctx context.Context, accessToken string) (*StoredCommunity, error)
 
 	// PopStateLearnQueue - returns the next item in the state learn queue, or nil if the queue is empty.
 	// The caller is responsible for calling Commit() on the returned Transaction, completing the operation.
@@ -75,4 +82,7 @@ type PersistentStorage interface {
 	// an empty string. The data is stored as JSON and must be serializable.
 	SetTrustData(ctx context.Context, sourceName string, key string, data any) error
 	GetTrustData(ctx context.Context, sourceName string, key string, result any) error
+
+	UpsertKeywordTemplate(ctx context.Context, template *StoredKeywordTemplate) error
+	GetKeywordTemplate(ctx context.Context, name string) (*StoredKeywordTemplate, error)
 }

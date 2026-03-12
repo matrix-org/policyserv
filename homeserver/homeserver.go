@@ -8,12 +8,13 @@ import (
 	"time"
 
 	cache "github.com/Code-Hex/go-generics-cache"
-	"github.com/matrix-org/policyserv/pubsub"
-	"github.com/matrix-org/policyserv/queue"
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/pubsub"
+	"github.com/matrix-org/policyserv/queue"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 type KeyQueryServer struct {
@@ -35,6 +36,9 @@ type Config struct {
 	EnableDirectKeyFetching bool
 	MediaClientUrl          string
 	MediaClientAccessToken  string
+	AdminContacts           []config.SupportContact
+	SecurityContacts        []config.SupportContact
+	SupportUrl              string
 }
 
 type Homeserver struct {
@@ -54,6 +58,9 @@ type Homeserver struct {
 	stateLearnCache        *cache.Cache[string, bool] // room ID -> literally anything because we don't really care about the value
 	mediaClientUrl         string
 	mediaClientAccessToken string
+	adminContacts          []config.SupportContact
+	securityContacts       []config.SupportContact
+	supportUrl             string
 }
 
 func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queue.Pool, pubsubClient pubsub.Client) (*Homeserver, error) {
@@ -90,6 +97,9 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 			},
 		}, keyFetchers...)
 	}
+	for i, fetcher := range keyFetchers {
+		keyFetchers[i] = NewExcludeUnsafeKeysFetcher(fetcher)
+	}
 	hs := &Homeserver{
 		ServerName:             serverName,
 		KeyId:                  keyId,
@@ -104,6 +114,9 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 		trustedOrigins:         config.TrustedOrigins,
 		mediaClientUrl:         config.MediaClientUrl,
 		mediaClientAccessToken: config.MediaClientAccessToken,
+		adminContacts:          config.AdminContacts,
+		securityContacts:       config.SecurityContacts,
+		supportUrl:             config.SupportUrl,
 		keyCache: cache.New[string, map[string]gomatrixserverlib.PublicKeyLookupResult](
 			cache.WithJanitorInterval[string, map[string]gomatrixserverlib.PublicKeyLookupResult](10 * time.Minute),
 		),
@@ -117,7 +130,6 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 		),
 	}
 	hs.keyRing.KeyDatabase = hs // implemented by keyring.go
-	hs.scheduleStateLearning()
 	return hs, nil
 }
 
@@ -137,11 +149,15 @@ func (h *Homeserver) httpRequestHandler(upstream func(homeserver *Homeserver, w 
 
 func (h *Homeserver) BindTo(mux *http.ServeMux) error {
 	mux.Handle("/.well-known/matrix/server", h.httpRequestHandler(httpDiscovery))
+	mux.Handle("/.well-known/matrix/org.matrix.msc4284.policy_server", h.httpRequestHandler(httpUnstableKeyDiscovery))
+	mux.Handle("/.well-known/matrix/policy_server", h.httpRequestHandler(httpKeyDiscovery))
+	mux.Handle("/.well-known/matrix/support", h.httpRequestHandler(httpSupport))
 	mux.Handle("/_matrix/federation/v1/version", h.httpRequestHandler(httpVersion))
 	mux.Handle("/_matrix/key/v2/server", h.httpRequestHandler(httpSelfKey))
 	mux.Handle("/_matrix/federation/v1/send/{txnId}", h.httpRequestHandler(httpTransactionReceive))
 	mux.Handle("/_matrix/federation/v1/user/devices/{userId}", h.httpRequestHandler(httpUserDevices))
 	mux.Handle("/_matrix/policy/unstable/org.matrix.msc4284/event/{eventId}/check", h.httpRequestHandler(httpMSC4284Check))
 	mux.Handle("/_matrix/policy/unstable/org.matrix.msc4284/sign", h.httpRequestHandler(httpMSC4284Sign))
+	mux.Handle("/_matrix/policy/v1/sign", h.httpRequestHandler(httpPolicySign))
 	return nil
 }
