@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/media"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 const MediaScanningFilterName = "MediaScanningFilter"
@@ -87,6 +89,16 @@ func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *Ev
 }
 
 func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event gomatrixserverlib.PDU, media *media.Item, ch chan<- []classification.Classification) {
+	cached, err := f.set.storage.GetMediaClassification(ctx, media.String(), f.set.communityId)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		log.Printf("[%s | %s] Non-fatal error getting cached media classification: %s", event.EventID(), event.RoomID().String(), err)
+	}
+	if err == nil {
+		log.Printf("[%s | %s] Using cached media classification for %s (%v)", event.EventID(), event.RoomID().String(), media, cached.Classifications)
+		ch <- cached.Classifications
+		return
+	}
+
 	log.Printf("[%s | %s] Downloading media %s", event.EventID(), event.RoomID().String(), media)
 	b, err := media.Download()
 	if err != nil {
@@ -110,5 +122,19 @@ func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event goma
 
 	log.Printf("[%s | %s] Media scan result on %s: %v", event.EventID(), event.RoomID().String(), media, res)
 
+	err = f.set.storage.UpsertMediaClassification(ctx, &storage.StoredMediaClassification{
+		MxcUri:          media.String(),
+		CommunityId:     f.set.communityId,
+		Classifications: res,
+	})
+	if err != nil {
+		log.Printf("[%s | %s] Non-fatal error caching media classification: %s", event.EventID(), event.RoomID().String(), err)
+	}
+
+	err = ctx.Err()
+	if err != nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
+		// don't try to send on what is about to be a closed channel
+		return
+	}
 	ch <- res
 }

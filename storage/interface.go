@@ -2,8 +2,11 @@ package storage
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/json"
 
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
 )
 
@@ -38,6 +41,31 @@ type StateLearnQueueItem struct {
 type StoredKeywordTemplate struct {
 	Name string `json:"name"`
 	Body string `json:"body"`
+}
+
+type StoredMediaClassification struct {
+	MxcUri          string
+	CommunityId     string
+	Classifications StoredClassifications
+}
+
+// StoredClassifications implements the SQL driver interface for scanning/setting values. Note that the
+// Value() and Scan() functions are on different receivers - this is because the Value() is not going to
+// be on a pointer (see StoredMediaClassification), but Scan() will always be called on a pointer. If Scan()
+// was changed to use a value (non-pointer) receiver instead, the value we read from the database would never
+// actually leave the function call, confusing the calling code.
+type StoredClassifications []classification.Classification
+
+func (c StoredClassifications) Value() (driver.Value, error) {
+	return json.Marshal(c)
+}
+
+func (c *StoredClassifications) Scan(src interface{}) error {
+	b, ok := src.([]byte)
+	if !ok {
+		return nil
+	}
+	return json.Unmarshal(b, &c)
 }
 
 type Transaction interface { // mirror of sql.Tx interface for ease of compatibility
@@ -85,4 +113,7 @@ type PersistentStorage interface {
 
 	UpsertKeywordTemplate(ctx context.Context, template *StoredKeywordTemplate) error
 	GetKeywordTemplate(ctx context.Context, name string) (*StoredKeywordTemplate, error)
+
+	UpsertMediaClassification(ctx context.Context, classification *StoredMediaClassification) error
+	GetMediaClassification(ctx context.Context, mxcUri string, communityId string) (*StoredMediaClassification, error)
 }
