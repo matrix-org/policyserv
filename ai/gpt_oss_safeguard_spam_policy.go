@@ -36,9 +36,7 @@ Use this JSON template to respond to each CONTENT SAMPLE:
 "class" must either be VALID or INVALID. "rules" lists the rule numbers that justify the "class", and is optional when
 no rule numbers apply.
 
-If unsure about a rule, consider it VALID.
-
-Responses MUST NOT contain anything other than the JSON.
+If unsure about a rule, consider it VALID. Responses MUST NOT contain anything other than the JSON.
 
 ## DEFINITIONS
 
@@ -53,8 +51,6 @@ Responses MUST NOT contain anything other than the JSON.
 **Deceptive Spam**: hidden or fraudulent intent (fake identity, fake offer).
 
 **Link Farming**: multiple irrelevant or commercial links to drive clicks.
-
-**Emoticon**: text characters used to create a picture.
 
 ## RULES
 
