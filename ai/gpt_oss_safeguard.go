@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/event"
@@ -44,6 +45,9 @@ func (m *GptOssSafeguard) CheckEvent(ctx context.Context, cnf *GptOssSafeguardCo
 	for _, message := range messages {
 		// Note: we don't want to log message contents in production
 		log.Printf("[%s | %s] Message sent by %s", input.Event.EventID(), input.Event.RoomID(), input.Event.SenderID())
+		startTime := time.Now()
+		log.Printf("[%s | %s] Policy length: %d", input.Event.EventID(), input.Event.RoomID(), len(safeguardSystemPromptSpamPolicy))
+		log.Printf("[%s | %s] Message length: %d", input.Event.EventID(), input.Event.RoomID(), len(message))
 		res, err := m.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 			Model:           m.modelName,
 			ReasoningEffort: m.reasoningEffort,
@@ -66,6 +70,8 @@ func (m *GptOssSafeguard) CheckEvent(ctx context.Context, cnf *GptOssSafeguardCo
 				},
 			},
 		})
+		endTime := time.Now()
+		log.Printf("[%s | %s] Safeguard response time: %s", input.Event.EventID(), input.Event.RoomID(), endTime.Sub(startTime))
 		if err != nil {
 			log.Printf("[%s | %s] Error checking message: %s", input.Event.EventID(), input.Event.RoomID(), err)
 			if cnf.FailSecure {
