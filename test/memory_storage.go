@@ -30,6 +30,7 @@ type MemoryStorage struct {
 	pendingLearnStateQueue []*storage.StateLearnQueueItem
 	trustData              map[string]map[string][]byte // sourceName -> key -> JSON value
 	keywordTemplates       map[string]*storage.StoredKeywordTemplate
+	mediaClassifications   map[string]map[string]*storage.StoredMediaClassification // mxcUri -> communityId -> classification
 }
 
 func NewMemoryStorage(t *testing.T) *MemoryStorage {
@@ -44,6 +45,7 @@ func NewMemoryStorage(t *testing.T) *MemoryStorage {
 		pendingLearnStateQueue: make([]*storage.StateLearnQueueItem, 0),
 		trustData:              make(map[string]map[string][]byte),
 		keywordTemplates:       make(map[string]*storage.StoredKeywordTemplate),
+		mediaClassifications:   make(map[string]map[string]*storage.StoredMediaClassification),
 	}
 }
 
@@ -251,6 +253,30 @@ func (m *MemoryStorage) GetKeywordTemplate(ctx context.Context, name string) (*s
 func (m *MemoryStorage) UpsertKeywordTemplate(ctx context.Context, template *storage.StoredKeywordTemplate) error {
 	assert.NotNil(m.t, ctx, "context is required")
 	m.keywordTemplates[template.Name] = template
+	return nil
+}
+
+func (m *MemoryStorage) GetMediaClassification(ctx context.Context, mxcUri string, communityId string) (*storage.StoredMediaClassification, error) {
+	assert.NotNil(m.t, ctx, "context is required")
+
+	byCommunity, ok := m.mediaClassifications[mxcUri]
+	if !ok {
+		return nil, sql.ErrNoRows
+	}
+	val, ok := byCommunity[communityId]
+	if !ok {
+		return nil, sql.ErrNoRows
+	}
+	return val, nil
+}
+
+func (m *MemoryStorage) UpsertMediaClassification(ctx context.Context, classification *storage.StoredMediaClassification) error {
+	assert.NotNil(m.t, ctx, "context is required")
+
+	if m.mediaClassifications[classification.MxcUri] == nil {
+		m.mediaClassifications[classification.MxcUri] = make(map[string]*storage.StoredMediaClassification)
+	}
+	m.mediaClassifications[classification.MxcUri][classification.CommunityId] = classification
 	return nil
 }
 
