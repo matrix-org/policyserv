@@ -66,6 +66,8 @@ Everything else is optional, though may be useful for some deployments:
 * `PS_ALLOWED_WEBHOOK_DOMAINS` (default `element.ems.host`) - CSV list of the hostnames/domains policyserv is allowed to send webhooks to.
 * `PS_HOMESERVER_MEDIA_CLIENT_URL` (default `https://matrix-client.matrix.org`) - The client-server API URL to use for fetching media.
 * `PS_HOMESERVER_MEDIA_CLIENT_ACCESS_TOKEN` (default empty value) - The access token to use for fetching media on the above client-server API URL.
+* `PS_HOMESERVER_ALLOWED_NETWORKS` (default `0.0.0.0/0`) - The CSV-encoded CIDR ranges to allow list when making Federation API requests. Denies are checked before allows.
+* `PS_HOMESERVER_DENIED_NETWORKS` (default `127.0.0.1/8,10.0.0.0/8,172.16.0.0./12,192.168.0.0/16,100.64.0.0/10,169.254.0.0/16,::1/128,fe80::/64,fc00::/7`) - The CSV-encoded CIDR ranges to deny list when making Federation API requests. Denies are checked before allows.
 
 Support information can be supplied using the following environment variables. These are used to populate the [`/.well-known/matrix/support`](https://spec.matrix.org/v1.17/client-server-api/#getwell-knownmatrixsupport)
 endpoint, and may be used by clients to help communities get set up using your policyserv instance.

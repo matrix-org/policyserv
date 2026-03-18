@@ -25,11 +25,13 @@ type InstanceConfig struct {
 	StateCacheMinutes         int      `envconfig:"state_cache_minutes" default:"5"`
 	StateCacheIntervalMinutes int      `envconfig:"state_cache_interval_minutes" default:"60"`
 
-	HomeserverName                   string `envconfig:"homeserver_name" default:"localhost"`
-	HomeserverSigningKeyPath         string `envconfig:"homeserver_signing_key_path" default:"./signing.key"`
-	HomeserverEventSigningKeyPath    string `envconfig:"homeserver_event_signing_key_path" default:"./signing.key"`
-	HomeserverMediaClientUrl         string `envconfig:"homeserver_media_client_url" default:"https://matrix-client.matrix.org"`
-	HomeserverMediaClientAccessToken string `envconfig:"homeserver_media_client_access_token" default:""`
+	HomeserverName                   string   `envconfig:"homeserver_name" default:"localhost"`
+	HomeserverSigningKeyPath         string   `envconfig:"homeserver_signing_key_path" default:"./signing.key"`
+	HomeserverEventSigningKeyPath    string   `envconfig:"homeserver_event_signing_key_path" default:"./signing.key"`
+	HomeserverMediaClientUrl         string   `envconfig:"homeserver_media_client_url" default:"https://matrix-client.matrix.org"`
+	HomeserverMediaClientAccessToken string   `envconfig:"homeserver_media_client_access_token" default:""`
+	HomeserverAllowedNetworks        []string `envconfig:"homeserver_allowed_networks" default:"0.0.0.0/0"`
+	HomeserverDeniedNetworks         []string `envconfig:"homeserver_denied_networks" default:"127.0.0.1/8,10.0.0.0/8,172.16.0.0./12,192.168.0.0/16,100.64.0.0/10,169.254.0.0/16,::1/128,fe80::/64,fc00::/7"`
 
 	// Note: the Mjolnir filter can't be configured by communities at the moment
 	MjolnirFilterRoomID string `envconfig:"mjolnir_filter_room_id" default:""`

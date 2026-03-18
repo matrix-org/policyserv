@@ -39,6 +39,11 @@ type Config struct {
 	AdminContacts           []config.SupportContact
 	SecurityContacts        []config.SupportContact
 	SupportUrl              string
+	AllowedNetworks         []string
+	DeniedNetworks          []string
+
+	// This should only be set during tests
+	SkipVerify bool
 }
 
 type Homeserver struct {
@@ -66,11 +71,15 @@ type Homeserver struct {
 func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queue.Pool, pubsubClient pubsub.Client) (*Homeserver, error) {
 	serverName := spec.ServerName(config.ServerName)
 	keyId := gomatrixserverlib.KeyID(fmt.Sprintf("ed25519:%s", config.SigningKeyVersion))
-	client := fclient.NewFederationClient([]*fclient.SigningIdentity{{
-		ServerName: serverName,
-		KeyID:      keyId,
-		PrivateKey: config.PrivateSigningKey,
-	}})
+	client := fclient.NewFederationClient(
+		[]*fclient.SigningIdentity{{
+			ServerName: serverName,
+			KeyID:      keyId,
+			PrivateKey: config.PrivateSigningKey,
+		}},
+		fclient.WithAllowDenyNetworks(config.AllowedNetworks, config.DeniedNetworks),
+		fclient.WithSkipVerify(config.SkipVerify),
+	)
 	keyFetchers := []gomatrixserverlib.KeyFetcher{
 		// Note: we don't fetch keys directly to minimize risk of untrusted network access. We could try to set
 		// up GMSL's infrastructure for minimizing it, but there's risk in that too. Instead, we just send all

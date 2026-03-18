@@ -46,6 +46,8 @@ func setupHomeserver(instanceConfig *config.InstanceConfig, storage storage.Pers
 		AdminContacts:           instanceConfig.SupportAdminContacts,
 		SecurityContacts:        instanceConfig.SupportSecurityContacts,
 		SupportUrl:              instanceConfig.SupportUrl,
+		AllowedNetworks:         instanceConfig.HomeserverAllowedNetworks,
+		DeniedNetworks:          instanceConfig.HomeserverDeniedNetworks,
 		KeyQueryServer: &homeserver.KeyQueryServer{
 			Name:           instanceConfig.KeyQueryServer[0],
 			PreferredKeyId: instanceConfig.KeyQueryServer[1],
