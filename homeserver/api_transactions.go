@@ -112,7 +112,7 @@ func httpTransactionReceive(server *Homeserver, w http.ResponseWriter, r *http.R
 		// event is run through the filters. We don't want to do that forever though.
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		err = server.runFilters(ctx, event, nil)
+		err = server.RunFilters(ctx, event, nil)
 		if err != nil {
 			log.Printf("Error queueing event %s: %s", event.EventID(), err)
 			continue
