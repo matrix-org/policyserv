@@ -30,7 +30,7 @@ type policySignTestCase struct {
 func TestHttpPolicySign(t *testing.T) {
 	t.Parallel()
 
-	server := test.NewMockServer(t, test.NewMemoryStorage(t), test.NoConfigChanges)
+	server := NewMockServer(t, test.NewMemoryStorage(t), NoConfigChanges)
 
 	originName := "origin.example.org"
 	roomId := "!foo:example.org"

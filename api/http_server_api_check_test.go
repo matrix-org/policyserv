@@ -128,21 +128,21 @@ func TestHttpCheckEventIdCommunityApiWithUnknownEvent(t *testing.T) {
 
 	// We don't cache events here, and we expect to make outbound federation calls to go get them instead. Set up a mock
 	// homeserver and httptest "remote" server for that purpose.
-	hs := test.NewMockServer(t, api.storage, func(c *homeserver.Config) {
+	hs := homeserver.NewMockServer(t, api.storage, func(c *homeserver.Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 	api.hs = hs
 	localhost := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var pdu gomatrixserverlib.PDU
 		if strings.Contains(r.URL.Path, "$spam") {
-			pdu = test.MakeSignedPDU(t, hs, &test.BaseClientEvent{
+			pdu = homeserver.MakeSignedPDU(t, hs, &test.BaseClientEvent{
 				RoomId:  roomId,
 				Type:    "m.room.message",
 				Sender:  "@alice:example.org",
 				Content: map[string]any{"body": "spammy spam"},
 			})
 		} else {
-			pdu = test.MakeSignedPDU(t, hs, &test.BaseClientEvent{
+			pdu = homeserver.MakeSignedPDU(t, hs, &test.BaseClientEvent{
 				RoomId:  roomId,
 				Type:    "m.room.message",
 				Sender:  "@alice:example.org",

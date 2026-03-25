@@ -1,4 +1,4 @@
-package test
+package homeserver
 
 import (
 	"context"
@@ -11,20 +11,22 @@ import (
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/community"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
+	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
 
 var generatedSigningKeys = sync.Map{}
 
-var NoConfigChanges func(c *homeserver.Config) = nil
+var NoConfigChanges func(c *Config) = nil
 
-func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn func(c *homeserver.Config)) *homeserver.Homeserver {
+// NewMockServer - Creates a mock homeserver instance for testing purposes.
+// DO NOT USE OUTSIDE OF TESTS.
+func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn func(c *Config)) *Homeserver {
 	_, eventSigningKey, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
-	cnf := &homeserver.Config{
+	cnf := &Config{
 		// We only set the values we *need* to. Otherwise we expect that the created Homeserver will be fine without
 		// all the extra config
 		ServerName:             "policy.example.org",
@@ -33,7 +35,7 @@ func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn 
 		SigningKeyVersion:      "1",
 		ActorLocalpart:         "policyserv",
 		CacheRoomStateFor:      24 * time.Hour,
-		KeyQueryServer: &homeserver.KeyQueryServer{
+		KeyQueryServer: &KeyQueryServer{
 			Name:           "noop.example.org",
 			PreferredKeyId: "ed25519:invalid",
 			PreferredKey:   nil,
@@ -45,8 +47,8 @@ func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn 
 	instanceCnf, err := config.NewInstanceConfig()
 	assert.NoError(t, err)
 	assert.NotNil(t, instanceCnf)
-	pubsub := NewMemoryPubsub(t)
-	communityManager, err := community.NewManager(instanceCnf, storage, pubsub, MustMakeAuditQueue(5))
+	pubsub := test.NewMemoryPubsub(t)
+	communityManager, err := community.NewManager(instanceCnf, storage, pubsub, test.MustMakeAuditQueue(5))
 	assert.NoError(t, err)
 	assert.NotNil(t, communityManager)
 	pool, err := queue.NewPool(&queue.PoolConfig{
@@ -56,14 +58,16 @@ func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn 
 	assert.NoError(t, err)
 	assert.NotNil(t, pool)
 
-	server, err := homeserver.NewHomeserver(cnf, storage, pool, pubsub)
+	server, err := NewHomeserver(cnf, storage, pool, pubsub)
 	assert.NoError(t, err)
 	assert.NotNil(t, server)
 
 	return server
 }
 
-func CreateAndInjectOrigin(t *testing.T, hs *homeserver.Homeserver, originName string) (gomatrixserverlib.KeyID, ed25519.PrivateKey) {
+// CreateAndInjectOrigin - Inserts an origin's keys into a homeserver instance for tests.
+// DO NOT USE OUTSIDE OF TESTS.
+func CreateAndInjectOrigin(t *testing.T, hs *Homeserver, originName string) (gomatrixserverlib.KeyID, ed25519.PrivateKey) {
 	originKeyId := gomatrixserverlib.KeyID("ed25519:1")
 	originPublicKey, originPrivateKey, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
@@ -90,8 +94,10 @@ func CreateAndInjectOrigin(t *testing.T, hs *homeserver.Homeserver, originName s
 	return originKeyId, originPrivateKey
 }
 
-func MakeSignedPDU(t *testing.T, hs *homeserver.Homeserver, base *BaseClientEvent) gomatrixserverlib.PDU {
-	pdu := MustMakePDU(base)
+// MakeSignedPDU - Creates a signed PDU for testing purposes.
+// DO NOT USE OUTSIDE OF TESTS.
+func MakeSignedPDU(t *testing.T, hs *Homeserver, base *test.BaseClientEvent) gomatrixserverlib.PDU {
+	pdu := test.MustMakePDU(base)
 	origin := string(pdu.SenderID().ToUserID().Domain())
 	keyId, privateKey := CreateAndInjectOrigin(t, hs, origin)
 	pdu = pdu.Sign(origin, keyId, privateKey)
