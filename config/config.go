@@ -47,6 +47,8 @@ type InstanceConfig struct {
 	JoinServer    string   `envconfig:"join_server" default:"matrix.org"`
 	JoinLocalpart string   `envconfig:"join_localpart" default:"policyserv"`
 
+	EventFetchServers []string `envconfig:"event_fetch_servers" default:"matrix.org"`
+
 	// [Client-Server API domain (no scheme)]:[access token]
 	// Example: matrix-client.matrix.org:syt_example
 	ModeratorAccessTokens map[string]string `envconfig:"moderator_access_tokens" default:""`
