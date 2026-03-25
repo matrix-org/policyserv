@@ -89,3 +89,11 @@ func CreateAndInjectOrigin(t *testing.T, hs *homeserver.Homeserver, originName s
 
 	return originKeyId, originPrivateKey
 }
+
+func MakeSignedPDU(t *testing.T, hs *homeserver.Homeserver, base *BaseClientEvent) gomatrixserverlib.PDU {
+	pdu := MustMakePDU(base)
+	origin := string(pdu.SenderID().ToUserID().Domain())
+	keyId, privateKey := CreateAndInjectOrigin(t, hs, origin)
+	pdu = pdu.Sign(origin, keyId, privateKey)
+	return pdu
+}
