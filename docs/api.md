@@ -116,11 +116,20 @@ All of the above endpoints return standard error responses upon error, or the fo
   "name": "test community",
   "config": {
     "keyword_filter_keywords": ["spammy spam", "spam"]
-  }
+  },
+  "can_self_join_rooms": false
 }
 ```
 
 **Note**: The instance's config can be retrieved via `GET /api/v1/instance/community_config`.
+
+Permissions (`can_x` fields) can be set with the community update endpoint:
+
+```bash
+curl -s -X PATCH -H "Authorization: Bearer ${APIKEY}" --data-binary '{"can_self_join_rooms": true}' https://example.org/api/v1/communities/33DDrMuWa8IxiRupoG6fTLbEoBP
+```
+
+This endpoint also returns the community object above on success.
 
 ### Access tokens
 
