@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var generatedSigningKeys = make(map[string]ed25519.PrivateKey)
+var generatedSigningKeys = sync.Map{}
 
 var NoConfigChanges func(c *Config) = nil
 
@@ -85,12 +86,12 @@ func (h *Homeserver) MustMakeFederationRequest(t *testing.T, method string, uriP
 
 func newOriginSigningKey(t *testing.T, server *Homeserver, originName string) (gomatrixserverlib.KeyID, ed25519.PrivateKey) {
 	originKeyId := gomatrixserverlib.KeyID("ed25519:1")
-	if key, ok := generatedSigningKeys[originName]; ok {
-		return originKeyId, key
-	}
 	originPublicKey, originPrivateKey, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
-	generatedSigningKeys[originName] = originPrivateKey
+
+	key, _ := generatedSigningKeys.LoadOrStore(originName, originPrivateKey)
+	originPrivateKey = key.(ed25519.PrivateKey)
+	originPublicKey = originPrivateKey.Public().(ed25519.PublicKey)
 
 	// Store the key in the server's keyring too
 	err = server.StoreKeys(context.Background(), map[gomatrixserverlib.PublicKeyLookupRequest]gomatrixserverlib.PublicKeyLookupResult{
