@@ -56,7 +56,7 @@ func returnEventHandler(t *testing.T, hs *Homeserver, eventOrError func(reqCount
 func TestGetEventSlowFirstServer(t *testing.T) {
 	t.Parallel()
 
-	hs := test.NewMockServer(t, func(c *Config) {
+	hs := test.NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 
@@ -105,7 +105,7 @@ func TestGetEventSlowFirstServer(t *testing.T) {
 func TestGetEventErrorFirstServer(t *testing.T) {
 	t.Parallel()
 
-	hs := test.NewMockServer(t, func(c *Config) {
+	hs := test.NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 
@@ -153,7 +153,7 @@ func TestGetEventErrorFirstServer(t *testing.T) {
 func TestGetEventErrorAllServers(t *testing.T) {
 	t.Parallel()
 
-	hs := test.NewMockServer(t, func(c *Config) {
+	hs := test.NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 

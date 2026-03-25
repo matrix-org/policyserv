@@ -34,7 +34,7 @@ func (h *Homeserver) MustMakeFederationRequest(t *testing.T, method string, uriP
 func TestAllowedDeniedNetworks(t *testing.T) {
 	t.Parallel()
 
-	hs := test.NewMockServer(t, func(c *Config) {
+	hs := test.NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.AllowedNetworks = []string{"127.0.0.1/32"}
 		c.DeniedNetworks = []string{"127.0.0.2/32"}
 		c.SkipVerify = true // our httptest server will have an unknown authority

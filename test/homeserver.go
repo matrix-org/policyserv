@@ -13,6 +13,7 @@ import (
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/queue"
+	"github.com/matrix-org/policyserv/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +21,7 @@ var generatedSigningKeys = sync.Map{}
 
 var NoConfigChanges func(c *homeserver.Config) = nil
 
-func NewMockServer(t *testing.T, configModFn func(c *homeserver.Config)) *homeserver.Homeserver {
+func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn func(c *homeserver.Config)) *homeserver.Homeserver {
 	_, eventSigningKey, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
 	cnf := &homeserver.Config{
@@ -44,7 +45,6 @@ func NewMockServer(t *testing.T, configModFn func(c *homeserver.Config)) *homese
 	instanceCnf, err := config.NewInstanceConfig()
 	assert.NoError(t, err)
 	assert.NotNil(t, instanceCnf)
-	storage := NewMemoryStorage(t)
 	pubsub := NewMemoryPubsub(t)
 	communityManager, err := community.NewManager(instanceCnf, storage, pubsub, MustMakeAuditQueue(5))
 	assert.NoError(t, err)

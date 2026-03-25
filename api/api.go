@@ -95,6 +95,7 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 
 	// Server-centric community API
 	mux.Handle("/_policyserv/v1/check/text", a.httpCommunityAuthenticatedRequestHandler(httpCheckTextCommunityApi))
+	mux.Handle("/_policyserv/v1/check/event_id", a.httpCommunityAuthenticatedRequestHandler(httpCheckEventIdCommunityApi))
 
 	// Admin API
 	if a.apiKey != "" {
