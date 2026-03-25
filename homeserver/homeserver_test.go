@@ -2,72 +2,20 @@ package homeserver
 
 import (
 	"context"
-	"crypto/ed25519"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
-	"github.com/matrix-org/policyserv/community"
-	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
 
-var generatedSigningKeys = make(map[string]ed25519.PrivateKey)
-
-var NoConfigChanges func(c *Config) = nil
-
-func NewMockServer(t *testing.T, configModFn func(c *Config)) *Homeserver {
-	_, eventSigningKey, err := ed25519.GenerateKey(nil)
-	assert.NoError(t, err)
-	cnf := &Config{
-		// We only set the values we *need* to. Otherwise we expect that the created Homeserver will be fine without
-		// all the extra config
-		ServerName:             "policy.example.org",
-		PrivateSigningKey:      eventSigningKey,
-		PrivateEventSigningKey: eventSigningKey,
-		SigningKeyVersion:      "1",
-		ActorLocalpart:         "policyserv",
-		CacheRoomStateFor:      24 * time.Hour,
-		KeyQueryServer: &KeyQueryServer{
-			Name:           "noop.example.org",
-			PreferredKeyId: "ed25519:invalid",
-			PreferredKey:   nil,
-		},
-	}
-	if configModFn != nil {
-		configModFn(cnf)
-	}
-	instanceCnf, err := config.NewInstanceConfig()
-	assert.NoError(t, err)
-	assert.NotNil(t, instanceCnf)
-	storage := test.NewMemoryStorage(t)
-	pubsub := test.NewMemoryPubsub(t)
-	communityManager, err := community.NewManager(instanceCnf, storage, pubsub, test.MustMakeAuditQueue(5))
-	assert.NoError(t, err)
-	assert.NotNil(t, communityManager)
-	pool, err := queue.NewPool(&queue.PoolConfig{
-		ConcurrentPools: 5,
-		SizePerPool:     10,
-	}, communityManager, storage)
-	assert.NoError(t, err)
-	assert.NotNil(t, pool)
-
-	server, err := NewHomeserver(cnf, storage, pool, pubsub)
-	assert.NoError(t, err)
-	assert.NotNil(t, server)
-
-	return server
-}
-
 func (h *Homeserver) MustMakeFederationRequest(t *testing.T, method string, uriPath string, content interface{}, originName string) *http.Request {
-	originKeyId, originPrivateKey := newOriginSigningKey(t, h, originName)
+	originKeyId, originPrivateKey := CreateAndInjectOrigin(t, h, originName)
 	if event, ok := content.(gomatrixserverlib.PDU); ok {
 		// Sign events in case the test doesn't
 		content = event.Sign(originName, originKeyId, originPrivateKey)
@@ -83,37 +31,10 @@ func (h *Homeserver) MustMakeFederationRequest(t *testing.T, method string, uriP
 	return req
 }
 
-func newOriginSigningKey(t *testing.T, server *Homeserver, originName string) (gomatrixserverlib.KeyID, ed25519.PrivateKey) {
-	originKeyId := gomatrixserverlib.KeyID("ed25519:1")
-	if key, ok := generatedSigningKeys[originName]; ok {
-		return originKeyId, key
-	}
-	originPublicKey, originPrivateKey, err := ed25519.GenerateKey(nil)
-	assert.NoError(t, err)
-	generatedSigningKeys[originName] = originPrivateKey
-
-	// Store the key in the server's keyring too
-	err = server.StoreKeys(context.Background(), map[gomatrixserverlib.PublicKeyLookupRequest]gomatrixserverlib.PublicKeyLookupResult{
-		gomatrixserverlib.PublicKeyLookupRequest{
-			ServerName: spec.ServerName(originName),
-			KeyID:      originKeyId,
-		}: {
-			ExpiredTS:    gomatrixserverlib.PublicKeyNotExpired,
-			ValidUntilTS: spec.AsTimestamp(time.Now().Add(24 * time.Hour)),
-			VerifyKey: gomatrixserverlib.VerifyKey{
-				Key: spec.Base64Bytes(originPublicKey),
-			},
-		},
-	})
-	assert.NoError(t, err)
-
-	return originKeyId, originPrivateKey
-}
-
 func TestAllowedDeniedNetworks(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, func(c *Config) {
+	hs := NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.AllowedNetworks = []string{"127.0.0.1/32"}
 		c.DeniedNetworks = []string{"127.0.0.2/32"}
 		c.SkipVerify = true // our httptest server will have an unknown authority
