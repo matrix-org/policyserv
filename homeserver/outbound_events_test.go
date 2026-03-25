@@ -22,7 +22,7 @@ var shouldReturnEvent error = nil
 
 func returnEventHandler(t *testing.T, hs *Homeserver, eventOrError func(reqCount int) error) (http.HandlerFunc, *int, gomatrixserverlib.PDU) {
 	// Prepare an event that would be returned
-	remoteKeyId, remoteKey := newOriginSigningKey(t, hs, "example.org")
+	remoteKeyId, remoteKey := test.CreateAndInjectOrigin(t, hs, "example.org")
 	pdu := test.MustMakePDU(&test.BaseClientEvent{
 		RoomId:  "!room:example.org",
 		Type:    "m.room.message",
