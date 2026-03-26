@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
@@ -51,13 +52,13 @@ type StoredMediaClassification struct {
 
 type StoredEdu struct {
 	Destination string
-	Payload     map[string]any // arbitrary JSON
+	Payload     gomatrixserverlib.EDU
 }
 
 type MatrixTransaction struct {
 	TransactionId string
 	Destination   string
-	Edus          []*StoredEdu
+	Edus          []gomatrixserverlib.EDU
 }
 
 // StoredClassifications implements the SQL driver interface for scanning/setting values. Note that the

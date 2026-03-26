@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/internal"
@@ -335,10 +336,15 @@ func (m *MemoryStorage) BeginMatrixTransaction(ctx context.Context, destination 
 		return nil, nil, sql.ErrNoRows
 	}
 
+	unwrappedEdus := make([]gomatrixserverlib.EDU, len(edus))
+	for i, edu := range edus {
+		unwrappedEdus[i] = edu.Payload
+	}
+
 	mxTxn := &storage.MatrixTransaction{
 		TransactionId: txnId,
 		Destination:   destination,
-		Edus:          edus,
+		Edus:          unwrappedEdus,
 	}
 	sqlTxn := &memoryDestinationTransaction{
 		storage:       m,
@@ -388,6 +394,7 @@ type memoryDestinationTransaction struct {
 	storage       *MemoryStorage
 	destination   string
 	transactionId string
+	committed     bool
 }
 
 func (t *memoryDestinationTransaction) Commit() error {
@@ -400,10 +407,15 @@ func (t *memoryDestinationTransaction) Commit() error {
 	}
 	t.storage.destinationEdus[t.destination] = newEdus
 	t.storage.destinationLocks[t.destination].Unlock()
+	t.committed = true
 	return nil
 }
 
 func (t *memoryDestinationTransaction) Rollback() error {
+	if t.committed {
+		return nil
+	}
+
 	// Revert EDUs to "no assigned transaction" before unlocking
 	for _, edu := range t.storage.destinationEdus[t.destination] {
 		if edu.transactionId != nil && *edu.transactionId == t.transactionId {

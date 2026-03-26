@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	cache "github.com/Code-Hex/go-generics-cache"
 	"github.com/DavidHuie/gomigrate"
 	_ "github.com/lib/pq"
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/confidence"
@@ -591,7 +593,8 @@ func (s *PostgresStorage) InsertEdu(ctx context.Context, edu *StoredEdu) error {
 	}
 
 	// The insert will also cause a pg_notify back to policyserv to actually prepare/send the transaction
-	_, err = s.eduInsert.ExecContext(ctx, edu.Destination, edu.Payload)
+	wrappedPayload := &psqlEduPayload{edu.Payload}
+	_, err = s.eduInsert.ExecContext(ctx, edu.Destination, wrappedPayload)
 	return err
 }
 
@@ -614,7 +617,7 @@ func (s *PostgresStorage) BeginMatrixTransaction(ctx context.Context, destinatio
 	matrixTxn := &MatrixTransaction{
 		TransactionId: NextId(), // fresh ID
 		Destination:   destination,
-		Edus:          make([]*StoredEdu, 0),
+		Edus:          make([]gomatrixserverlib.EDU, 0),
 	}
 
 	// Lock the destination to prevent concurrent transactions (update queries automatically lock)
@@ -634,11 +637,16 @@ func (s *PostgresStorage) BeginMatrixTransaction(ctx context.Context, destinatio
 
 	for rows.Next() {
 		edu := &StoredEdu{}
-		if err = rows.Scan(&edu.Destination, &edu.Payload); err != nil {
+		wrappedPayload := psqlEduPayload{}
+		if err = rows.Scan(&edu.Destination, &wrappedPayload); err != nil {
 			defer txn.Rollback()
 			return nil, nil, err
 		}
-		matrixTxn.Edus = append(matrixTxn.Edus, edu)
+		if edu.Destination != destination { // "should never happen"
+			defer txn.Rollback()
+			return nil, nil, fmt.Errorf("destination mismatch on edu: transaction destination %s != edu destination %s", destination, edu.Destination)
+		}
+		matrixTxn.Edus = append(matrixTxn.Edus, wrappedPayload.EDU) // unwrap
 	}
 
 	if len(matrixTxn.Edus) == 0 {
@@ -673,4 +681,21 @@ func (s *identifierSet) ToSlice() []string {
 		identifiers = append(identifiers, identifier)
 	}
 	return identifiers
+}
+
+// psqlEduPayload - wraps a GMSL EDU to implement sql.Driver support
+type psqlEduPayload struct {
+	gomatrixserverlib.EDU
+}
+
+func (e *psqlEduPayload) Value() (driver.Value, error) {
+	return json.Marshal(e.EDU)
+}
+
+func (e *psqlEduPayload) Scan(src interface{}) error {
+	b, ok := src.([]byte)
+	if !ok {
+		return nil
+	}
+	return json.Unmarshal(b, &e.EDU)
 }

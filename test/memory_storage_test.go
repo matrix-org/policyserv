@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -152,7 +153,10 @@ func TestMemoryStorageEduTransactions(t *testing.T) {
 	for i := 0; i < 105; i++ {
 		assert.NoError(t, s.InsertEdu(context.Background(), &storage.StoredEdu{
 			Destination: destination,
-			Payload:     map[string]any{"key": i},
+			Payload: gomatrixserverlib.EDU{
+				Type:    "org.matrix.policyserv.doesnt_matter",
+				Content: []byte(fmt.Sprintf(`{"key": %d}`, i)),
+			},
 		}))
 	}
 
@@ -199,7 +203,10 @@ func TestMemoryStorageEduTransactions(t *testing.T) {
 	// Insert an EDU into the table
 	assert.NoError(t, s.InsertEdu(context.Background(), &storage.StoredEdu{
 		Destination: destination,
-		Payload:     map[string]any{"key": 105}, // zero indexed means this is the 106th EDU
+		Payload: gomatrixserverlib.EDU{
+			Type:    "org.matrix.policyserv.doesnt_matter",
+			Content: []byte(`{"key": 105}`), // zero indexed means this is the 106th EDU
+		},
 	}))
 
 	// Grab the second (and third) transactions in a gofunc because locking
