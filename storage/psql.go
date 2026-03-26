@@ -64,6 +64,7 @@ type PostgresStorage struct {
 	mediaClassificationUpsert            *sql.Stmt
 	destinationUpsert                    *sql.Stmt
 	eduInsert                            *sql.Stmt
+	destinationsNeedingCatchupSelect     *sql.Stmt
 
 	//userIdsAndDisplayNamesByRoomIdUpsert *sql.Stmt // We do the upsert manually to enter a transaction instead
 	//banRulesUpsertForRoom                *sql.Stmt // We do the upsert manually to enter a transaction instead
@@ -171,6 +172,12 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 		return err
 	}
 	if s.eduInsert, err = s.db.Prepare("INSERT INTO destination_edus (destination, edu) VALUES ($1, $2);"); err != nil {
+		return err
+	}
+	// `FOR UPDATE SKIP LOCKED` avoids returning rows that are locked. In our case that lock is coming from BeginMatrixTransaction
+	// which would indicate that the EDUs are currently being sent. Postgres doesn't let us put a `DISTINCT` on that query
+	// though, so we have to subquery it.
+	if s.destinationsNeedingCatchupSelect, err = s.readonlyDb.Prepare("SELECT DISTINCT sub.destination FROM (SELECT destination FROM destination_edus FOR UPDATE SKIP LOCKED) AS sub;"); err != nil {
 		return err
 	}
 
@@ -655,6 +662,26 @@ func (s *PostgresStorage) BeginMatrixTransaction(ctx context.Context, destinatio
 	}
 
 	return matrixTxn, txn, nil
+}
+
+func (s *PostgresStorage) GetDestinationsNeedingCatchup(ctx context.Context) ([]string, error) {
+	t := dbmetrics.StartSelfDatabaseTimer("GetDestinationsNeedingCatchup")
+	defer t.ObserveDuration()
+
+	rows, err := s.destinationsNeedingCatchupSelect.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	destinations := make([]string, 0)
+	for rows.Next() {
+		var destination string
+		if err = rows.Scan(&destination); err != nil {
+			return nil, err
+		}
+		destinations = append(destinations, destination)
+	}
+	return destinations, nil
 }
 
 // Deduplicates strings given to it

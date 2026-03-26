@@ -354,6 +354,21 @@ func (m *MemoryStorage) BeginMatrixTransaction(ctx context.Context, destination 
 	return mxTxn, sqlTxn, nil
 }
 
+func (m *MemoryStorage) GetDestinationsNeedingCatchup(ctx context.Context) ([]string, error) {
+	assert.NotNil(m.t, ctx, "context is required")
+
+	destinations := make([]string, 0)
+	for destination, edus := range m.destinationEdus {
+		for _, edu := range edus {
+			if edu.transactionId == nil {
+				destinations = append(destinations, destination)
+				break
+			}
+		}
+	}
+	return destinations, nil
+}
+
 // mustClone - clones structs for reuse elsewhere. This does a relatively shallow clone using primitives.
 // See implementation for details.
 func mustClone[T any](t *testing.T, val *T) *T {

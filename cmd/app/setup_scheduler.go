@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"log"
+	"math"
 	"math/big"
 	"time"
 
@@ -18,6 +19,9 @@ func setupScheduler(scheduler gocron.Scheduler, homeserver *homeserver.Homeserve
 		return err
 	}
 	if err := scheduleStateLearningTask(scheduler, homeserver, db, instanceConfig); err != nil {
+		return err
+	}
+	if err := scheduleFederationCatchupTask(scheduler, homeserver, db, instanceConfig); err != nil {
 		return err
 	}
 	return nil
@@ -63,6 +67,37 @@ func scheduleStateLearningTask(scheduler gocron.Scheduler, homeserver *homeserve
 
 	log.Printf("Scheduled state learning task every ~%d minutes: %s", instanceConfig.StateCacheIntervalMinutes, learnTask.ID())
 	runTaskNowish(learnTask)
+
+	return nil
+}
+
+func scheduleFederationCatchupTask(scheduler gocron.Scheduler, homeserver *homeserver.Homeserver, db storage.PersistentStorage, instanceConfig *config.InstanceConfig) error {
+	if instanceConfig.FederationCatchupIntervalSeconds <= 0 {
+		// We *really* want people to see this, but it's questionable to even allow this feature to be disabled at all.
+		// There may be situations where sending more transactions won't fix a bug (typically on the remote end), so we
+		// give operators a way to just stop all traffic.
+		for range 5 {
+			log.Printf("⚠️ Federation catchup is disabled. Remote servers might not receive policyserv's outbound traffic, and your database will accumulate data. Set PS_FEDERATION_CATCHUP_INTERVAL_SECONDS to a positive number to re-enable.")
+		}
+		return nil
+	}
+
+	// Jitter on these requests is to avoid other policyserv instances from trying to acquire locks at the exact same
+	// time. This also means that the mean delivery time of a failed transaction will actually be less than the configured
+	// interval because another worker is likely to pick it up first.
+	minTime := time.Second * time.Duration(math.Max(1, float64(instanceConfig.FederationCatchupIntervalSeconds)-2))
+	maxTime := time.Second * time.Duration(instanceConfig.FederationCatchupIntervalSeconds+2)
+
+	catchupTask, err := scheduler.NewJob(gocron.DurationRandomJob(minTime, maxTime), gocron.NewTask(tasks.FederationCatchup, homeserver, db), gocron.WithName("FederationCatchup"))
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Scheduled federation catchup task every ~%d seconds: %s", instanceConfig.FederationCatchupIntervalSeconds, catchupTask.ID())
+	if instanceConfig.FederationCatchupIntervalSeconds > 30 {
+		// Somewhat arbitrary, but if the interval isn't "soon" then we run the task right away. Otherwise we just wait it out.
+		runTaskNowish(catchupTask)
+	}
 
 	return nil
 }

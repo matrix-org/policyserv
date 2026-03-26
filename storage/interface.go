@@ -135,4 +135,5 @@ type PersistentStorage interface {
 	// then this returns an sql.ErrNoRows error (with a nil Transaction and nil MatrixTransaction).
 	BeginMatrixTransaction(ctx context.Context, destination string) (*MatrixTransaction, Transaction, error)
 	InsertEdu(ctx context.Context, edu *StoredEdu) error // note: not an Upsert operation
+	GetDestinationsNeedingCatchup(ctx context.Context) ([]string, error)
 }
