@@ -66,6 +66,9 @@ func QueueRedaction(storage storage.PersistentStorage, event gomatrixserverlib.P
 	if err != nil {
 		return err
 	}
+	if room == nil {
+		return nil // no room == no moderator, so nothing to queue
+	}
 	if room.ModeratorUserId == "" {
 		log.Println("No moderator for room", roomId)
 		metrics.RecordModerationAction(metrics.ModerationActionRedaction, metrics.ModerationStatusNoModerator)

@@ -1,6 +1,7 @@
 package homeserver
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -67,6 +68,7 @@ func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.
 	if err != nil {
 		log.Println("Error submitting event:", err)
 		refuseToSign(w, r, stable)
+		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 		return
 	}
 
@@ -84,17 +86,41 @@ func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.
 	if res.Err != nil {
 		log.Println("Error receiving event result:", err)
 		refuseToSign(w, r, stable)
+		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 		return
 	}
 
 	if res.IsProbablySpam {
 		log.Printf("🚫 [%s] refusing to sign in %s", event.EventID(), event.RoomID().String())
 		refuseToSign(w, r, stable)
+		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 		return
 	}
 
 	signEvent(server, event, w)
 	log.Printf("✅ [%s] Signed in %s as requested by %s", event.EventID(), event.RoomID().String(), fedReq.Origin())
+}
+
+func redactIfNeeded(ctx context.Context, server *Homeserver, requestOrigin spec.ServerName, event gomatrixserverlib.PDU) {
+	// We need to be a bit careful with invalid user IDs here. If things are invalid, we'll try to redact the event
+	// as a precaution.
+	senderDomain := spec.ServerName("undefined.invalid")
+	if event.SenderID().IsUserID() && event.SenderID().ToUserID() != nil {
+		senderDomain = event.SenderID().ToUserID().Domain()
+	}
+
+	// If the sender and requesting domain are the same, we're assuming that the server will reject the event. If not,
+	// then we'll either see the event over `/send` (where the requestOrigin will be nil-like) or from another server
+	// re-checking the event. *Then* we'll redact it.
+	if senderDomain == requestOrigin {
+		log.Printf("[%s | %s] Sender and requesting domain are the same - assuming they rejected the event.", event.EventID(), event.RoomID().String())
+		return
+	}
+
+	err := server.SendRedactInstruction(ctx, event)
+	if err != nil {
+		log.Printf("[%s | %s] Non-fatal error trying to submit redaction for event", event.EventID(), event.RoomID().String())
+	}
 }
 
 func refuseToSign(w http.ResponseWriter, r *http.Request, stable bool) {
