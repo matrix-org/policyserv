@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/matrix-org/gomatrixserverlib/spec"
@@ -19,6 +20,11 @@ var SimulatedError = errors.New("simulated error")
 
 const ErrorEventResultId = "$ERROR"
 
+type memoryDestinationEdu struct {
+	*storage.StoredEdu
+	transactionId *string
+}
+
 type MemoryStorage struct {
 	t                      *testing.T
 	rooms                  map[string]*storage.StoredRoom
@@ -31,6 +37,8 @@ type MemoryStorage struct {
 	trustData              map[string]map[string][]byte // sourceName -> key -> JSON value
 	keywordTemplates       map[string]*storage.StoredKeywordTemplate
 	mediaClassifications   map[string]map[string]*storage.StoredMediaClassification // mxcUri -> communityId -> classification
+	destinationLocks       map[string]*sync.Mutex
+	destinationEdus        map[string][]*memoryDestinationEdu
 }
 
 func NewMemoryStorage(t *testing.T) *MemoryStorage {
@@ -46,6 +54,8 @@ func NewMemoryStorage(t *testing.T) *MemoryStorage {
 		trustData:              make(map[string]map[string][]byte),
 		keywordTemplates:       make(map[string]*storage.StoredKeywordTemplate),
 		mediaClassifications:   make(map[string]map[string]*storage.StoredMediaClassification),
+		destinationLocks:       make(map[string]*sync.Mutex),
+		destinationEdus:        make(map[string][]*memoryDestinationEdu),
 	}
 }
 
@@ -207,7 +217,7 @@ func (m *MemoryStorage) PopStateLearnQueue(ctx context.Context) (*storage.StateL
 	item := m.learnStateQueue[0]
 	m.learnStateQueue = m.learnStateQueue[1:]
 	m.pendingLearnStateQueue = append(m.pendingLearnStateQueue, item)
-	return item, &MemoryTransaction{storage: m, row: item}, nil
+	return item, &memoryStateLearnTransaction{storage: m, row: item}, nil
 }
 
 func (m *MemoryStorage) GetTrustData(ctx context.Context, sourceName string, key string, result any) error {
@@ -280,6 +290,64 @@ func (m *MemoryStorage) UpsertMediaClassification(ctx context.Context, classific
 	return nil
 }
 
+func (m *MemoryStorage) InsertEdu(ctx context.Context, edu *storage.StoredEdu) error {
+	assert.NotNil(m.t, ctx, "context is required")
+
+	// Note: inserting happens without locking
+
+	if m.destinationLocks[edu.Destination] == nil {
+		m.destinationLocks[edu.Destination] = &sync.Mutex{}
+	}
+	if m.destinationEdus[edu.Destination] == nil {
+		m.destinationEdus[edu.Destination] = make([]*memoryDestinationEdu, 0)
+	}
+	m.destinationEdus[edu.Destination] = append(m.destinationEdus[edu.Destination], &memoryDestinationEdu{
+		StoredEdu:     edu,
+		transactionId: nil,
+	})
+
+	return nil
+}
+
+func (m *MemoryStorage) BeginMatrixTransaction(ctx context.Context, destination string) (*storage.MatrixTransaction, storage.Transaction, error) {
+	assert.NotNil(m.t, ctx, "context is required")
+
+	// We are replicating the postgresql behaviour here, so we lock the entire "destinations" table even if there's more
+	// EDUs we could return. We also need to match our own interface spec.
+
+	if m.destinationLocks[destination] == nil {
+		return nil, nil, sql.ErrNoRows
+	}
+	m.destinationLocks[destination].Lock() // unlocked in transaction
+
+	// Get (and assign) 100 or fewer EDUs to a transaction
+	txnId := storage.NextId()
+	edus := make([]*storage.StoredEdu, 0)
+	for _, edu := range m.destinationEdus[destination] {
+		if len(edus) == 100 {
+			break
+		}
+		edus = append(edus, edu.StoredEdu)
+		edu.transactionId = internal.Pointer(txnId)
+	}
+	if len(edus) == 0 {
+		m.destinationLocks[destination].Unlock()
+		return nil, nil, sql.ErrNoRows
+	}
+
+	mxTxn := &storage.MatrixTransaction{
+		TransactionId: txnId,
+		Destination:   destination,
+		Edus:          edus,
+	}
+	sqlTxn := &memoryDestinationTransaction{
+		storage:       m,
+		destination:   destination,
+		transactionId: txnId,
+	}
+	return mxTxn, sqlTxn, nil
+}
+
 // mustClone - clones structs for reuse elsewhere. This does a relatively shallow clone using primitives.
 // See implementation for details.
 func mustClone[T any](t *testing.T, val *T) *T {
@@ -295,12 +363,12 @@ func mustClone[T any](t *testing.T, val *T) *T {
 	return cloned
 }
 
-type MemoryTransaction struct { // Implements storage.Transaction
+type memoryStateLearnTransaction struct { // Implements storage.Transaction
 	storage *MemoryStorage
 	row     *storage.StateLearnQueueItem
 }
 
-func (t *MemoryTransaction) Commit() error {
+func (t *memoryStateLearnTransaction) Commit() error {
 	newQueue := make([]*storage.StateLearnQueueItem, 0)
 	for _, item := range t.storage.pendingLearnStateQueue {
 		if item != t.row {
@@ -311,7 +379,37 @@ func (t *MemoryTransaction) Commit() error {
 	return nil
 }
 
-func (t *MemoryTransaction) Rollback() error {
+func (t *memoryStateLearnTransaction) Rollback() error {
 	t.storage.learnStateQueue = append(t.storage.learnStateQueue, t.row)
 	return t.Commit() // we're cheating a bit to avoid code duplication
+}
+
+type memoryDestinationTransaction struct {
+	storage       *MemoryStorage
+	destination   string
+	transactionId string
+}
+
+func (t *memoryDestinationTransaction) Commit() error {
+	// Remove any "processed" EDUs before unlocking
+	newEdus := make([]*memoryDestinationEdu, 0)
+	for _, edu := range t.storage.destinationEdus[t.destination] {
+		if edu.transactionId == nil || *edu.transactionId != t.transactionId {
+			newEdus = append(newEdus, edu)
+		}
+	}
+	t.storage.destinationEdus[t.destination] = newEdus
+	t.storage.destinationLocks[t.destination].Unlock()
+	return nil
+}
+
+func (t *memoryDestinationTransaction) Rollback() error {
+	// Revert EDUs to "no assigned transaction" before unlocking
+	for _, edu := range t.storage.destinationEdus[t.destination] {
+		if edu.transactionId != nil && *edu.transactionId == t.transactionId {
+			edu.transactionId = nil
+		}
+	}
+	t.storage.destinationLocks[t.destination].Unlock()
+	return nil
 }

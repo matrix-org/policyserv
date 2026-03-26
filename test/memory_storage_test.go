@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/stretchr/testify/assert"
@@ -135,4 +137,109 @@ func TestMemoryStorageTrustData(t *testing.T) {
 	// Source found, key not found
 	err = s.GetTrustData(context.Background(), "x", "different", &res)
 	assert.Equal(t, sql.ErrNoRows, err)
+}
+
+func TestMemoryStorageEduTransactions(t *testing.T) {
+	t.Parallel()
+
+	// This test is verifying that MemoryStorage behaves according to the PersistentStorage interface
+
+	s := NewMemoryStorage(t)
+
+	destination := "example.org"
+
+	// Insert 105 EDUs into the table. A Matrix transaction should only contain 100 max
+	for i := 0; i < 105; i++ {
+		assert.NoError(t, s.InsertEdu(context.Background(), &storage.StoredEdu{
+			Destination: destination,
+			Payload:     map[string]any{"key": i},
+		}))
+	}
+
+	// Start a Matrix transaction, but don't commit it right away. We're going to test the locking.
+	mxTxn, sqlTxn, err := s.BeginMatrixTransaction(context.Background(), destination)
+	assert.NoError(t, err)
+	assert.NotNil(t, mxTxn)
+	assert.NotNil(t, sqlTxn)
+	assert.Equal(t, 100, len(mxTxn.Edus))
+
+	// Try to get a second transaction, which should encounter a lock
+	gotTxn := false
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		mxTxn2, sqlTxn2, err2 := s.BeginMatrixTransaction(context.Background(), destination)
+		gotTxn = true
+		defer sqlTxn2.Rollback()
+
+		// These asserts are for when the transaction unlocks
+		assert.NoError(t, err2)
+		assert.NotNil(t, mxTxn2)
+		assert.NotNil(t, sqlTxn2)
+		assert.Equal(t, 100, len(mxTxn2.Edus))
+	}()
+
+	// Wait a bit to see if the transaction got picked up
+	time.Sleep(100 * time.Millisecond)
+	assert.False(t, gotTxn)
+
+	// Now, roll back the first transaction to unblock the second one
+	assert.NoError(t, sqlTxn.Rollback())
+	wg.Wait() // wait for the second transaction to finish rolling back itself
+
+	// Both transactions should have been rolled back now. Now we're going to test that transactions return EDUs (or
+	// sql.ErrNoRows) even when their locks overlap. We also test that inserting an EDU is picked up in the next transaction.
+	mxTxn, sqlTxn, err = s.BeginMatrixTransaction(context.Background(), destination)
+	assert.NoError(t, err)
+	assert.NotNil(t, mxTxn)
+	assert.NotNil(t, sqlTxn)
+	assert.Equal(t, 100, len(mxTxn.Edus))
+
+	// Insert an EDU into the table
+	assert.NoError(t, s.InsertEdu(context.Background(), &storage.StoredEdu{
+		Destination: destination,
+		Payload:     map[string]any{"key": 105}, // zero indexed means this is the 106th EDU
+	}))
+
+	// Grab the second (and third) transactions in a gofunc because locking
+	lastTxnWg := &sync.WaitGroup{}
+	lastTxnWg.Add(2)
+	gotTxn = false
+	go func() {
+		defer lastTxnWg.Done()
+		mxTxn2, sqlTxn2, err2 := s.BeginMatrixTransaction(context.Background(), destination)
+		gotTxn = true
+
+		// These asserts are for when the transaction unlocks
+		assert.NoError(t, err2)
+		assert.NotNil(t, mxTxn2)
+		assert.NotNil(t, sqlTxn2)
+		assert.Equal(t, 6, len(mxTxn2.Edus)) // 5 from the initial insert and 1 from the insert a couple lines up
+
+		// Start that third transaction, which should get an sql.ErrNoRows
+		gotTxn = false
+		go func() {
+			defer lastTxnWg.Done()
+			mxTxn3, sqlTxn3, err3 := s.BeginMatrixTransaction(context.Background(), destination)
+			gotTxn = true
+
+			// This assert is for when the transaction unlocks
+			assert.Equal(t, sql.ErrNoRows, err3)
+			assert.Nil(t, mxTxn3)
+			assert.Nil(t, sqlTxn3)
+		}()
+
+		// Wait to see if the third transaction got picked up
+		time.Sleep(100 * time.Millisecond)
+		assert.False(t, gotTxn)
+		assert.NoError(t, sqlTxn2.Commit()) // unlock the third transaction
+	}()
+
+	// Wait to see if the second transaction got picked up
+	time.Sleep(100 * time.Millisecond)
+	assert.False(t, gotTxn)
+	assert.NoError(t, sqlTxn.Commit()) // unlock the second transaction
+
+	lastTxnWg.Wait() // wait for the test to complete
 }

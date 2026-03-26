@@ -60,10 +60,13 @@ type PostgresStorage struct {
 	keywordTemplateUpsert                *sql.Stmt
 	mediaClassificationSelect            *sql.Stmt
 	mediaClassificationUpsert            *sql.Stmt
+	destinationUpsert                    *sql.Stmt
+	eduInsert                            *sql.Stmt
 
 	//userIdsAndDisplayNamesByRoomIdUpsert *sql.Stmt // We do the upsert manually to enter a transaction instead
 	//banRulesUpsertForRoom                *sql.Stmt // We do the upsert manually to enter a transaction instead
 	//stateLearnQueueSelect                *sql.Stmt // We do the select/delete manually to enter a transaction instead
+	//eduSelect                            *sql.Stmt // We do the select/delete manually to enter a transaction instead
 }
 
 func NewPostgresStorage(config *PostgresStorageConfig) (*PostgresStorage, error) {
@@ -160,6 +163,12 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 		return err
 	}
 	if s.mediaClassificationUpsert, err = s.db.Prepare("INSERT INTO media_classifications (mxc_uri, community_id, classifications) VALUES ($1, $2, $3) ON CONFLICT (mxc_uri, community_id) DO UPDATE SET classifications = $3;"); err != nil {
+		return err
+	}
+	if s.destinationUpsert, err = s.db.Prepare("INSERT INTO destinations (destination) VALUES ($1) ON CONFLICT (destination) DO NOTHING;"); err != nil {
+		return err
+	}
+	if s.eduInsert, err = s.db.Prepare("INSERT INTO destination_edus (destination, edu) VALUES ($1, $2);"); err != nil {
 		return err
 	}
 
@@ -566,6 +575,78 @@ func (s *PostgresStorage) GetMediaClassification(ctx context.Context, mxcUri str
 		return nil, err
 	}
 	return val, nil
+}
+
+func (s *PostgresStorage) InsertEdu(ctx context.Context, edu *StoredEdu) error {
+	t := dbmetrics.StartSelfDatabaseTimer("UpsertEdu")
+	defer t.ObserveDuration()
+
+	// We need to do two things: ensure the destination exists and insert the EDU. We don't need to do this in a transaction
+	// because the destination can exist with zero or more EDUs (meaning inserting the EDU can fail, but inserting the
+	// destination can't).
+
+	_, err := s.destinationUpsert.ExecContext(ctx, edu.Destination)
+	if err != nil {
+		return err
+	}
+
+	// The insert will also cause a pg_notify back to policyserv to actually prepare/send the transaction
+	_, err = s.eduInsert.ExecContext(ctx, edu.Destination, edu.Payload)
+	return err
+}
+
+func (s *PostgresStorage) BeginMatrixTransaction(ctx context.Context, destination string) (*MatrixTransaction, Transaction, error) {
+	t := dbmetrics.StartSelfDatabaseTimer("BeginMatrixTransaction")
+	defer t.ObserveDuration()
+
+	txn, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Note: we expect that the caller wants an entirely new transaction here. The spec wants to ensure that a previous
+	// transaction was successful before advancing, but doing that locking in the database is a bunch of extra work.
+	// Instead, we expect the calling code to do that retry until it gives up on the transaction, which may be minutes.
+	// This is why we ensure we give our context to the BeginTx above, so it automatically rolls back if the context is
+	// canceled.
+
+	// Generate a Matrix transaction
+	matrixTxn := &MatrixTransaction{
+		TransactionId: NextId(), // fresh ID
+		Destination:   destination,
+		Edus:          make([]*StoredEdu, 0),
+	}
+
+	// Lock the destination to prevent concurrent transactions (update queries automatically lock)
+	_, err = txn.ExecContext(ctx, "UPDATE destinations SET last_transaction_id = $1 WHERE destination = $2;", matrixTxn.TransactionId, destination)
+	if err != nil {
+		defer txn.Rollback()
+		return nil, nil, err
+	}
+
+	// Pull the first 100 EDUs we need to send to the destination. The 100 limit comes from the spec:
+	// https://spec.matrix.org/v1.18/server-server-api/#put_matrixfederationv1sendtxnid
+	rows, err := txn.QueryContext(ctx, "DELETE FROM destination_edus WHERE id IN (SELECT id FROM destination_edus WHERE destination = $1 ORDER BY id ASC LIMIT 100) RETURNING destination, edu;", destination)
+	if err != nil {
+		defer txn.Rollback()
+		return nil, nil, err
+	}
+
+	for rows.Next() {
+		edu := &StoredEdu{}
+		if err = rows.Scan(&edu.Destination, &edu.Payload); err != nil {
+			defer txn.Rollback()
+			return nil, nil, err
+		}
+		matrixTxn.Edus = append(matrixTxn.Edus, edu)
+	}
+
+	if len(matrixTxn.Edus) == 0 {
+		defer txn.Rollback()
+		return nil, nil, sql.ErrNoRows
+	}
+
+	return matrixTxn, txn, nil
 }
 
 // Deduplicates strings given to it

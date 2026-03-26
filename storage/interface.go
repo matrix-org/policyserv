@@ -49,6 +49,17 @@ type StoredMediaClassification struct {
 	Classifications StoredClassifications
 }
 
+type StoredEdu struct {
+	Destination string
+	Payload     map[string]any // arbitrary JSON
+}
+
+type MatrixTransaction struct {
+	TransactionId string
+	Destination   string
+	Edus          []*StoredEdu
+}
+
 // StoredClassifications implements the SQL driver interface for scanning/setting values. Note that the
 // Value() and Scan() functions are on different receivers - this is because the Value() is not going to
 // be on a pointer (see StoredMediaClassification), but Scan() will always be called on a pointer. If Scan()
@@ -116,4 +127,11 @@ type PersistentStorage interface {
 
 	UpsertMediaClassification(ctx context.Context, classification *StoredMediaClassification) error
 	GetMediaClassification(ctx context.Context, mxcUri string, communityId string) (*StoredMediaClassification, error)
+
+	// BeginMatrixTransaction - pulls the data required to send (over federation) a transaction of data to a destination.
+	// The caller is responsible for calling Commit() on the returned SQL Transaction to indicate that the MatrixTransaction
+	// was successfully sent. This locks the destination to prevent concurrent sends. If no data is to be sent to the destination,
+	// then this returns an sql.ErrNoRows error (with a nil Transaction and nil MatrixTransaction).
+	BeginMatrixTransaction(ctx context.Context, destination string) (*MatrixTransaction, Transaction, error)
+	InsertEdu(ctx context.Context, edu *StoredEdu) error // note: not an Upsert operation
 }
