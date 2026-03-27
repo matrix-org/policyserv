@@ -1,6 +1,7 @@
 package homeserver
 
 import (
+	"context"
 	"crypto/ed25519"
 	"fmt"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
+	"golang.org/x/sync/singleflight"
 )
 
 type KeyQueryServer struct {
@@ -66,6 +68,7 @@ type Homeserver struct {
 	adminContacts          []config.SupportContact
 	securityContacts       []config.SupportContact
 	supportUrl             string
+	sendTxnSingleflight    *singleflight.Group
 }
 
 func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queue.Pool, pubsubClient pubsub.Client) (*Homeserver, error) {
@@ -126,6 +129,7 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 		adminContacts:          config.AdminContacts,
 		securityContacts:       config.SecurityContacts,
 		supportUrl:             config.SupportUrl,
+		sendTxnSingleflight:    &singleflight.Group{},
 		keyCache: cache.New[string, map[string]gomatrixserverlib.PublicKeyLookupResult](
 			cache.WithJanitorInterval[string, map[string]gomatrixserverlib.PublicKeyLookupResult](10 * time.Minute),
 		),
@@ -139,6 +143,13 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 		),
 	}
 	hs.keyRing.KeyDatabase = hs // implemented by keyring.go
+
+	edus, err := pubsubClient.Subscribe(context.Background(), pubsub.TopicNewEduForDestination)
+	if err != nil {
+		return nil, err
+	}
+	go hs.waitForEdus(edus)
+
 	return hs, nil
 }
 
