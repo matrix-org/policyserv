@@ -11,7 +11,6 @@ import (
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/queue"
-	"github.com/matrix-org/policyserv/redaction"
 	"github.com/matrix-org/policyserv/storage"
 )
 
@@ -84,24 +83,7 @@ func httpMSC4284Check(server *Homeserver, w http.ResponseWriter, r *http.Request
 	}
 
 	if res.IsProbablySpam {
-		senderDomain := spec.ServerName("example.org")
-		if event.SenderID().IsUserID() {
-			uid := event.SenderID().ToUserID()
-			if uid != nil {
-				senderDomain = uid.Domain()
-			}
-		}
-		if senderDomain != fedReq.Origin() {
-			for _, origin := range server.trustedOrigins {
-				if fedReq.Origin() == spec.ServerName(origin) {
-					err = redaction.QueueRedaction(server.storage, event)
-					if err != nil {
-						log.Printf("Non-fatal error trying to submit redaction for spammy event %s in %s: %s", event.EventID(), event.RoomID().String(), err)
-					}
-					break
-				}
-			}
-		}
+		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 	}
 
 	defer metrics.RecordHttpResponse(r.Method, "httpMSC4284Check", http.StatusOK)

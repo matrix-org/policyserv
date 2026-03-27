@@ -47,6 +47,7 @@ type CommunityConfig struct {
 	UnsafeSigningKeyFilterEnabled            bool      `json:"unsafe_signing_key_filter_enabled,omitempty" envconfig:"unsafe_signing_key_filter_enabled" default:"true"`
 	FrequencyFilterEventTypes                *[]string `json:"frequency_filter_event_types,omitempty" envconfig:"frequency_filter_event_types" default:"m.room.message,m.sticker,m.reaction"`
 	FrequencyFilterRateLimit                 *float64  `json:"frequency_filter_rate_limit,omitempty" envconfig:"frequency_filter_rate_limit" default:"0"`
+	ModerationBotUserId                      *string   `json:"moderation_bot_user_id,omitempty" envconfig:"moderation_bot_user_id" default:""`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {

@@ -122,6 +122,9 @@ server are trusted by the server administrator(s).
 * `PS_SPAM_THRESHOLD` (default `0.8`) - A value between 0 and 1 denoting how much "confidence" is needed before an event 
   is considered spammy. Note that policyserv can currently only generate scores of 0, 0.5, and 1 - a future version will 
   allow for more precise scores, so it's recommended to keep this value as a decimal.
+* `PS_MODERATION_BOT_USER_ID` (default empty value) - The user ID of the bot account where policyserv can send redaction
+  commands to. A device on the user *must* implement the [policyserv to-device protocol](./docs/to_device.md) for this to
+  work. Set to an empty value to disable this feature.
 
 ### Allowed senders prefilter
 
