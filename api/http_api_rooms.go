@@ -7,6 +7,7 @@ import (
 
 	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/metrics"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 func httpGetRoomsApi(api *Api, w http.ResponseWriter, r *http.Request) {
@@ -103,8 +104,14 @@ func httpAddRoomApi(api *Api, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure the room *doesn't* exist
 	roomId := r.PathValue("roomId")
+	doHttpAddRoom("httpAddRoomApi", api, w, r, roomId, community)
+}
+
+func doHttpAddRoom(funcName string, api *Api, w http.ResponseWriter, r *http.Request, roomId string, community *storage.StoredCommunity) {
+	errs := newErrorResponder(funcName, w, r)
+
+	// Ensure the room *doesn't* exist
 	room, err := api.storage.GetRoom(r.Context(), roomId)
 	if err != nil {
 		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
@@ -122,7 +129,7 @@ func httpAddRoomApi(api *Api, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with the room's config details
-	err = respondJson("httpAddRoomApi", r, w, room)
+	err = respondJson(funcName, r, w, room)
 	if err != nil {
 		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
 		return

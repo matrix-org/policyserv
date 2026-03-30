@@ -132,13 +132,13 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 	if s.banRulesSelectForRoom, err = s.readonlyDb.Prepare("SELECT entity_type, entity_id FROM ban_rules WHERE room_id = $1;"); err != nil {
 		return err
 	}
-	if s.communityUpsert, err = s.db.Prepare("INSERT INTO communities (id, name, config, api_access_token) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET name = $2, config = $3, api_access_token = $4;"); err != nil {
+	if s.communityUpsert, err = s.db.Prepare("INSERT INTO communities (id, name, config, api_access_token, can_self_join_rooms) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name = $2, config = $3, api_access_token = $4, can_self_join_rooms = $5;"); err != nil {
 		return err
 	}
-	if s.communitySelect, err = s.readonlyDb.Prepare("SELECT id, name, config, api_access_token FROM communities WHERE id = $1"); err != nil {
+	if s.communitySelect, err = s.readonlyDb.Prepare("SELECT id, name, config, api_access_token, can_self_join_rooms FROM communities WHERE id = $1"); err != nil {
 		return err
 	}
-	if s.communitySelectByAccessToken, err = s.readonlyDb.Prepare("SELECT id, name, config, api_access_token FROM communities WHERE api_access_token = $1;"); err != nil {
+	if s.communitySelectByAccessToken, err = s.readonlyDb.Prepare("SELECT id, name, config, api_access_token, can_self_join_rooms FROM communities WHERE api_access_token = $1;"); err != nil {
 		return err
 	}
 	if s.stateLearnQueueInsert, err = s.db.Prepare("INSERT INTO state_learn_queue (room_id, at_event_id, via, after_ts) VALUES ($1, $2, $3, $4) ON CONFLICT (room_id) DO NOTHING;"); err != nil {
@@ -402,7 +402,14 @@ func (s *PostgresStorage) CreateCommunity(ctx context.Context, name string) (*St
 		Name:        name,
 		Config:      &config.CommunityConfig{}, // empty by default
 	}
-	_, err := s.communityUpsert.ExecContext(ctx, community.CommunityId, community.Name, community.Config, community.ApiAccessToken)
+	_, err := s.communityUpsert.ExecContext(
+		ctx,
+		community.CommunityId,
+		community.Name,
+		community.Config,
+		community.ApiAccessToken,
+		community.CanSelfJoinRooms,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -415,7 +422,14 @@ func (s *PostgresStorage) UpsertCommunity(ctx context.Context, community *Stored
 
 	// Note: due to the `ps_community_config_change` trigger, we don't need to `NOTIFY policyserv_community_config_changed` here.
 
-	_, err := s.communityUpsert.ExecContext(ctx, community.CommunityId, community.Name, community.Config, community.ApiAccessToken)
+	_, err := s.communityUpsert.ExecContext(
+		ctx,
+		community.CommunityId,
+		community.Name,
+		community.Config,
+		community.ApiAccessToken,
+		community.CanSelfJoinRooms,
+	)
 	if err != nil {
 		return err
 	}
@@ -427,7 +441,13 @@ func (s *PostgresStorage) GetCommunity(ctx context.Context, communityId string) 
 	defer t.ObserveDuration()
 
 	community := &StoredCommunity{}
-	if err := s.communitySelect.QueryRowContext(ctx, communityId).Scan(&community.CommunityId, &community.Name, &community.Config, &community.ApiAccessToken); err != nil {
+	if err := s.communitySelect.QueryRowContext(ctx, communityId).Scan(
+		&community.CommunityId,
+		&community.Name,
+		&community.Config,
+		&community.ApiAccessToken,
+		&community.CanSelfJoinRooms,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -441,7 +461,13 @@ func (s *PostgresStorage) GetCommunityByAccessToken(ctx context.Context, accessT
 	defer t.ObserveDuration()
 
 	community := &StoredCommunity{}
-	if err := s.communitySelectByAccessToken.QueryRowContext(ctx, accessToken).Scan(&community.CommunityId, &community.Name, &community.Config, &community.ApiAccessToken); err != nil {
+	if err := s.communitySelectByAccessToken.QueryRowContext(ctx, accessToken).Scan(
+		&community.CommunityId,
+		&community.Name,
+		&community.Config,
+		&community.ApiAccessToken,
+		&community.CanSelfJoinRooms,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}

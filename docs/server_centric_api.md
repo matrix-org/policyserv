@@ -35,3 +35,16 @@ If the event is considered spammy, a 400 `M_FORBIDDEN` error is returned. Otherw
 This will fetch events over federation if necessary.
 
 **Note**: Because policyserv doesn't (currently) store information about which communities an event was sent in, this endpoint can be used to check events from other communities. This behaviour *should not* be relied upon as it may be removed in a future version without notice.
+
+## Joining rooms
+
+If a community is set up with `can_self_join_rooms`, the following endpoint can be used to join and associate a room with that community.
+
+If the room is already associated with a community or if the room is already known, an error is returned.
+
+Endpoint: `POST /_policyserv/v1/join/{roomId}`
+Request body: empty
+
+If the room is successfully joined, a 200 response is returned.
+
+`M_FORBIDDEN` is returned if the community cannot join rooms. `M_BAD_STATE` is returned if the room is already known or already associated with a community.
