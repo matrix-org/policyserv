@@ -25,10 +25,11 @@ type StoredEventResult struct {
 }
 
 type StoredCommunity struct {
-	CommunityId    string                  `json:"community_id"`
-	Name           string                  `json:"name"`
-	Config         *config.CommunityConfig `json:"config"`
-	ApiAccessToken *string                 `json:"-"` // don't export to/import from JSON
+	CommunityId      string                  `json:"community_id"`
+	Name             string                  `json:"name"`
+	Config           *config.CommunityConfig `json:"config"`
+	ApiAccessToken   *string                 `json:"-"` // don't export to/import from JSON
+	CanSelfJoinRooms bool                    `json:"can_self_join_rooms"`
 }
 
 type StateLearnQueueItem struct {

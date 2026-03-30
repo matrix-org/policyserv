@@ -92,6 +92,7 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 
 	// Server-centric community API
 	mux.Handle("/_policyserv/v1/check/text", a.httpCommunityAuthenticatedRequestHandler(httpCheckTextCommunityApi))
+	mux.Handle("/_policyserv/v1/join/{roomId}", a.httpCommunityAuthenticatedRequestHandler(httpJoinRoomCommunityApi))
 
 	// Admin API
 	if a.apiKey != "" {
@@ -101,7 +102,7 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 		mux.Handle("/api/v1/rooms/{id}", a.httpAuthenticatedRequestHandler(httpGetRoomApi))
 		mux.Handle("/api/v1/rooms/{roomId}/join", a.httpAuthenticatedRequestHandler(httpAddRoomApi))
 		mux.Handle("/api/v1/communities/new", a.httpAuthenticatedRequestHandler(httpCreateCommunityApi))
-		mux.Handle("/api/v1/communities/{id}", a.httpAuthenticatedRequestHandler(httpGetCommunityApi))
+		mux.Handle("/api/v1/communities/{id}", a.httpAuthenticatedRequestHandler(httpCommunities))
 		mux.Handle("/api/v1/communities/{id}/config", a.httpAuthenticatedRequestHandler(httpSetCommunityConfigApi))
 		mux.Handle("/api/v1/communities/{id}/rotate_access_token", a.httpAuthenticatedRequestHandler(httpRotateCommunityAccessTokenApi))
 		mux.Handle("/api/v1/instance/community_config", a.httpAuthenticatedRequestHandler(httpGetInstanceConfigApi))

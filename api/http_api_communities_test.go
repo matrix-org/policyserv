@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/matrix-org/policyserv/config"
@@ -90,14 +91,14 @@ func TestCreateCommunityCreate(t *testing.T) {
 	// case *should* cover this.
 }
 
-func TestGetCommunityWrongMethod(t *testing.T) {
+func TestCommunitiesWrongMethod(t *testing.T) {
 	t.Parallel()
 
 	api := makeApi(t)
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodPost /*this should be GET*/, "/api/v1/communities/not_a_real_id", nil)
-	httpGetCommunityApi(api, w, r)
+	r := httptest.NewRequest(http.MethodPost /*this should be GET or PATCH*/, "/api/v1/communities/not_a_real_id", nil)
+	httpCommunities(api, w, r)
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	test.AssertApiError(t, w, "M_UNRECOGNIZED", "Method not allowed")
 }
@@ -110,7 +111,7 @@ func TestGetCommunityNotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/communities/not_a_real_id", nil)
 	r.SetPathValue("id", "not_a_real_id")
-	httpGetCommunityApi(api, w, r)
+	communityGetHandler(api, w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	test.AssertApiError(t, w, "M_NOT_FOUND", "Community not found")
 }
@@ -136,7 +137,76 @@ func TestGetCommunity(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/communities/"+community.CommunityId, nil)
 	r.SetPathValue("id", community.CommunityId)
-	httpGetCommunityApi(api, w, r)
+	communityGetHandler(api, w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+	fromRes := &storage.StoredCommunity{}
+	err = json.Unmarshal(w.Body.Bytes(), fromRes)
+	assert.NoError(t, err)
+	assert.Equal(t, community, fromRes)
+
+	// Note: we can't (currently) test that errors during database calls and HTTP responses are handled. A future test
+	// case *should* cover this.
+}
+
+func TestPatchCommunityNotFound(t *testing.T) {
+	t.Parallel()
+
+	api := makeApi(t)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPatch, "/api/v1/communities/not_a_real_id", nil)
+	r.SetPathValue("id", "not_a_real_id")
+	communityPatchHandler(api, w, r)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	test.AssertApiError(t, w, "M_NOT_FOUND", "Community not found")
+}
+
+func TestPatchCommunity(t *testing.T) {
+	t.Parallel()
+
+	api := makeApi(t)
+
+	name := "Test Community"
+	community, err := api.storage.CreateCommunity(context.Background(), name)
+	assert.NoError(t, err)
+	assert.NotNil(t, community)
+	assert.NotEmpty(t, community.CommunityId)
+	assert.Equal(t, name, community.Name)
+
+	// Set a config to ensure it doesn't get changed if we didn't change it ourselves.
+	community.Config = &config.CommunityConfig{
+		KeywordFilterKeywords: &[]string{"keyword1", "keyword2"},
+	}
+
+	// Set an access token for the community. This is to ensure we don't leak it through the request.
+	community.ApiAccessToken = internal.Pointer("pst_TESTING")
+	err = api.storage.UpsertCommunity(context.Background(), community)
+	assert.NoError(t, err)
+	community.ApiAccessToken = nil // so the assert.Equal() passes later
+
+	communityType := reflect.TypeOf(*community)
+	getJsonTag := func(fieldName string) string {
+		f, ok := communityType.FieldByName(fieldName)
+		assert.True(t, ok)
+		return f.Tag.Get("json")
+	}
+	patchBody := map[string]any{
+		getJsonTag("Name"):             "New Name",
+		getJsonTag("CommunityId"):      "shouldn't change",
+		getJsonTag("ApiAccessToken"):   "shouldn't change",
+		getJsonTag("CanSelfJoinRooms"): true,
+	}
+	community.Name = "New Name"
+	community.CanSelfJoinRooms = true
+	// other values of `community` should not change
+
+	b, err := json.Marshal(patchBody)
+	assert.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPatch, "/api/v1/communities/"+community.CommunityId, bytes.NewReader(b))
+	r.SetPathValue("id", community.CommunityId)
+	communityPatchHandler(api, w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 	fromRes := &storage.StoredCommunity{}
 	err = json.Unmarshal(w.Body.Bytes(), fromRes)
