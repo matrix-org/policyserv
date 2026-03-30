@@ -16,7 +16,7 @@ import (
 func TestSendRedactInstructionUnknownRoom(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, NoConfigChanges)
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), NoConfigChanges)
 
 	pdu := test.MustMakePDU(&test.BaseClientEvent{
 		Type:   "m.room.message",
@@ -41,7 +41,7 @@ func TestSendRedactInstructionUnknownRoom(t *testing.T) {
 func TestSendRedactInstructionUnknownCommunity(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, NoConfigChanges)
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), NoConfigChanges)
 
 	pdu := test.MustMakePDU(&test.BaseClientEvent{
 		Type:   "m.room.message",
@@ -73,7 +73,7 @@ func TestSendRedactInstructionUnknownCommunity(t *testing.T) {
 func TestSendRedactInstructionCommunityNoModerationBot(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, NoConfigChanges)
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), NoConfigChanges)
 
 	pdu := test.MustMakePDU(&test.BaseClientEvent{
 		Type:   "m.room.message",
@@ -111,7 +111,7 @@ func TestSendRedactInstructionCommunityNoModerationBot(t *testing.T) {
 func TestSendRedactInstruction(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, NoConfigChanges)
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), NoConfigChanges)
 
 	pdu := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$redact_me",
