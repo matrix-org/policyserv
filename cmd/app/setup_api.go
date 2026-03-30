@@ -10,8 +10,9 @@ import (
 
 func setupApi(instanceConfig *config.InstanceConfig, storage storage.PersistentStorage, hs *homeserver.Homeserver, communityManager *community.Manager) (*api.Api, error) {
 	apiConfig := &api.Config{
-		ApiKey:        instanceConfig.ApiKey,
-		JoinViaServer: instanceConfig.JoinServer,
+		ApiKey:            instanceConfig.ApiKey,
+		JoinViaServer:     instanceConfig.JoinServer,
+		EventFetchServers: instanceConfig.EventFetchServers,
 	}
 	return api.NewApi(apiConfig, storage, hs, communityManager)
 }

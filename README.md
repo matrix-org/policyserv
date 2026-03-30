@@ -59,6 +59,7 @@ Everything else is optional, though may be useful for some deployments:
 * `PS_JOIN_SERVER` (default `matrix.org`) - The server to send the join event through.
 * `PS_JOIN_ROOM_IDS` (default empty value) - The room IDs to join to receive events in, and therefore protect. Removing a room from this list does *not* unprotect it. Rooms will become part of the `default` community.
 * `PS_JOIN_LOCALPART` (default `policyserv`) - The localpart for the user ID which joins the rooms.
+* `PS_EVENT_FETCH_SERVERS` (default `matrix.org`) - CSV list of server names to fetch missing events from. This is a relatively rare operation.
 * `PS_API_KEY` (default empty value) - The API key which enables use of the policyserv API. If set, this should be a random value and considered a password. If unset or empty, the API will not be enabled.
 * `PS_MODERATOR_ACCESS_TOKENS` (default empty value) - The access tokens and Client-Server API URL domains for those tokens used for moderation (redaction). Example: `matrix-client.matrix.org:syt_example,gnome.ems.host:syt_example2`
 * `PS_HTTP_PPROF_BIND` (default `0.0.0.0:8082` in Docker, empty value otherwise) - The address to bind the [pprof](https://pkg.go.dev/net/http/pprof) endpoints to. Not bound if an empty value. Recommended to be a local address (or not exposed by the container).
