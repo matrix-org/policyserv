@@ -15,7 +15,7 @@ import (
 )
 
 func (h *Homeserver) MustMakeFederationRequest(t *testing.T, method string, uriPath string, content interface{}, originName string) *http.Request {
-	originKeyId, originPrivateKey := CreateAndInjectOrigin(t, h, originName)
+	originKeyId, originPrivateKey := CreateAndInjectOriginForTest(t, h, originName)
 	if event, ok := content.(gomatrixserverlib.PDU); ok {
 		// Sign events in case the test doesn't
 		content = event.Sign(originName, originKeyId, originPrivateKey)
@@ -34,7 +34,7 @@ func (h *Homeserver) MustMakeFederationRequest(t *testing.T, method string, uriP
 func TestAllowedDeniedNetworks(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.AllowedNetworks = []string{"127.0.0.1/32"}
 		c.DeniedNetworks = []string{"127.0.0.2/32"}
 		c.SkipVerify = true // our httptest server will have an unknown authority

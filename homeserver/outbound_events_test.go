@@ -22,7 +22,7 @@ var shouldReturnEvent error = nil
 
 func returnEventHandler(t *testing.T, hs *Homeserver, eventOrError func(reqCount int) error) (http.HandlerFunc, *int, gomatrixserverlib.PDU) {
 	// Prepare an event that would be returned
-	pdu := MakeSignedPDU(t, hs, &test.BaseClientEvent{
+	pdu := MakeSignedPDUForTest(t, hs, &test.BaseClientEvent{
 		RoomId:  "!room:example.org",
 		Type:    "m.room.message",
 		Sender:  "@alice:example.org",
@@ -56,7 +56,7 @@ func returnEventHandler(t *testing.T, hs *Homeserver, eventOrError func(reqCount
 func TestGetEventSlowFirstServer(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 
@@ -105,7 +105,7 @@ func TestGetEventSlowFirstServer(t *testing.T) {
 func TestGetEventErrorFirstServer(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 
@@ -153,7 +153,7 @@ func TestGetEventErrorFirstServer(t *testing.T) {
 func TestGetEventErrorAllServers(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, test.NewMemoryStorage(t), func(c *Config) {
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 

@@ -21,9 +21,9 @@ var generatedSigningKeys = sync.Map{}
 
 var NoConfigChanges func(c *Config) = nil
 
-// NewMockServer - Creates a mock homeserver instance for testing purposes.
+// NewMockServerForTest - Creates a mock homeserver instance for testing purposes.
 // DO NOT USE OUTSIDE OF TESTS.
-func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn func(c *Config)) *Homeserver {
+func NewMockServerForTest(t *testing.T, storage storage.PersistentStorage, configModFn func(c *Config)) *Homeserver {
 	_, eventSigningKey, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
 	cnf := &Config{
@@ -65,9 +65,9 @@ func NewMockServer(t *testing.T, storage storage.PersistentStorage, configModFn 
 	return server
 }
 
-// CreateAndInjectOrigin - Inserts an origin's keys into a homeserver instance for tests.
+// CreateAndInjectOriginForTest - Inserts an origin's keys into a homeserver instance for tests.
 // DO NOT USE OUTSIDE OF TESTS.
-func CreateAndInjectOrigin(t *testing.T, hs *Homeserver, originName string) (gomatrixserverlib.KeyID, ed25519.PrivateKey) {
+func CreateAndInjectOriginForTest(t *testing.T, hs *Homeserver, originName string) (gomatrixserverlib.KeyID, ed25519.PrivateKey) {
 	originKeyId := gomatrixserverlib.KeyID("ed25519:1")
 	originPublicKey, originPrivateKey, err := ed25519.GenerateKey(nil)
 	assert.NoError(t, err)
@@ -94,12 +94,12 @@ func CreateAndInjectOrigin(t *testing.T, hs *Homeserver, originName string) (gom
 	return originKeyId, originPrivateKey
 }
 
-// MakeSignedPDU - Creates a signed PDU for testing purposes.
+// MakeSignedPDUForTest - Creates a signed PDU for testing purposes.
 // DO NOT USE OUTSIDE OF TESTS.
-func MakeSignedPDU(t *testing.T, hs *Homeserver, base *test.BaseClientEvent) gomatrixserverlib.PDU {
+func MakeSignedPDUForTest(t *testing.T, hs *Homeserver, base *test.BaseClientEvent) gomatrixserverlib.PDU {
 	pdu := test.MustMakePDU(base)
 	origin := string(pdu.SenderID().ToUserID().Domain())
-	keyId, privateKey := CreateAndInjectOrigin(t, hs, origin)
+	keyId, privateKey := CreateAndInjectOriginForTest(t, hs, origin)
 	pdu = pdu.Sign(origin, keyId, privateKey)
 	return pdu
 }
