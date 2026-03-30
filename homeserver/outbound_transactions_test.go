@@ -14,13 +14,14 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/storage"
+	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSendNextTransactionTo(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, func(c *Config) {
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 
@@ -112,7 +113,7 @@ func TestSendNextTransactionTo(t *testing.T) {
 func TestSendNextTransactionToWithError(t *testing.T) {
 	t.Parallel()
 
-	hs := NewMockServer(t, func(c *Config) {
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), func(c *Config) {
 		c.SkipVerify = true // our httptest server will have an unknown authority
 	})
 
