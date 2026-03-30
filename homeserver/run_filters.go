@@ -7,13 +7,13 @@ import (
 	"time"
 
 	cache "github.com/Code-Hex/go-generics-cache"
-	"github.com/matrix-org/policyserv/queue"
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/queue"
+	"github.com/matrix-org/policyserv/storage"
 )
 
-func (h *Homeserver) runFilters(ctx context.Context, event gomatrixserverlib.PDU, waitCh chan<- *queue.PoolResult) error {
+func (h *Homeserver) RunFilters(ctx context.Context, event gomatrixserverlib.PDU, waitCh chan<- *queue.PoolResult) error {
 	resultCh := make(chan *queue.PoolResult, 1) // a buffered channel reduces the chance of deadlocks
 
 	go func(event gomatrixserverlib.PDU, ch chan *queue.PoolResult, downstream chan<- *queue.PoolResult) {

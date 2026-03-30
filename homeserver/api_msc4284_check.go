@@ -56,7 +56,7 @@ func httpMSC4284Check(server *Homeserver, w http.ResponseWriter, r *http.Request
 
 	ch := make(chan *queue.PoolResult, 1) // use a buffered channel to reduce deadlock potential
 	defer close(ch)
-	err = server.runFilters(r.Context(), event, ch)
+	err = server.RunFilters(r.Context(), event, ch)
 	if err != nil {
 		log.Println("Error submitting event:", err)
 		defer metrics.RecordHttpResponse(r.Method, "httpMSC4284Check", http.StatusInternalServerError)

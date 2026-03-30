@@ -118,7 +118,7 @@ func httpTransactionReceive(server *Homeserver, w http.ResponseWriter, r *http.R
 
 			ch := make(chan *queue.PoolResult, 1) // use a buffered channel to reduce deadlock potential
 			defer close(ch)
-			err = server.runFilters(ctx, event, ch)
+			err = server.RunFilters(ctx, event, ch)
 			if err != nil {
 				log.Printf("Error queueing event %s: %s", event.EventID(), err)
 				return

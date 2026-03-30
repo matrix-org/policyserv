@@ -14,25 +14,28 @@ import (
 
 type Config struct {
 	// Optional. If empty, the policyserv API will be disabled.
-	ApiKey        string
-	JoinViaServer string
+	ApiKey            string
+	JoinViaServer     string
+	EventFetchServers []string
 }
 
 type Api struct {
-	storage          storage.PersistentStorage
-	hs               *homeserver.Homeserver
-	communityManager *community.Manager
-	apiKey           string
-	joinViaServer    string
+	storage           storage.PersistentStorage
+	hs                *homeserver.Homeserver
+	communityManager  *community.Manager
+	apiKey            string
+	joinViaServer     string
+	eventFetchServers []string
 }
 
 func NewApi(config *Config, storage storage.PersistentStorage, hs *homeserver.Homeserver, communityManager *community.Manager) (*Api, error) {
 	return &Api{
-		storage:          storage,
-		hs:               hs,
-		communityManager: communityManager,
-		apiKey:           config.ApiKey,
-		joinViaServer:    config.JoinViaServer,
+		storage:           storage,
+		hs:                hs,
+		communityManager:  communityManager,
+		apiKey:            config.ApiKey,
+		joinViaServer:     config.JoinViaServer,
+		eventFetchServers: config.EventFetchServers,
 	}, nil
 }
 
@@ -92,6 +95,8 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 
 	// Server-centric community API
 	mux.Handle("/_policyserv/v1/check/text", a.httpCommunityAuthenticatedRequestHandler(httpCheckTextCommunityApi))
+	mux.Handle("/_policyserv/v1/check/event_id", a.httpCommunityAuthenticatedRequestHandler(httpCheckEventIdCommunityApi))
+	mux.Handle("/_policyserv/v1/join/{roomId}", a.httpCommunityAuthenticatedRequestHandler(httpJoinRoomCommunityApi))
 
 	// Admin API
 	if a.apiKey != "" {
@@ -101,7 +106,7 @@ func (a *Api) BindTo(mux *http.ServeMux) error {
 		mux.Handle("/api/v1/rooms/{id}", a.httpAuthenticatedRequestHandler(httpGetRoomApi))
 		mux.Handle("/api/v1/rooms/{roomId}/join", a.httpAuthenticatedRequestHandler(httpAddRoomApi))
 		mux.Handle("/api/v1/communities/new", a.httpAuthenticatedRequestHandler(httpCreateCommunityApi))
-		mux.Handle("/api/v1/communities/{id}", a.httpAuthenticatedRequestHandler(httpGetCommunityApi))
+		mux.Handle("/api/v1/communities/{id}", a.httpAuthenticatedRequestHandler(httpCommunities))
 		mux.Handle("/api/v1/communities/{id}/config", a.httpAuthenticatedRequestHandler(httpSetCommunityConfigApi))
 		mux.Handle("/api/v1/communities/{id}/rotate_access_token", a.httpAuthenticatedRequestHandler(httpRotateCommunityAccessTokenApi))
 		mux.Handle("/api/v1/instance/community_config", a.httpAuthenticatedRequestHandler(httpGetInstanceConfigApi))

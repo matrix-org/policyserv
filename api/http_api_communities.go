@@ -54,17 +54,23 @@ func httpCreateCommunityApi(api *Api, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func httpGetCommunityApi(api *Api, w http.ResponseWriter, r *http.Request) {
-	metrics.RecordHttpRequest(r.Method, "httpGetCommunityApi")
-	t := metrics.StartRequestTimer(r.Method, "httpGetCommunityApi")
+func httpCommunities(api *Api, w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		communityGetHandler(api, w, r)
+	} else if r.Method == http.MethodPatch {
+		communityPatchHandler(api, w, r)
+	} else {
+		errs := newErrorResponder("httpCommunities", w, r)
+		errs.text(http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
+	}
+}
+
+func communityGetHandler(api *Api, w http.ResponseWriter, r *http.Request) {
+	metrics.RecordHttpRequest(r.Method, "communityGetHandler")
+	t := metrics.StartRequestTimer(r.Method, "communityGetHandler")
 	defer t.ObserveDuration()
 
-	errs := newErrorResponder("httpGetCommunityApi", w, r)
-
-	if r.Method != http.MethodGet {
-		errs.text(http.StatusMethodNotAllowed, "M_UNRECOGNIZED", "Method not allowed")
-		return
-	}
+	errs := newErrorResponder("communityGetHandler", w, r)
 
 	id := r.PathValue("id")
 	community, err := api.storage.GetCommunity(r.Context(), id)
@@ -77,7 +83,54 @@ func httpGetCommunityApi(api *Api, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = respondJson("httpGetCommunityApi", r, w, community)
+	err = respondJson("communityGetHandler", r, w, community)
+	if err != nil {
+		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
+		return
+	}
+}
+
+func communityPatchHandler(api *Api, w http.ResponseWriter, r *http.Request) {
+	metrics.RecordHttpRequest(r.Method, "communityPatchHandler")
+	t := metrics.StartRequestTimer(r.Method, "communityPatchHandler")
+	defer t.ObserveDuration()
+
+	errs := newErrorResponder("communityPatchHandler", w, r)
+
+	id := r.PathValue("id")
+	community, err := api.storage.GetCommunity(r.Context(), id)
+	if err != nil {
+		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
+		return
+	}
+	if community == nil {
+		errs.text(http.StatusNotFound, "M_NOT_FOUND", "Community not found")
+		return
+	}
+
+	// Pull out some variables we don't want to change via this endpoint
+	communityId := community.CommunityId
+	accessToken := community.ApiAccessToken
+
+	// Apply the request body over top of the community object
+	err = parseJsonBody(&community, r.Body)
+	if err != nil {
+		errs.err(http.StatusBadRequest, "M_BAD_JSON", err)
+		return
+	}
+
+	// Reset the unchangeable variables (we could also detect changes and error, but this works too)
+	community.CommunityId = communityId
+	community.ApiAccessToken = accessToken
+
+	// Update in the database before returning
+	err = api.storage.UpsertCommunity(r.Context(), community)
+	if err != nil {
+		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
+		return
+	}
+
+	err = respondJson("communityGetHandler", r, w, community)
 	if err != nil {
 		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
 		return
