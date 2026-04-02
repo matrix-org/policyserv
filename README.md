@@ -85,6 +85,7 @@ Some environment variables that can be set explicitly but shouldn't in most case
 * `PS_WEBHOOK_POOL_SIZE` (default `5`) - How many concurrent webhook notifications to process, roughly speaking.
 * `PS_HOMESERVER_SIGNING_KEY_PATH` (default `/data/signing.key` in Docker, `./signing.key` otherwise) - The path to the signing key generated above. Should not need changing in Docker.
 * `PS_HOMESERVER_EVENT_SIGNING_KEY_PATH` (default `/data/event_signing.key` in Docker, `./event_signing.key` otherwise) - The path to the signing key used to sign events, generated above. Should not need changing in Docker. Note: The Key Version (ID) of this key is not used.
+* `PS_FEDERATION_CATCHUP_INTERVAL_SECONDS` (default `15`) - How often to send previously-failed transactions to remote servers. Set to zero or negative to disable this feature. Disabling the feature should only be required for in-depth troubleshooting of policyserv because it may prevent remote servers from receiving federation traffic from policyserv. This should be set to a relatively small value to ensure speed of delivery to remote servers.
 
 Once you have your signing keys and an idea for your config, you can deploy policyserv using the Docker image mentioned 
 below. If you prefer to compile policyserv yourself, run `go build -o bin/policyserv ./cmd/app/...` and then run the 

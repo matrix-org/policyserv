@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
@@ -48,6 +49,17 @@ type StoredMediaClassification struct {
 	MxcUri          string
 	CommunityId     string
 	Classifications StoredClassifications
+}
+
+type StoredEdu struct {
+	Destination string
+	Payload     gomatrixserverlib.EDU
+}
+
+type MatrixTransaction struct {
+	TransactionId string
+	Destination   string
+	Edus          []gomatrixserverlib.EDU
 }
 
 // StoredClassifications implements the SQL driver interface for scanning/setting values. Note that the
@@ -117,4 +129,12 @@ type PersistentStorage interface {
 
 	UpsertMediaClassification(ctx context.Context, classification *StoredMediaClassification) error
 	GetMediaClassification(ctx context.Context, mxcUri string, communityId string) (*StoredMediaClassification, error)
+
+	// BeginMatrixTransaction - pulls the data required to send (over federation) a transaction of data to a destination.
+	// The caller is responsible for calling Commit() on the returned SQL Transaction to indicate that the MatrixTransaction
+	// was successfully sent. This locks the destination to prevent concurrent sends. If no data is to be sent to the destination,
+	// then this returns an sql.ErrNoRows error (with a nil Transaction and nil MatrixTransaction).
+	BeginMatrixTransaction(ctx context.Context, destination string) (*MatrixTransaction, Transaction, error)
+	InsertEdu(ctx context.Context, edu *StoredEdu) error // note: not an Upsert operation
+	GetDestinationsNeedingCatchup(ctx context.Context) ([]string, error)
 }

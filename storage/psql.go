@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	cache "github.com/Code-Hex/go-generics-cache"
 	"github.com/DavidHuie/gomigrate"
 	_ "github.com/lib/pq"
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/confidence"
@@ -60,10 +62,14 @@ type PostgresStorage struct {
 	keywordTemplateUpsert                *sql.Stmt
 	mediaClassificationSelect            *sql.Stmt
 	mediaClassificationUpsert            *sql.Stmt
+	destinationUpsert                    *sql.Stmt
+	eduInsert                            *sql.Stmt
+	destinationsNeedingCatchupSelect     *sql.Stmt
 
 	//userIdsAndDisplayNamesByRoomIdUpsert *sql.Stmt // We do the upsert manually to enter a transaction instead
 	//banRulesUpsertForRoom                *sql.Stmt // We do the upsert manually to enter a transaction instead
 	//stateLearnQueueSelect                *sql.Stmt // We do the select/delete manually to enter a transaction instead
+	//eduSelect                            *sql.Stmt // We do the select/delete manually to enter a transaction instead
 }
 
 func NewPostgresStorage(config *PostgresStorageConfig) (*PostgresStorage, error) {
@@ -160,6 +166,18 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 		return err
 	}
 	if s.mediaClassificationUpsert, err = s.db.Prepare("INSERT INTO media_classifications (mxc_uri, community_id, classifications) VALUES ($1, $2, $3) ON CONFLICT (mxc_uri, community_id) DO UPDATE SET classifications = $3;"); err != nil {
+		return err
+	}
+	if s.destinationUpsert, err = s.db.Prepare("INSERT INTO destinations (destination) VALUES ($1) ON CONFLICT (destination) DO NOTHING;"); err != nil {
+		return err
+	}
+	if s.eduInsert, err = s.db.Prepare("INSERT INTO destination_edus (destination, edu) VALUES ($1, $2);"); err != nil {
+		return err
+	}
+	// `FOR UPDATE SKIP LOCKED` avoids returning rows that are locked. In our case that lock is coming from BeginMatrixTransaction
+	// which would indicate that the EDUs are currently being sent. Postgres doesn't let us put a `DISTINCT` on that query
+	// though, so we have to subquery it.
+	if s.destinationsNeedingCatchupSelect, err = s.readonlyDb.Prepare("SELECT DISTINCT sub.destination FROM (SELECT destination FROM destination_edus FOR UPDATE SKIP LOCKED) AS sub;"); err != nil {
 		return err
 	}
 
@@ -594,6 +612,104 @@ func (s *PostgresStorage) GetMediaClassification(ctx context.Context, mxcUri str
 	return val, nil
 }
 
+func (s *PostgresStorage) InsertEdu(ctx context.Context, edu *StoredEdu) error {
+	t := dbmetrics.StartSelfDatabaseTimer("UpsertEdu")
+	defer t.ObserveDuration()
+
+	// We need to do two things: ensure the destination exists and insert the EDU. We don't need to do this in a transaction
+	// because the destination can exist with zero or more EDUs (meaning inserting the EDU can fail, but inserting the
+	// destination can't).
+
+	_, err := s.destinationUpsert.ExecContext(ctx, edu.Destination)
+	if err != nil {
+		return err
+	}
+
+	// The insert will also cause a pg_notify back to policyserv to actually prepare/send the transaction
+	wrappedPayload := &psqlEduPayload{edu.Payload}
+	_, err = s.eduInsert.ExecContext(ctx, edu.Destination, wrappedPayload)
+	return err
+}
+
+func (s *PostgresStorage) BeginMatrixTransaction(ctx context.Context, destination string) (*MatrixTransaction, Transaction, error) {
+	t := dbmetrics.StartSelfDatabaseTimer("BeginMatrixTransaction")
+	defer t.ObserveDuration()
+
+	txn, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Note: we expect that the caller wants an entirely new transaction here. The spec wants to ensure that a previous
+	// transaction was successful before advancing, but doing that locking in the database is a bunch of extra work.
+	// Instead, we expect the calling code to do that retry until it gives up on the transaction, which may be minutes.
+	// This is why we ensure we give our context to the BeginTx above, so it automatically rolls back if the context is
+	// canceled.
+
+	// Generate a Matrix transaction
+	matrixTxn := &MatrixTransaction{
+		TransactionId: NextId(), // fresh ID
+		Destination:   destination,
+		Edus:          make([]gomatrixserverlib.EDU, 0),
+	}
+
+	// Lock the destination to prevent concurrent transactions (update queries automatically lock)
+	_, err = txn.ExecContext(ctx, "UPDATE destinations SET last_transaction_id = $1 WHERE destination = $2;", matrixTxn.TransactionId, destination)
+	if err != nil {
+		defer txn.Rollback()
+		return nil, nil, err
+	}
+
+	// Pull the first 100 EDUs we need to send to the destination. The 100 limit comes from the spec:
+	// https://spec.matrix.org/v1.18/server-server-api/#put_matrixfederationv1sendtxnid
+	rows, err := txn.QueryContext(ctx, "DELETE FROM destination_edus WHERE id IN (SELECT id FROM destination_edus WHERE destination = $1 ORDER BY id ASC LIMIT 100) RETURNING destination, edu;", destination)
+	if err != nil {
+		defer txn.Rollback()
+		return nil, nil, err
+	}
+
+	for rows.Next() {
+		edu := &StoredEdu{}
+		wrappedPayload := psqlEduPayload{}
+		if err = rows.Scan(&edu.Destination, &wrappedPayload); err != nil {
+			defer txn.Rollback()
+			return nil, nil, err
+		}
+		if edu.Destination != destination { // "should never happen"
+			defer txn.Rollback()
+			return nil, nil, fmt.Errorf("destination mismatch on edu: transaction destination %s != edu destination %s", destination, edu.Destination)
+		}
+		matrixTxn.Edus = append(matrixTxn.Edus, wrappedPayload.EDU) // unwrap
+	}
+
+	if len(matrixTxn.Edus) == 0 {
+		defer txn.Rollback()
+		return nil, nil, sql.ErrNoRows
+	}
+
+	return matrixTxn, txn, nil
+}
+
+func (s *PostgresStorage) GetDestinationsNeedingCatchup(ctx context.Context) ([]string, error) {
+	t := dbmetrics.StartSelfDatabaseTimer("GetDestinationsNeedingCatchup")
+	defer t.ObserveDuration()
+
+	rows, err := s.destinationsNeedingCatchupSelect.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	destinations := make([]string, 0)
+	for rows.Next() {
+		var destination string
+		if err = rows.Scan(&destination); err != nil {
+			return nil, err
+		}
+		destinations = append(destinations, destination)
+	}
+	return destinations, nil
+}
+
 // Deduplicates strings given to it
 type identifierSet struct {
 	identifiers map[string]bool
@@ -618,4 +734,21 @@ func (s *identifierSet) ToSlice() []string {
 		identifiers = append(identifiers, identifier)
 	}
 	return identifiers
+}
+
+// psqlEduPayload - wraps a GMSL EDU to implement sql.Driver support
+type psqlEduPayload struct {
+	gomatrixserverlib.EDU
+}
+
+func (e *psqlEduPayload) Value() (driver.Value, error) {
+	return json.Marshal(e.EDU)
+}
+
+func (e *psqlEduPayload) Scan(src interface{}) error {
+	b, ok := src.([]byte)
+	if !ok {
+		return nil
+	}
+	return json.Unmarshal(b, &e.EDU)
 }
