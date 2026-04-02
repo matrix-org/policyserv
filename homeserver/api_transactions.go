@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/matrix-org/policyserv/metrics"
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/metrics"
+	"github.com/matrix-org/policyserv/queue"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 type eventRoomIdOnly struct {
@@ -109,14 +110,37 @@ func httpTransactionReceive(server *Homeserver, w http.ResponseWriter, r *http.R
 
 		// *Now* we can queue the event for checking
 		// Note: we use a background context instead of request context because the request might finish before the
-		// event is run through the filters. We don't want to do that forever though.
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-		err = server.RunFilters(ctx, event, nil)
-		if err != nil {
-			log.Printf("Error queueing event %s: %s", event.EventID(), err)
-			continue
-		}
+		// event is run through the filters. We don't want to do that forever though. We also async the check because
+		// we don't really need to block the request on each event getting checked individually.
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+
+			ch := make(chan *queue.PoolResult, 1) // use a buffered channel to reduce deadlock potential
+			defer close(ch)
+			err = server.RunFilters(ctx, event, ch)
+			if err != nil {
+				log.Printf("Error queueing event %s: %s", event.EventID(), err)
+				return
+			}
+
+			var res *queue.PoolResult
+			select {
+			case res = <-ch:
+			case <-ctx.Done():
+				log.Printf("[%s | %s] Request context cancelled: %s", event.EventID(), event.RoomID().String(), r.Context().Err())
+				return
+			}
+
+			if res.Err != nil {
+				log.Printf("[%s | %s] Error processing event: %s", event.EventID(), event.RoomID().String(), res.Err)
+				return
+			}
+
+			if res.IsProbablySpam {
+				redactIfNeeded(ctx, server, "not_a_real_server_to_always_fail_the_included_sender_check", event)
+			}
+		}()
 	}
 
 	// Don't forget to actually reply too
