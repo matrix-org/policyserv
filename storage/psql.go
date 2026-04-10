@@ -177,7 +177,8 @@ func (s *PostgresStorage) prepare(migrationsDir string) error {
 	// `FOR UPDATE SKIP LOCKED` avoids returning rows that are locked. In our case that lock is coming from BeginMatrixTransaction
 	// which would indicate that the EDUs are currently being sent. Postgres doesn't let us put a `DISTINCT` on that query
 	// though, so we have to subquery it.
-	if s.destinationsNeedingCatchupSelect, err = s.readonlyDb.Prepare("SELECT DISTINCT sub.destination FROM (SELECT destination FROM destination_edus FOR UPDATE SKIP LOCKED) AS sub;"); err != nil {
+	// Note: We can't use the readonly database because `FOR UPDATE` requires write capabilities to establish the lock.
+	if s.destinationsNeedingCatchupSelect, err = s.db.Prepare("SELECT DISTINCT sub.destination FROM (SELECT destination FROM destination_edus FOR UPDATE SKIP LOCKED) AS sub;"); err != nil {
 		return err
 	}
 
