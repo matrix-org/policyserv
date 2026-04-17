@@ -154,6 +154,12 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 	if len(internal.Dereference(communityConfig.FrequencyFilterEventTypes)) > 0 && internal.Dereference(communityConfig.FrequencyFilterRateLimit) > 0 {
 		filters = append(filters, filter.FrequencyFilterName)
 	}
+	if internal.Dereference(communityConfig.UserIdContainsWordsFilterMaxWords) > 0 {
+		filters = append(filters, filter.UserIdContainsWordsFilterName)
+	}
+	if internal.Dereference(communityConfig.UserIdLengthFilterMaxLength) > 0 {
+		filters = append(filters, filter.UserIdLengthFilterName)
+	}
 	var scanner content.Scanner
 	if m.instanceConfig.HMAApiUrl != "" && len(internal.Dereference(communityConfig.HMAFilterEnabledBanks)) > 0 {
 		filters = append(filters, filter.MediaScanningFilterName)
