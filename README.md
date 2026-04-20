@@ -356,13 +356,35 @@ If you decide to enable this filter, the density threshold may need to be adjust
 
 ### Length filters
 
-There are two kinds of length filters: the first is a simple length check of the JSON representation of the event while
-the other removes whitespace from the `body` field before imposing a maximum length. They can be configured independently.
+There are three kinds of length filters: 
+1. A simple length check of the JSON representation of the event
+2. The difference between the untrimmed `body` and the space-trimmed `body` field of an event.
+3. A length check of the event sender's user ID, including the server name.
+
+All length filters can be configured independently.
 
 * `PS_TRIM_FILTER_MAX_DIFFERENCE` (default `25`) - The maximum length difference between an untrimmed `body` and space-trimmed 
   `body`. Set to negative or zero to disable.
 * `PS_LENGTH_FILTER_MAX_LENGTH` (default `10000`) - The maximum length an `m.room.message` event can have when represented 
   as a JSON string. Set to negative or zero to disable.
+* `PS_USER_ID_LENGTH_FILTER_MAX_LENGTH` (default `0`) - The maximum length allowed for an event sender's user ID, including
+  the server name. Set to negative or zero to disable.
+
+### User ID word count filter
+
+Sometimes, a sentence is used for the localpart of a user ID. This filter attempts to identify the number of "words" used
+in those user IDs, and if there's too many words then events sent by those users will be considered spammy.
+
+**Note**: this filter's word detection is not perfect. It extracts the localpart (`@localpart:server_name`) from the event's
+sender, then counts the number of non-alpahnumeric characters. This can catch legitimate user IDs from bridges, for example,
+because they use an underscore in their user IDs. Values greater than 3 can avoid catching bridges, but can still allow
+short sentences like `@in_this.example:server_name`.
+
+**Note**: zero-length words caused by non-alphanumeric characters being close to each other are ignored. For example,
+`@this..is__six--words_-not-_thirteen._:server_name` will be counted as having 6 words.
+
+* `PS_USER_ID_CONTAINS_WORDS_FILTER_MAX_WORDS` (default `0`) - The maximum number of "words" allowed in a user ID's localpart.
+  Set to negative or zero to disable.
 
 ### Sticky events filter
 
