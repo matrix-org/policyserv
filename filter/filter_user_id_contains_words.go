@@ -38,7 +38,16 @@ func (f *InstancedUserIdContainsWordsFilter) Name() string {
 func (f *InstancedUserIdContainsWordsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
 	localpart := input.Event.SenderID().ToUserID().Local()
 	words := findWordsInLocalpartRegex.FindAllString(localpart, -1)
-	if len(words) > f.maxWords {
+
+	// Remove empty "words" (zero length strings)
+	nonEmptyWords := make([]string, 0)
+	for _, w := range words {
+		if w != "" {
+			nonEmptyWords = append(nonEmptyWords, w)
+		}
+	}
+
+	if len(nonEmptyWords) > f.maxWords {
 		return []classification.Classification{classification.Spam}, nil
 	}
 

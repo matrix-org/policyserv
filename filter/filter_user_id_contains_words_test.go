@@ -49,6 +49,15 @@ func TestUserIdContainsWordsFilter(t *testing.T) {
 			"body": "doesn't matter",
 		},
 	})
+	neutralEvent2 := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$neutral2",
+		RoomId:  "!foo:example.org",
+		Type:    "org.example.event_type_does_not_matter",
+		Sender:  "@-_-empty_words.-.:example.org", // zero length words shouldn't count
+		Content: map[string]any{
+			"body": "doesn't matter",
+		},
+	})
 
 	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
 		vecs, err := set.CheckEvent(context.Background(), event, nil)
@@ -62,4 +71,5 @@ func TestUserIdContainsWordsFilter(t *testing.T) {
 	}
 	assertSpamVector(spammyEvent1, true)
 	assertSpamVector(neutralEvent1, false)
+	assertSpamVector(neutralEvent2, false)
 }
