@@ -48,6 +48,8 @@ type CommunityConfig struct {
 	FrequencyFilterEventTypes                *[]string `json:"frequency_filter_event_types,omitempty" envconfig:"frequency_filter_event_types" default:"m.room.message,m.sticker,m.reaction"`
 	FrequencyFilterRateLimit                 *float64  `json:"frequency_filter_rate_limit,omitempty" envconfig:"frequency_filter_rate_limit" default:"0"`
 	ModerationBotUserId                      *string   `json:"moderation_bot_user_id,omitempty" envconfig:"moderation_bot_user_id" default:""`
+	UserIdContainsWordsFilterMaxWords        *int      `json:"user_id_contains_words_filter_max_words,omitempty" envconfig:"user_id_contains_words_filter_max_words" default:"0"`
+	UserIdLengthFilterMaxLength              *int      `json:"user_id_length_filter_max_length,omitempty" envconfig:"user_id_length_filter_max_length" default:"0"`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {
