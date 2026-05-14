@@ -18,6 +18,8 @@ services:
       PS_SPAM_THRESHOLD: "0.5"
       # Otherwise we'll never find the keys for hs1/hs2 as they only exist locally
       PS_DIRECT_KEY_FETCHING: "true"
+      # Policyserv denies private ips by default which would block the other containers https://github.com/matrix-org/policyserv/blob/9b0687b877b326b55cbdd2dee79a4cc46114a9f8/config/config.go#L35.
+      PS_HOMESERVER_DENIED_NETWORKS: ""
       # This should be checked into the git repo.
       PS_HOMESERVER_SIGNING_KEY_PATH: /data/demo.signing.key
       PS_HOMESERVER_EVENT_SIGNING_KEY_PATH: /data/demo.signing.key
