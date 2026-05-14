@@ -15,7 +15,8 @@ services:
       PS_JOIN_SERVER: hs1
       PS_HTTP_BIND: "0.0.0.0:8080"
       PS_API_KEY: dontuseinproduction
-      PS_SPAM_THRESHOLD: "0.5"
+      # Adjust spam threshold so that not every message is considered spam (policyserv sets default confidence to 50%)
+      PS_SPAM_THRESHOLD: "0.8"
       # Otherwise we'll never find the keys for hs1/hs2 as they only exist locally
       PS_DIRECT_KEY_FETCHING: "true"
       # Policyserv denies private ips by default which would block the other containers https://github.com/matrix-org/policyserv/blob/9b0687b877b326b55cbdd2dee79a4cc46114a9f8/config/config.go#L35.
