@@ -73,7 +73,7 @@ func main() {
 	}
 	log.Println("Homeserver name: ", hs.ServerName)
 	log.Println("Homeserver KeyID:", hs.KeyId)
-	b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hs.GetPublicEventSigningKey())
+	b64 := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(hs.GetPublicEventSigningKey())
 	log.Println("Public event key:", homeserver.PolicyServerKeyID, b64)
 
 	api, err := setupApi(instanceConfig, db, hs, communityManager)
