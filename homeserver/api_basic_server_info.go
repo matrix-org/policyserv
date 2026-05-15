@@ -62,7 +62,7 @@ func handleKeyDiscovery(server *Homeserver, w http.ResponseWriter, r *http.Reque
 
 	defer metrics.RecordHttpResponse(r.Method, funcName, http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(server.GetPublicEventSigningKey())
+	b64 := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(server.GetPublicEventSigningKey())
 
 	if stable {
 		_, _ = w.Write([]byte(fmt.Sprintf(`{"public_keys":{"ed25519":"%s"}}`, b64)))
