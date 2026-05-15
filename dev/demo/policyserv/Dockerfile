@@ -1,6 +1,6 @@
 # ---- Stage 0 ----
 # Builds tool binaries
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git musl-dev dos2unix
