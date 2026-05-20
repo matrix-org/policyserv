@@ -32,7 +32,7 @@ func TestHttpUnstableKeyDiscovery(t *testing.T) {
 
 		httpUnstableKeyDiscovery(server, res, req)
 		assert.Equal(t, http.StatusOK, res.Code)
-		b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(eventSigningKey.Public().(ed25519.PublicKey))
+		b64 := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(eventSigningKey.Public().(ed25519.PublicKey))
 		test.AssertJsonBody(t, res, map[string]any{"public_key": b64})
 		assert.Equal(t, "application/json", res.Header().Get("Content-Type"))
 		assert.Equal(t, "*", res.Header().Get("Access-Control-Allow-Origin"))
@@ -67,7 +67,7 @@ func TestHttpKeyDiscovery(t *testing.T) {
 
 		httpKeyDiscovery(server, res, req)
 		assert.Equal(t, http.StatusOK, res.Code)
-		b64 := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(eventSigningKey.Public().(ed25519.PublicKey))
+		b64 := base64.StdEncoding.WithPadding(base64.NoPadding).EncodeToString(eventSigningKey.Public().(ed25519.PublicKey))
 		test.AssertJsonBody(t, res, map[string]any{"public_keys": map[string]string{"ed25519": b64}})
 		assert.Equal(t, "application/json", res.Header().Get("Content-Type"))
 		assert.Equal(t, "*", res.Header().Get("Access-Control-Allow-Origin"))
