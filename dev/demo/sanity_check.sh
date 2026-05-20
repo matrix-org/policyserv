@@ -41,7 +41,10 @@ curl -XPUT -fSsk -H "Authorization: Bearer $HS1_TOKEN" -d "{\"via\":\"policyserv
 
 echo ""
 echo "Joining from policyserv..."
-curl -XPOST -fSsk -H "Authorization: Bearer dontuseinproduction" -d "{\"via\":\"hs1\",\"room_ids\": [\"$ROOM_ID\"]}" "https://localhost:4643/api/v1/join_rooms"
+COMMUNITY_NAME="sanity-check-$(head -c12 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c8)"
+COMMUNITY_ID=$(curl -XPOST -fSsk -H "Authorization: Bearer dontuseinproduction" -d "{\"name\":\"$COMMUNITY_NAME\"}" "https://localhost:4643/api/v1/communities/new" | jq -r .community_id)
+echo "Created policyserv community: $COMMUNITY_ID"
+curl -XPOST -fSsk -H "Authorization: Bearer dontuseinproduction" -d "{\"community_id\":\"$COMMUNITY_ID\"}" "https://localhost:4643/api/v1/rooms/$ROOM_ID/join"
 
 echo ""
 echo "Sending non-spam"
