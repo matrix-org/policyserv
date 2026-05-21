@@ -29,7 +29,7 @@ func CacheLearnedRoomState(homeserver *homeserver.Homeserver, db storage.Persist
 	}
 
 	log.Printf("Learning state: %#v", val)
-	err = homeserver.LearnStateIfExpired(ctx, val.RoomId, val.AtEventId, val.ViaServer)
+	err = homeserver.LearnState(ctx, val.RoomId, val.AtEventId, val.ViaServer)
 	if err != nil {
 		log.Printf("Non-fatal error learning state in %s at %s via %s: %v", val.RoomId, val.AtEventId, val.ViaServer, err)
 		return

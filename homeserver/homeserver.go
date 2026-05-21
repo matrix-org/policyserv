@@ -13,6 +13,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/homeserver/learning"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
@@ -62,6 +63,7 @@ type Homeserver struct {
 	keyRing                *gomatrixserverlib.KeyRing
 	cacheRoomStateFor      time.Duration
 	trustedOrigins         []string
+	stateLearner           learning.EventStateLearner
 	mediaClientUrl         string
 	mediaClientAccessToken string
 	adminContacts          []config.SupportContact
@@ -111,6 +113,10 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 	for i, fetcher := range keyFetchers {
 		keyFetchers[i] = NewExcludeUnsafeKeysFetcher(fetcher)
 	}
+	stateLearner, err := learning.NewRoomStateLearner(storage)
+	if err != nil {
+		return nil, err
+	}
 	hs := &Homeserver{
 		ServerName:             serverName,
 		KeyId:                  keyId,
@@ -136,6 +142,7 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 			KeyFetchers: keyFetchers,
 			KeyDatabase: nil, // set to self once created
 		},
+		stateLearner: stateLearner,
 	}
 	hs.keyRing.KeyDatabase = hs // implemented by keyring.go
 
