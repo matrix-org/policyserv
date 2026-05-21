@@ -25,12 +25,6 @@ type minimalPolicyRule struct {
 }
 
 func (h *Homeserver) shouldLearnState(ctx context.Context, roomId string) (bool, *storage.StoredRoom, error) {
-	_, ok := h.stateLearnCache.Get(roomId)
-	if ok {
-		// we already requested a state learn update for this room, so don't ask for another one.
-		return false, nil, nil
-	}
-
 	room, err := h.storage.GetRoom(ctx, roomId)
 	if err != nil {
 		return false, nil, err

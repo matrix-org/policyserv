@@ -62,7 +62,6 @@ type Homeserver struct {
 	keyRing                *gomatrixserverlib.KeyRing
 	cacheRoomStateFor      time.Duration
 	trustedOrigins         []string
-	stateLearnCache        *cache.Cache[string, bool] // room ID -> literally anything because we don't really care about the value
 	mediaClientUrl         string
 	mediaClientAccessToken string
 	adminContacts          []config.SupportContact
@@ -137,10 +136,6 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 			KeyFetchers: keyFetchers,
 			KeyDatabase: nil, // set to self once created
 		},
-		stateLearnCache: cache.New[string, bool](
-			// We cache entries for ~5 minutes, so clean up somewhat on time
-			cache.WithJanitorInterval[string, bool](5 * time.Minute),
-		),
 	}
 	hs.keyRing.KeyDatabase = hs // implemented by keyring.go
 
