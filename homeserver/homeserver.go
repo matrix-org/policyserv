@@ -13,6 +13,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/homeserver/learning"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
@@ -62,7 +63,7 @@ type Homeserver struct {
 	keyRing                *gomatrixserverlib.KeyRing
 	cacheRoomStateFor      time.Duration
 	trustedOrigins         []string
-	stateLearnCache        *cache.Cache[string, bool] // room ID -> literally anything because we don't really care about the value
+	stateLearner           learning.EventStateLearner
 	mediaClientUrl         string
 	mediaClientAccessToken string
 	adminContacts          []config.SupportContact
@@ -112,6 +113,10 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 	for i, fetcher := range keyFetchers {
 		keyFetchers[i] = NewExcludeUnsafeKeysFetcher(fetcher)
 	}
+	stateLearner, err := learning.NewRoomStateLearner(storage)
+	if err != nil {
+		return nil, err
+	}
 	hs := &Homeserver{
 		ServerName:             serverName,
 		KeyId:                  keyId,
@@ -137,10 +142,7 @@ func NewHomeserver(config *Config, storage storage.PersistentStorage, pool *queu
 			KeyFetchers: keyFetchers,
 			KeyDatabase: nil, // set to self once created
 		},
-		stateLearnCache: cache.New[string, bool](
-			// We cache entries for ~5 minutes, so clean up somewhat on time
-			cache.WithJanitorInterval[string, bool](5 * time.Minute),
-		),
+		stateLearner: stateLearner,
 	}
 	hs.keyRing.KeyDatabase = hs // implemented by keyring.go
 
