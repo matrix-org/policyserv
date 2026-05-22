@@ -6,7 +6,6 @@ import (
 	"log"
 	"time"
 
-	cache "github.com/Code-Hex/go-generics-cache"
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/policyserv/queue"
@@ -112,10 +111,6 @@ func (h *Homeserver) RunFilters(ctx context.Context, event gomatrixserverlib.PDU
 			if err != nil {
 				log.Printf("Error queueing state learning of %s at %s: %s", event.RoomID().String(), event.EventID(), err)
 			}
-
-			// Cache the fact that we've asked for a state learning update for this room (so we don't keep asking for one).
-			// We cache it for longer than the "after timestamp" because it might take a while for the state learning to happen.
-			h.stateLearnCache.Set(event.RoomID().String(), true, cache.WithExpiration(5*time.Minute))
 		}(h, event)
 	}(event, resultCh, waitCh)
 

@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 // PowerLevelsSource - uses the room's power levels to determine trust levels. Above-default power levels are trusted.
@@ -65,4 +65,21 @@ func (s *PowerLevelsSource) ImportData(ctx context.Context, roomId string, power
 	}
 
 	return s.db.SetTrustData(ctx, powerLevelsSourceName, roomId, data)
+}
+
+func (s *PowerLevelsSource) CanLearn(ctx context.Context, room *storage.StoredRoom, event gomatrixserverlib.PDU) (bool, error) {
+	return event.Type() == "m.room.power_levels" && event.StateKeyEquals(""), nil
+}
+
+func (s *PowerLevelsSource) LearnFrom(ctx context.Context, room *storage.StoredRoom, roomState []gomatrixserverlib.PDU) error {
+	for _, event := range roomState {
+		ok, err := s.CanLearn(ctx, room, event)
+		if err != nil {
+			return err
+		}
+		if ok {
+			return s.ImportData(ctx, room.RoomId, event)
+		}
+	}
+	return nil
 }

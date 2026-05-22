@@ -8,8 +8,8 @@ import (
 	"log"
 	"slices"
 
-	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/policyserv/storage"
 )
 
 // CreatorSource - trusts v12+ room creators as high power level users
@@ -94,4 +94,25 @@ func (s *CreatorSource) ImportData(ctx context.Context, roomId string, createEve
 	data.CreatorUserIds = append(data.CreatorUserIds, content.AdditionalCreators...)
 
 	return s.db.SetTrustData(ctx, creatorSourceName, roomId, data)
+}
+
+func (s *CreatorSource) CanLearn(ctx context.Context, room *storage.StoredRoom, event gomatrixserverlib.PDU) (bool, error) {
+	roomVersion, err := gomatrixserverlib.GetRoomVersion(gomatrixserverlib.RoomVersion(room.RoomVersion))
+	if err != nil {
+		return false, err
+	}
+	return roomVersion.PrivilegedCreators() && event.Type() == "m.room.create" && event.StateKeyEquals(""), nil
+}
+
+func (s *CreatorSource) LearnFrom(ctx context.Context, room *storage.StoredRoom, roomState []gomatrixserverlib.PDU) error {
+	for _, event := range roomState {
+		ok, err := s.CanLearn(ctx, room, event)
+		if err != nil {
+			return err
+		}
+		if ok {
+			return s.ImportData(ctx, room.RoomId, event)
+		}
+	}
+	return nil
 }
