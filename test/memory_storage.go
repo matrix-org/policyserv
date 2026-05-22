@@ -385,11 +385,15 @@ func mustClone[T any](t *testing.T, val *T) *T {
 }
 
 type memoryStateLearnTransaction struct { // Implements storage.Transaction
-	storage *MemoryStorage
-	row     *storage.StateLearnQueueItem
+	storage   *MemoryStorage
+	row       *storage.StateLearnQueueItem
+	committed bool
 }
 
 func (t *memoryStateLearnTransaction) Commit() error {
+	if t.committed {
+		return nil
+	}
 	newQueue := make([]*storage.StateLearnQueueItem, 0)
 	for _, item := range t.storage.pendingLearnStateQueue {
 		if item != t.row {
@@ -397,10 +401,14 @@ func (t *memoryStateLearnTransaction) Commit() error {
 		}
 	}
 	t.storage.pendingLearnStateQueue = newQueue
+	t.committed = true
 	return nil
 }
 
 func (t *memoryStateLearnTransaction) Rollback() error {
+	if t.committed {
+		return nil
+	}
 	t.storage.learnStateQueue = append(t.storage.learnStateQueue, t.row)
 	return t.Commit() // we're cheating a bit to avoid code duplication
 }
