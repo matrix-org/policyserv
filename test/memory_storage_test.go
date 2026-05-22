@@ -103,12 +103,20 @@ func TestMemoryStorageStateLearnQueue(t *testing.T) {
 	assert.Equal(t, item1, ret4)
 	assert.NotNil(t, txn4)
 
-	// Finally, commit txn2 and ensure that it's gone
+	// Commit txn2 and ensure that it's gone
 	assert.NoError(t, txn2.Commit())
 	ret5, txn5, err := s.PopStateLearnQueue(context.Background())
 	assert.NoError(t, err)
 	assert.Nil(t, ret5)
 	assert.Nil(t, txn5)
+
+	// Finally, rollback the previous transaction to ensure it doesn't "restore" the queue. This
+	// is to ensure that calling code can use `defer Rollback()` without unexpected consequences.
+	assert.NoError(t, txn2.Rollback())
+	ret6, txn6, err := s.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, ret6)
+	assert.Nil(t, txn6)
 }
 
 func TestMemoryStorageTrustData(t *testing.T) {

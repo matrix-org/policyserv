@@ -89,3 +89,96 @@ func TestCacheLearnedRoomStateTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, ok)
 }
+
+func TestCacheLearnRoomStateTaskMultipleRooms(t *testing.T) {
+	// Effectively the same as TestCacheLearnedRoomStateTask, but with multiple rooms to ensure a single task call
+	// will drain the queue.
+	t.Parallel()
+
+	db := test.NewMemoryStorage(t)
+	hs := homeserver.NewMockServerForTest(t, db, func(c *homeserver.Config) {
+		c.SkipVerify = true // out httptest server will have an unknown authority
+	})
+
+	// Prepare two rooms to test draining the queue
+	room1 := &storage.StoredRoom{
+		RoomId:      "!test_1:example.org",
+		RoomVersion: "10",
+	}
+	err := db.UpsertRoom(context.Background(), room1)
+	assert.NoError(t, err)
+	room2 := &storage.StoredRoom{
+		RoomId:      "!test_2:example.org",
+		RoomVersion: "10",
+	}
+	err = db.UpsertRoom(context.Background(), room2)
+	assert.NoError(t, err)
+
+	// Prepare a test server to "learn" state from
+	handlerCallCount := 0
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		handlerCallCount++
+
+		roomId := r.URL.Path[len("/_matrix/federation/v1/state/"):]
+
+		// We use a power levels event so we can detect that at least one of the learners worked
+		powerLevelsEvent := homeserver.MakeSignedPDUForTest(t, hs, &test.BaseClientEvent{
+			RoomId:   roomId,
+			Type:     "m.room.power_levels",
+			StateKey: internal.Pointer(""),
+			Sender:   "@alice:example.org",
+			Content: map[string]any{
+				"users": map[string]any{
+					"@alice:example.org": 100,
+				},
+				"state_default": 50,
+				"users_default": 0,
+			},
+		})
+
+		// Both the auth_chain and pdus are equivalent in this test, so populate both with the create event
+		resp, err := sjson.SetRawBytes([]byte(`{"auth_chain": [], "pdus": []}`), "auth_chain.0", powerLevelsEvent.JSON())
+		assert.NoError(t, err)
+		resp, err = sjson.SetRawBytes(resp, "pdus.0", powerLevelsEvent.JSON())
+		assert.NoError(t, err)
+
+		// Respond accordingly
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(resp)
+	}
+	localhost := httptest.NewTLSServer(http.HandlerFunc(handler))
+	defer localhost.Close()
+	parsed, err := url.Parse(localhost.URL)
+	assert.NoError(t, err) // "should never happen"
+	localhostPort := parsed.Port()
+
+	// Queue the tasks to learn the rooms' state
+	err = db.PushStateLearnQueue(context.Background(), &storage.StateLearnQueueItem{
+		RoomId:               room1.RoomId,
+		AtEventId:            "$at_this_event",
+		ViaServer:            fmt.Sprintf("127.0.0.1:%s", localhostPort),
+		AfterTimestampMillis: 0, // effectively "now"
+	})
+	assert.NoError(t, err)
+	err = db.PushStateLearnQueue(context.Background(), &storage.StateLearnQueueItem{
+		RoomId:               room2.RoomId,
+		AtEventId:            "$at_this_other_event",
+		ViaServer:            fmt.Sprintf("127.0.0.1:%s", localhostPort),
+		AfterTimestampMillis: 0, // effectively "now"
+	})
+	assert.NoError(t, err)
+
+	// Now we can call the task to ensure that both rooms' state are "learned"
+	CacheLearnedRoomState(hs, db)
+
+	// Verify the state was learned
+	assert.Equal(t, 2, handlerCallCount)
+	plSource, err := trust.NewPowerLevelsSource(db)
+	assert.NoError(t, err)
+	ok, err := plSource.IsUserAboveDefault(context.Background(), room1.RoomId, "@alice:example.org")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	ok, err = plSource.IsUserAboveDefault(context.Background(), room2.RoomId, "@alice:example.org")
+	assert.NoError(t, err)
+	assert.True(t, ok)
+}
