@@ -532,7 +532,7 @@ func (s *PostgresStorage) PopStateLearnQueue(ctx context.Context) (*StateLearnQu
 	// This is why we start a transaction that tries to delete the row - this places a lock on the row.
 	// Note: we do the select and delete as a single operation to avoid a situation where another process takes
 	// a lock out on the same row as us.
-	r := txn.QueryRowContext(ctx, "DELETE FROM state_learn_queue WHERE room_id IN (SELECT s.room_id FROM state_learn_queue AS s WHERE after_ts <= (EXTRACT(EPOCH FROM NOW()) * 1000) LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING room_id, at_event_id, via, after_ts;")
+	r := txn.QueryRowContext(ctx, "DELETE FROM state_learn_queue WHERE room_id IN (SELECT s.room_id FROM state_learn_queue AS s WHERE after_ts <= (EXTRACT(EPOCH FROM NOW()) * 1000) ORDER BY after_ts ASC LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING room_id, at_event_id, via, after_ts;")
 	val := &StateLearnQueueItem{}
 	if err = r.Scan(&val.RoomId, &val.AtEventId, &val.ViaServer, &val.AfterTimestampMillis); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
