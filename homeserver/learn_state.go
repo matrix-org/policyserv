@@ -9,6 +9,7 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
 )
 
@@ -71,4 +72,77 @@ func (h *Homeserver) LearnState(ctx context.Context, roomId string, atEventId st
 	}
 
 	return nil
+}
+
+// queueLearnStateIfNeeded will silently decide if room state should be learned based on the result of a filter request
+// and the associated event. If state should be learned, it will be queued for processing.
+func (h *Homeserver) queueLearnStateIfNeeded(ctx context.Context, basedOnResult *queue.PoolResult, fromEvent gomatrixserverlib.PDU) {
+	// Create a new context so we're not tied to our caller's timeout. We aren't doing network calls here, so we can have
+	// something relatively short (we want to fail quickly if the database fails, for example).
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	// Verify that the event we're about to learn state based on is non-spammy in nature
+	if basedOnResult.Err != nil {
+		return // we're not interested in this result
+	}
+	if basedOnResult.IsProbablySpam {
+		return // too spammy for us
+	}
+
+	// Verify the event was sent by a "trusted" origin so we can learn state from them directly
+	trusted := false
+	for _, origin := range h.trustedOrigins {
+		userId := fromEvent.SenderID().ToUserID()
+		if userId == nil {
+			log.Printf("Non-user sender '%s' in %s at %s", fromEvent.SenderID(), fromEvent.RoomID().String(), fromEvent.EventID())
+			break
+		}
+		if userId.Domain() == spec.ServerName(origin) {
+			trusted = true
+			break
+		}
+	}
+	if !trusted {
+		return
+	}
+
+	// One of two conditions need to pass here: either we need to have expired state that should be updated, or the event
+	// being processed is something we can learn from directly (meaning we can avoid waiting for another event to arrive
+	// and process the queue - we can just do it right away).
+	shouldLearn, room, err := h.shouldLearnState(ctx, fromEvent.RoomID().String())
+	if err != nil {
+		log.Printf("Error checking if room %s should be learned: %s", fromEvent.RoomID().String(), err)
+		return
+	}
+	if !shouldLearn {
+		// we might still be able to learn from the event itself though
+		canLearn, err := h.stateLearner.CanLearn(ctx, room, fromEvent)
+		if err != nil {
+			log.Printf("Error checking if event %s can be learned: %s", fromEvent.EventID(), err)
+			return
+		}
+		if !canLearn {
+			return
+		}
+		log.Printf("Event %s in %s can be learned from directly", fromEvent.EventID(), fromEvent.RoomID().String())
+	} else {
+		log.Printf("Room %s has expired state that should be updated", fromEvent.RoomID().String())
+	}
+
+	// Now we're ready to queue the state learning task
+	// We queue the state learning so exactly one process will deal with it, instead of *all* of them.
+	// This queue also prevents us from learning state if multiple events come in before we finish
+	// learning state (ie: 4 events from matrix.org, all activate this bit of code, leading to 4
+	// concurrent "learn state" operations).
+	log.Printf("Queueing state learning of %s at %s", fromEvent.RoomID().String(), fromEvent.EventID())
+	err = h.storage.PushStateLearnQueue(ctx, &storage.StateLearnQueueItem{
+		RoomId:               fromEvent.RoomID().String(),
+		AtEventId:            fromEvent.EventID(),
+		ViaServer:            string(fromEvent.SenderID().ToUserID().Domain()),
+		AfterTimestampMillis: time.Now().Add(2 * time.Minute).UnixMilli(), // give the remote server a bit of time to process the event itself
+	})
+	if err != nil {
+		log.Printf("Error queueing state learning of %s at %s: %s", fromEvent.RoomID().String(), fromEvent.EventID(), err)
+	}
 }

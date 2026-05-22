@@ -2,6 +2,7 @@ package homeserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/internal"
+	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -152,6 +154,131 @@ func TestLearnState(t *testing.T) {
 	assert.True(t, handlerCalled)
 	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount) // not called in this path
 	assert.Equal(t, 1, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+}
+
+func TestQueueLearnStateIfNeeded(t *testing.T) {
+	t.Parallel()
+
+	// Create a server and event to test with. We also override the state learner so we can detect that
+	// it was called properly.
+	hs := NewMockServerForTest(t, test.NewMemoryStorage(t), func(c *Config) {
+		c.TrustedOrigins = []string{"example.org"}
+		c.CacheRoomStateFor = 1 * time.Minute
+	})
+	event := MakeSignedPDUForTest(t, hs, &test.BaseClientEvent{
+		RoomId:   "!test:example.org",
+		Type:     "m.room.create",
+		StateKey: internal.Pointer(""),
+		Sender:   "@alice:example.org",
+		Content: map[string]any{
+			"room_version": "10",
+		},
+	})
+	hs.stateLearner = &expectCreateEventLearner{
+		t:                 t,
+		inRoomId:          event.RoomID().String(),
+		canLearnCallCount: 0,
+		doLearnCallCount:  0,
+	}
+
+	// Spammy or errored results should *not* lead to a queued state learn attempt
+	res := &queue.PoolResult{
+		Err:            errors.New("should fail"),
+		IsProbablySpam: true,
+	}
+	hs.queueLearnStateIfNeeded(context.Background(), res, event)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+	next, txn, err := hs.storage.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, next)
+	assert.Nil(t, txn)
+	res.Err = nil // now check just the spam flag
+	hs.queueLearnStateIfNeeded(context.Background(), res, event)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+	next, txn, err = hs.storage.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, next)
+	assert.Nil(t, txn)
+
+	// Events sent by untrusted origins should not be learned
+	untrustedEvent := MakeSignedPDUForTest(t, hs, &test.BaseClientEvent{
+		RoomId:   event.RoomID().String(),
+		Type:     "m.room.create",
+		StateKey: internal.Pointer(""),
+		Sender:   "@alice:untrusted.example.org",
+		Content: map[string]any{
+			"room_version": "10",
+		},
+	})
+	hs.queueLearnStateIfNeeded(context.Background(), res, untrustedEvent)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+	next, txn, err = hs.storage.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, next)
+	assert.Nil(t, txn)
+
+	// If shouldLearnState throws an error, the room's state should not be learned. We simulate this by not
+	// creating a known room for the event, so the function should fail.
+	res.IsProbablySpam = false // flag the event as not spam
+	hs.queueLearnStateIfNeeded(context.Background(), res, event)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+	next, txn, err = hs.storage.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, next)
+	assert.Nil(t, txn)
+
+	// Now create the room, but ensure that it's state is still considered fresh.
+	room := &storage.StoredRoom{
+		RoomId:                         event.RoomID().String(),
+		RoomVersion:                    "10",
+		LastCachedStateTimestampMillis: time.Now().Add(10 * time.Minute).UnixMilli(),
+	}
+	err = hs.storage.UpsertRoom(context.Background(), room)
+	assert.NoError(t, err)
+
+	// Isolate the shouldLearnState check by providing an event we can't learn state from
+	nonCreateEvent := MakeSignedPDUForTest(t, hs, &test.BaseClientEvent{
+		RoomId: event.RoomID().String(),
+		Type:   "m.room.message",
+		Sender: "@alice:example.org",
+		Content: map[string]any{
+			"body": "doesn't matter",
+		},
+	})
+	hs.queueLearnStateIfNeeded(context.Background(), res, nonCreateEvent)
+	assert.Equal(t, 1, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount) // called but returns false
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+	next, txn, err = hs.storage.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, next)
+	assert.Nil(t, txn)
+
+	// Now supply an event that can be learned from, but still has "fresh" state as far as LastCachedStateTimestamp
+	// is concerned.
+	hs.queueLearnStateIfNeeded(context.Background(), res, event)
+	assert.Equal(t, 2, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount)
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+	next, txn, err = hs.storage.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, txn)
+	assert.Equal(t, event.RoomID().String(), next.RoomId)
+	assert.NoError(t, txn.Commit()) // drain the queue ahead of the next test
+
+	// *Now* we can test that shouldLearnState is used when the room's state is expired
+	room.LastCachedStateTimestampMillis = time.Now().Add(-10 * time.Minute).UnixMilli()
+	assert.NoError(t, hs.storage.UpsertRoom(context.Background(), room))
+	hs.queueLearnStateIfNeeded(context.Background(), res, event)
+	assert.Equal(t, 2, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount) // not called again
+	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)
+	next, txn, err = hs.storage.PopStateLearnQueue(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, txn)
+	assert.Equal(t, event.RoomID().String(), next.RoomId)
+	assert.NoError(t, txn.Commit()) // drain the queue ahead of the next test
 }
 
 type expectCreateEventLearner struct {
