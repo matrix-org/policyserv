@@ -6,11 +6,11 @@ require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
 	github.com/DavidHuie/gomigrate v0.0.0-20190826182718-4adc4b3de142
 	github.com/deckarep/golang-set v1.8.0
-	github.com/go-co-op/gocron/v2 v2.21.1
+	github.com/go-co-op/gocron/v2 v2.21.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.12.3
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20260202113659-20c9de33969e
-	github.com/openai/openai-go/v3 v3.34.0
+	github.com/openai/openai-go/v3 v3.35.0
 	github.com/panjf2000/ants/v2 v2.12.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/ryanuber/go-glob v1.0.0
@@ -18,7 +18,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/t2bot/go-matrix-signing-key v0.0.0-20250823035654-ee2c984dd0ca
 	github.com/t2bot/go-typed-singleflight v0.0.3
-	github.com/tidwall/gjson v1.18.0
+	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
 	golang.org/x/sync v0.20.0
 )
