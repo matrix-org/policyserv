@@ -9,7 +9,7 @@ import (
 	"github.com/matrix-org/policyserv/storage"
 )
 
-// PowerLevelsSource - uses the room's power levels to determine trust levels. Above-default power levels are trusted.
+// PowerLevelsSource - uses the room's power levels to determine trust levels. Above-state_default power levels are trusted.
 type PowerLevelsSource struct {
 	db storage.PersistentStorage
 }
