@@ -30,3 +30,10 @@ func AssertJsonBody(t *testing.T, w *httptest.ResponseRecorder, expected any) {
 	assert.NoError(t, err)
 	assert.JSONEq(t, string(expectedJson), w.Body.String())
 }
+
+func AssertApiErrorHarms(t *testing.T, w *httptest.ResponseRecorder, expectedHarms []string) {
+	jsonErr := make(map[string]any)
+	err := json.Unmarshal(w.Body.Bytes(), &jsonErr)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedHarms, jsonErr["org.matrix.msc3026.harms"])
+}
