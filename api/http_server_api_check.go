@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
@@ -42,7 +43,10 @@ func httpCheckTextCommunityApi(api *Api, community *storage.StoredCommunity, w h
 	}
 
 	if set.IsSpamResponse(r.Context(), vecs) {
-		// TODO: Also disclose MSC4387 harms, somehow
+		errs.addHarm("org.matrix.msc4387.spam")
+		if vecs.GetVector(classification.CSAM) > 0.5 {
+			errs.addHarm("org.matrix.msc4387.child_safety.csam")
+		}
 		errs.text(http.StatusBadRequest, "ORG.MATRIX.MSC4387_SAFETY", "Text is probably spammy")
 	} else {
 		err = respondJson("httpCheckTextCommunityApi", r, w, make(map[string]any))
