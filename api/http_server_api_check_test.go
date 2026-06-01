@@ -51,6 +51,7 @@ func TestHttpCheckTextCommunityApi(t *testing.T) {
 	httpCheckTextCommunityApi(api, serverCommunity, w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	test.AssertApiError(t, w, "ORG.MATRIX.MSC4387_SAFETY", "Text is probably spammy")
+	test.AssertApiErrorHarms(t, w, []string{"org.matrix.msc4387.spam"})
 
 	// Then test a non-match
 	w = httptest.NewRecorder()
