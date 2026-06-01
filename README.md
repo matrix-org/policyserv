@@ -310,8 +310,8 @@ Untrusted users cannot post media to rooms.
   the media filter.
 * `PS_UNTRUSTED_MEDIA_FILTER_USE_MUNINN` (default `true`) - When true, the member directory from [Muninn Hall](https://muninn-hall.com/) 
   will be trusted to send media.
-* `PS_UNTRUSTED_MEDIA_FILTER_USE_POWER_LEVELS` (default `true`) - When true, users with above-default power levels in the 
-  room will be trusted to send media. This includes the room creator in v12+ rooms.
+* `PS_UNTRUSTED_MEDIA_FILTER_USE_POWER_LEVELS` (default `true`) - When true, users with power levels above the `state_default`
+  level in the room will be trusted to send media. This includes the room creator in v12+ rooms.
 * `PS_UNTRUSTED_MEDIA_FILTER_ALLOWED_USER_GLOBS` (default empty value) - The CSV-formatted globs to match against user 
   IDs of trusted users. Overridden by the deny list below. This is in addition to other trust sources.
 * `PS_UNTRUSTED_MEDIA_FILTER_DENIED_USER_GLOBS` (default empty value) - The CSV-formatted globs to match against user 
