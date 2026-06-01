@@ -94,7 +94,7 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 		return nil, nil
 	}
 
-	prefilters := make([]string, 0)
+	prefilters := []string{filter.ProtectLocalUserFilterName}
 	hellbanPrefilters := make([]string, 0) // these run after the prefilters, but before the other filters
 	filters := make([]string, 0)
 	postfilters := make([]string, 0)
