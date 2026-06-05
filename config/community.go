@@ -50,6 +50,7 @@ type CommunityConfig struct {
 	ModerationBotUserId                      *string   `json:"moderation_bot_user_id,omitempty" envconfig:"moderation_bot_user_id" default:""`
 	UserIdContainsWordsFilterMaxWords        *int      `json:"user_id_contains_words_filter_max_words,omitempty" envconfig:"user_id_contains_words_filter_max_words" default:"0"`
 	UserIdLengthFilterMaxLength              *int      `json:"user_id_length_filter_max_length,omitempty" envconfig:"user_id_length_filter_max_length" default:"0"`
+	InlineEmojiSizeFilterMaxHeightPixels     *int      `json:"inline_emoji_size_filter_max_height_pixels,omitempty" envconfig:"inline_emoji_size_filter_max_height_pixels" default:"32"`
 }
 
 func (c *CommunityConfig) Clone() (*CommunityConfig, error) {

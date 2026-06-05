@@ -20,6 +20,7 @@ require (
 	github.com/t2bot/go-typed-singleflight v0.0.3
 	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
+	golang.org/x/net v0.49.0
 	golang.org/x/sync v0.20.0
 )
 
