@@ -3,6 +3,8 @@ package test
 import (
 	"context"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -24,4 +26,20 @@ func TestMediaDownloader(t *testing.T) {
 	b, err = downloader.DownloadMedia(context.Background(), "example.org", "abc123")
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("test"), b)
+}
+
+func TestMediaDownloaderSleepsOnRequest(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		start := time.Now()
+		downloader := MustMakeMediaDownloader(t)
+
+		downloader.Set("example.org", "abc123", SleepFor60SecondsOnDownload)
+
+		b, err := downloader.DownloadMedia(context.Background(), "example.org", "abc123")
+		assert.NoError(t, err)
+		assert.Equal(t, SleepFor60SecondsOnDownload, b)
+		assert.True(t, time.Since(start) >= 60*time.Second)
+	})
 }

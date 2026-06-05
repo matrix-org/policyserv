@@ -3,11 +3,13 @@ package filter
 import (
 	"context"
 	"testing"
+	"testing/synctest"
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -116,7 +118,44 @@ func TestMediaScanningFilter(t *testing.T) {
 	assertSpamVector(neutralEvent2, false, 0) // should have been cached above too
 }
 
-func TestMediaScanningFilterClassifiesAsUnsafeOnScanError(t *testing.T) {
+func TestMediaScanningFilterGracefullyHandlesDownloadTimeouts(t *testing.T) {
 	t.Parallel()
-	t.Skip("not implemented yet")
+
+	// We use synctest to manipulate time itself - see https://go.dev/blog/testing-time#time
+	synctest.Test(t, func(t *testing.T) {
+		// Dev note: ideally we'd test the full filter stack like we do in other tests, but because
+		// we're using synctest and the stack creates goroutines, we instead create the filter manually.
+		// synctest requires all goroutines to be stopped before the test ends, which we can't control.
+		f := &InstancedMediaScanningFilter{
+			set: &Set{
+				storage: test.NewMemoryStorage(t),
+			},
+			scanner: test.NewMemoryContentScanner(t),
+		}
+
+		downloader := test.MustMakeMediaDownloader(t).
+			Set("example.org", "media", test.SleepFor60SecondsOnDownload)
+
+		event := test.MustMakePDU(&test.BaseClientEvent{
+			EventId: "$spam1",
+			RoomId:  "!foo:example.org",
+			Type:    "org.example.the_event_type_doesnt_matter_in_this_test",
+			Content: map[string]any{
+				"url": `mxc://example.org/media`,
+			},
+		})
+
+		before := downloader.DownloadCalls
+		mediaItem, err := media.NewItem("mxc://example.org/media", downloader)
+		assert.NoError(t, err)
+		assert.NotNil(t, mediaItem)
+		vecs, err := f.CheckEvent(context.Background(), &EventInput{
+			Event:  event,
+			Medias: []*media.Item{mediaItem},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, []classification.Classification{classification.Spam, classification.Unsafe}, vecs)
+		assert.Equal(t, before+1, downloader.DownloadCalls)
+		synctest.Wait()
+	})
 }
