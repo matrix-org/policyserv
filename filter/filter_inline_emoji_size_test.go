@@ -38,6 +38,13 @@ type inlineEmojiSizeFilterTestCase struct {
 var inlineEmojiSizeFilterTestCases = make([]inlineEmojiSizeFilterTestCase, 0)
 
 func init() {
+	// Start with an easy test case: no images to detect (so essentially just "wasted" CPU)
+	inlineEmojiSizeFilterTestCases = append(inlineEmojiSizeFilterTestCases, inlineEmojiSizeFilterTestCase{
+		name:     "no images",
+		html:     "<p>this is a regular <strong>message</strong></p>",
+		isSpammy: false,
+	})
+
 	// Later in this function we loop over each "component" to create the test cases themselves
 
 	emojiComponents := []inlineEmojiSizeFilterTestCase{{
