@@ -53,17 +53,11 @@ func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *Ev
 
 	retChans := make([]chan []classification.Classification, len(input.Medias))
 
-	// Schedule the channel cleanup in case something goes wrong while we're creating them
-	defer func() {
-		for _, ch := range retChans {
-			close(ch)
-		}
-	}()
-
 	// Create the channels & async the scanning work
 	for i, m := range input.Medias {
 		ch := make(chan []classification.Classification, 1)
 		retChans[i] = ch
+		// scanMedia will close the channel when it's done - we don't need to do it here
 		go f.scanMedia(ctx, input.Event, m, ch)
 	}
 
@@ -76,7 +70,8 @@ func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *Ev
 	for _, ch := range retChans {
 		select {
 		case <-readTimeout.Done():
-			return nil, errors.New("timed out waiting for media scanning results")
+			log.Printf("[%s | %s] Media scanning timed out", input.Event.EventID(), input.Event.RoomID().String())
+			return []classification.Classification{classification.Spam, classification.Unsafe}, nil
 		case subClassifications := <-ch:
 			if subClassifications != nil {
 				classifications = append(classifications, subClassifications...)

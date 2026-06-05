@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var SleepFor60SecondsOnDownload = []byte("plz sleep 60s")
 
 type StaticMediaDownloader struct {
 	T             *testing.T
@@ -31,8 +34,16 @@ func (s *StaticMediaDownloader) DownloadMedia(ctx context.Context, origin string
 
 	s.DownloadCalls++
 
-	if bytes, ok := s.Media[origin+"/"+mediaId]; ok {
-		return bytes, nil
+	b, ok := s.Media[origin+"/"+mediaId]
+	if ok && string(b) == string(SleepFor60SecondsOnDownload) {
+		select {
+		case <-time.After(60 * time.Second):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if ok {
+		return b, nil
 	}
 
 	return nil, errors.New("media not found")
