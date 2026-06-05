@@ -324,6 +324,17 @@ by communities:
 * `PS_MUNINN_HALL_SOURCE_API_URL` (default `https://mau.bot/_matrix/maubot/plugin/muninnbot/member_directory`) - The API URL for the Muninn Hall member directory. Set to an empty value to disable automatic polling (you'll have to use the API endpoint described below instead).
 * `PS_MUNINN_HALL_SOURCE_API_KEY` (default empty value) - The API key to use for the Muninn Hall member directory API. Set to an empty value to disable automatic polling.
 
+### Inline emoji size filter
+
+This filter verifies that all inline images in a message are below a certain height, and are emoji. Inline images which aren't
+flagged as emoji will be marked as spam. Inline images which have invalid `height` attributes under the HTML spec are also
+marked as spam.
+
+Inline images are popularized by [MSC2545 (accepted)](https://github.com/matrix-org/matrix-spec-proposals/blob/main/proposals/2545-emotes.md).
+
+* `PS_INLINE_EMOJI_SIZE_FILTER_MAX_HEIGHT_PIXELS` (default `32`) - The maximum height in pixels an inline image can have. Set to
+  negative or zero to disable this filter.
+
 ### Policy list filter
 
 This filter interprets a room containing [moderation policy list rules](https://spec.matrix.org/v1.16/client-server-api/#moderation-policy-lists)

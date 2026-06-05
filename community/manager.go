@@ -125,6 +125,9 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 	if len(internal.Dereference(communityConfig.UntrustedMediaFilterMediaTypes)) > 0 {
 		filters = append(filters, filter.UntrustedMediaFilterName)
 	}
+	if internal.Dereference(communityConfig.InlineEmojiSizeFilterMaxHeightPixels) > 0 {
+		filters = append(filters, filter.InlineEmojiSizeFilterName)
+	}
 	if internal.Dereference(communityConfig.MentionFilterMaxMentions) > 0 {
 		filters = append(filters, filter.MentionsFilterName)
 	}
