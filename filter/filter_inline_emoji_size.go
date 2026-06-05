@@ -2,6 +2,8 @@ package filter
 
 import (
 	"context"
+	"errors"
+	"io"
 	"log"
 	"regexp"
 	"strconv"
@@ -36,6 +38,9 @@ var sizeRegex = regexp.MustCompile(`^\d+$`) // Example: "100" (pixels). This als
 type InstancedInlineEmojiSizeFilter struct {
 	set             *Set
 	maxHeightPixels int
+
+	// Used by tests to create error conditions
+	tokenizerCallback func(tokenizer *html.Tokenizer)
 }
 
 func (i *InstancedInlineEmojiSizeFilter) Name() string {
@@ -53,10 +58,17 @@ func (i *InstancedInlineEmojiSizeFilter) CheckEvent(ctx context.Context, input *
 		// As of writing, no released spec exists for inline emoji.
 		// See https://github.com/matrix-org/matrix-spec-proposals/blob/9759751d4e0166edfa3b411924208742d8987c89/proposals/2545-emotes.md#sending
 		parser := html.NewTokenizer(strings.NewReader(htmlRepresentation))
+		if i.tokenizerCallback != nil {
+			i.tokenizerCallback(parser)
+		}
 		for {
 			tokenType := parser.Next()
 			if tokenType == html.ErrorToken {
-				break
+				err = parser.Err()
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				return nil, err
 			}
 
 			if tokenType == html.StartTagToken || tokenType == html.SelfClosingTagToken {

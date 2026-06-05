@@ -11,6 +11,7 @@ import (
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/html"
 )
 
 const inlineEmojiSizeFilterMaxPixels = 32
@@ -242,7 +243,48 @@ func TestInlineEmojiSizeFilter(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestInlineEmojiSizeFilterRejectsInvalidHtml(t *testing.T) {
+	cnf := &SetConfig{
+		CommunityConfig: &config.CommunityConfig{
+			InlineEmojiSizeFilterMaxHeightPixels: internal.Pointer(inlineEmojiSizeFilterMaxPixels),
+		},
+		Groups: []*SetGroupConfig{{
+			EnabledNames:           []string{InlineEmojiSizeFilterName},
+			MinimumSpamVectorValue: 0.0,
+			MaximumSpamVectorValue: 1.0,
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, set)
+
+	// Extract the filter to configure the tokenizer into an error condition
+	f, ok := set.groups[0].filters[0].(*InstancedInlineEmojiSizeFilter)
+	assert.True(t, ok)
+	f.tokenizerCallback = func(tokenizer *html.Tokenizer) {
+		tokenizer.SetMaxBuf(1) // this will cause tokenizer.Next() to return html.ErrorToken
+	}
+
+	// Send an event through the filter which has more than 1 byte of HTML
+	event := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$invalidhtml",
+		RoomId:  "!foo:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"msgtype":        "doesn't matter",
+			"body":           "doesn't matter",
+			"format":         "doesn't matter",
+			"formatted_body": "<p>more than 1 byte</p>",
+		},
+	})
+	_, err = set.CheckEvent(context.Background(), event, nil)
+	assert.ErrorContains(t, err, html.ErrBufferExceeded.Error())
 }
 
 // variateHtml creates 3 versions of the input HTML (always in this order):
