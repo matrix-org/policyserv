@@ -40,6 +40,9 @@ type Set struct {
 }
 
 func NewSet(config *SetConfig, storage storage.PersistentStorage, pubsub pubsub.Client, notifier notifiers.MatrixNotifier, contentScanner content.Scanner) (*Set, error) {
+	if config.CommunityId == "" {
+		config.CommunityId = "default"
+	}
 	set := &Set{
 		storage:         storage,
 		pubsub:          pubsub,
