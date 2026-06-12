@@ -11,8 +11,8 @@ import (
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter"
-	"github.com/matrix-org/policyserv/filter/audit"
 	"github.com/matrix-org/policyserv/internal"
+	"github.com/matrix-org/policyserv/notifiers"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/storage"
 )
@@ -23,10 +23,10 @@ type Manager struct {
 	roomToCommunityCache *cache.Cache[string, string]      // room ID -> community ID
 	instanceConfig       *config.InstanceConfig
 	pubsubClient         pubsub.Client
-	auditQueue           *audit.Queue
+	notifier             notifiers.MatrixNotifier
 }
 
-func NewManager(instanceConfig *config.InstanceConfig, storage storage.PersistentStorage, pubsubClient pubsub.Client, auditQueue *audit.Queue) (*Manager, error) {
+func NewManager(instanceConfig *config.InstanceConfig, storage storage.PersistentStorage, pubsubClient pubsub.Client, notifier notifiers.MatrixNotifier) (*Manager, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -58,7 +58,7 @@ func NewManager(instanceConfig *config.InstanceConfig, storage storage.Persisten
 		roomToCommunityCache: roomIdCache,
 		instanceConfig:       instanceConfig,
 		pubsubClient:         pubsubClient,
-		auditQueue:           auditQueue,
+		notifier:             notifier,
 	}, nil
 }
 
@@ -210,7 +210,7 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 			MaximumSpamVectorValue: 1.0,
 		}},
 	}
-	filterSet, err := filter.NewSet(setConfig, m.storage, m.pubsubClient, m.auditQueue, scanner)
+	filterSet, err := filter.NewSet(setConfig, m.storage, m.pubsubClient, m.notifier, scanner)
 	if err != nil {
 		return nil, err
 	}

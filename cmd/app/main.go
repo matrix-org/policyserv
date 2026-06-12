@@ -15,9 +15,9 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/audit"
 	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/logging" // import this for side effects if this isn't needed directly anymore
+	"github.com/matrix-org/policyserv/notifiers"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/redaction"
 	"github.com/matrix-org/policyserv/storage"
@@ -52,12 +52,12 @@ func main() {
 	defer db.Close()
 	defer pubsubClient.Close()
 
-	auditQueue, err := audit.NewQueue(instanceConfig.WebhookPoolSize)
+	notifier, err := notifiers.NewWebhookMatrixNotifier(db, instanceConfig.WebhookPoolSize, instanceConfig.AllowedWebhookDomains)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	communityManager, err := setupCommunityManager(instanceConfig, db, pubsubClient, auditQueue)
+	communityManager, err := setupCommunityManager(instanceConfig, db, pubsubClient, notifier)
 	if err != nil {
 		log.Fatal(err)
 	}
