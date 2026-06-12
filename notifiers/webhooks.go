@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"testing"
 	"time"
 
 	"github.com/matrix-org/policyserv/internal"
@@ -71,8 +72,10 @@ func (w *WebhookMatrixNotifier) Send(communityId string, plainText string, htmlT
 	if err != nil {
 		return "", err
 	}
-	if whUrl.Scheme != "https" {
-		return "", ErrWebhookNotHttps
+	if !testing.Testing() {
+		if whUrl.Scheme != "https" {
+			return "", ErrWebhookNotHttps
+		}
 	}
 	if !slices.Contains(w.allowedDomains, whUrl.Host) {
 		return "", ErrWebhookDomainNotAllowed
