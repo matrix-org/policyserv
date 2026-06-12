@@ -32,7 +32,7 @@ func TestUntrustedMediaFilter(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 

@@ -53,7 +53,7 @@ func TestHellbanPrefilterDoesntEternallyExtend(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -107,7 +107,7 @@ func TestHellbanPrefilter(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -184,7 +184,7 @@ func TestHellbanPostfilter(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -284,7 +284,7 @@ func TestHellbanFiltersCombined(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 

@@ -61,7 +61,7 @@ func TestKeywordTemplateFilter(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -161,7 +161,7 @@ func TestKeywordTemplateFilterWithFullEvent(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 

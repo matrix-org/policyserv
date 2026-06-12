@@ -33,7 +33,7 @@ func TestNewSet(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -61,7 +61,7 @@ func TestNewSetUnknownFilter(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.ErrorContains(t, err, "error finding filter name")
 	assert.Nil(t, set)
 }
@@ -79,7 +79,7 @@ func TestNewSetErrorMaking(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.ErrorContains(t, err, "error making filter")
 	assert.Nil(t, set)
 }
@@ -102,7 +102,7 @@ func TestSetCheckEvent(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -167,7 +167,7 @@ func TestCheckEventWithErrorInGroup(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -229,7 +229,7 @@ func TestSetCheckText(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -283,7 +283,7 @@ func TestSetCheckTextWithErrorInGroup(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -320,7 +320,7 @@ func TestSetSpamThreshold(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -391,7 +391,7 @@ func TestCallsWebhook(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -472,7 +472,7 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -526,7 +526,7 @@ func TestExtractsMedia(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
