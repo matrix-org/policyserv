@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,8 @@ import (
 	"github.com/matrix-org/policyserv/filter/confidence"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/media"
+	"github.com/matrix-org/policyserv/notifiers"
+	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -33,7 +36,7 @@ func TestNewSet(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -61,7 +64,7 @@ func TestNewSetUnknownFilter(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.ErrorContains(t, err, "error finding filter name")
 	assert.Nil(t, set)
 }
@@ -79,7 +82,7 @@ func TestNewSetErrorMaking(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.ErrorContains(t, err, "error making filter")
 	assert.Nil(t, set)
 }
@@ -102,7 +105,7 @@ func TestSetCheckEvent(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -167,7 +170,7 @@ func TestCheckEventWithErrorInGroup(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -229,7 +232,7 @@ func TestSetCheckText(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -283,7 +286,7 @@ func TestSetCheckTextWithErrorInGroup(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -320,7 +323,7 @@ func TestSetSpamThreshold(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
@@ -367,6 +370,8 @@ func TestCallsWebhook(t *testing.T) {
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
+	parsedUrl, err := url.Parse(server.URL)
+	assert.NoError(t, err)
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
@@ -382,18 +387,25 @@ func TestCallsWebhook(t *testing.T) {
 			MinimumSpamVectorValue: 0.0,
 			MaximumSpamVectorValue: 1.0,
 		}},
-		InstanceConfig: &config.InstanceConfig{
-			AllowedWebhookDomains: []string{server.Listener.Addr().String()},
-		},
 	}
 	memStorage := test.NewMemoryStorage(t)
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	notifier, err := notifiers.NewWebhookMatrixNotifier(memStorage, 5, []string{parsedUrl.Host})
+	assert.NoError(t, err)
+	assert.NotNil(t, notifier)
+	set, err := NewSet(cnf, memStorage, ps, notifier, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
+
+	// Insert the community so the notifier works
+	err = memStorage.UpsertCommunity(context.Background(), &storage.StoredCommunity{
+		CommunityId: set.communityId,
+		Config:      set.communityConfig,
+	})
+	assert.NoError(t, err)
 
 	event := test.MustMakePDU(&test.BaseClientEvent{
 		RoomId:  "!foo:example.org",
@@ -452,6 +464,8 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 	})
 	server := httptest.NewServer(handler)
 	defer server.Close()
+	parsedUrl, err := url.Parse(server.URL)
+	assert.NoError(t, err)
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
@@ -463,18 +477,25 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 			MinimumSpamVectorValue: 0.0,
 			MaximumSpamVectorValue: 1.0,
 		}},
-		InstanceConfig: &config.InstanceConfig{
-			AllowedWebhookDomains: []string{server.Listener.Addr().String()},
-		},
 	}
 	memStorage := test.NewMemoryStorage(t)
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	notifier, err := notifiers.NewWebhookMatrixNotifier(memStorage, 5, []string{parsedUrl.Host})
+	assert.NoError(t, err)
+	assert.NotNil(t, notifier)
+	set, err := NewSet(cnf, memStorage, ps, notifier, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
+
+	// Insert the community so the notifier works
+	err = memStorage.UpsertCommunity(context.Background(), &storage.StoredCommunity{
+		CommunityId: set.communityId,
+		Config:      set.communityConfig,
+	})
+	assert.NoError(t, err)
 
 	event := test.MustMakePDU(&test.BaseClientEvent{
 		RoomId:  "!foo:example.org",
@@ -526,7 +547,7 @@ func TestExtractsMedia(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
