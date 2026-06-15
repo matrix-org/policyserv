@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/media"
 )
 
@@ -14,5 +14,5 @@ type Input struct {
 }
 
 type Provider[ConfigT any] interface {
-	CheckEvent(ctx context.Context, cnf ConfigT, input *Input) ([]classification.Classification, error)
+	CheckEvent(ctx context.Context, cnf ConfigT, input *Input) (*harms.ContentInfo, error)
 }

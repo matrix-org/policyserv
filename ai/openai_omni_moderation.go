@@ -8,7 +8,7 @@ import (
 
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/event"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 )
@@ -35,7 +35,7 @@ func NewOpenAIOmniModeration(cnf *config.InstanceConfig, additionalClientOptions
 	}, nil
 }
 
-func (m *OpenAIOmniModeration) CheckEvent(ctx context.Context, cnf *OpenAIOmniModerationConfig, input *Input) ([]classification.Classification, error) {
+func (m *OpenAIOmniModeration) CheckEvent(ctx context.Context, cnf *OpenAIOmniModerationConfig, input *Input) (*harms.ContentInfo, error) {
 	messages, err := event.RenderToText(input.Event)
 	if err != nil {
 		return nil, err
@@ -53,25 +53,25 @@ func (m *OpenAIOmniModeration) CheckEvent(ctx context.Context, cnf *OpenAIOmniMo
 			log.Printf("[%s | %s] Error checking message: %s", input.Event.EventID(), input.Event.RoomID(), err)
 			if cnf.FailSecure {
 				log.Printf("[%s | %s] Returning spam response to block events and discourage retries", input.Event.EventID(), input.Event.RoomID())
-				return []classification.Classification{classification.Spam, classification.Frequency}, nil
+				return harms.ProhibitedContent(harms.OtherGeneral), nil
 			} else {
 				log.Printf("[%s | %s] Returning neutral response despite error, per config", input.Event.EventID(), input.Event.RoomID())
-				return nil, nil
+				return harms.NeutralContent(), nil
 			}
 		}
 		for _, r := range res.Results {
 			// Note: we compress JSON here because the OpenAI library tends to return *a lot* of redundant detail, including JSON with newlines in it.
 			log.Printf("[%s | %s] Result for sender %s: Flagged=%t Flags=%s Scores=%s", input.Event.EventID(), input.Event.RoomID(), input.Event.SenderID(), r.Flagged, compressJsonResponse(r.Categories), compressJsonResponse(r.CategoryScores))
 			if r.Flagged {
-				flags := []classification.Classification{classification.Spam}
+				harmIds := []harms.Harm{harms.SpamGeneral}
 				if r.Categories.SexualMinors {
-					flags = append(flags, classification.CSAM)
+					harmIds = append(harmIds, harms.ChildSafetyCSAM)
 				}
-				return flags, nil
+				return harms.ProhibitedContent(harmIds...), nil
 			}
 		}
 	}
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 type compressible interface {

@@ -3,7 +3,7 @@ package metrics
 import (
 	"strconv"
 
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -37,18 +37,17 @@ func RecordFailedEventCheck(roomId string) {
 	}).Inc()
 }
 
-func RecordSuccessfulEventCheck(roomId string, isFirstTimeCheck bool, vecs confidence.Vectors) {
+func RecordSuccessfulEventCheck(roomId string, isFirstTimeCheck bool, info *harms.ContentInfo) {
 	EventChecks.With(prometheus.Labels{
 		"roomId":      roomId,
 		"status":      "ok",
 		"isFirstTime": strconv.FormatBool(isFirstTimeCheck),
 	}).Inc()
-	if isFirstTimeCheck {
-		// We're less concerned about the vector value and more about the types of classifications applied.
-		for cls, _ := range vecs {
+	if isFirstTimeCheck && info.Class() == harms.ContentClassProhibited {
+		for _, h := range info.Harms() {
 			EventClassifications.With(prometheus.Labels{
 				"roomId":         roomId,
-				"classification": cls.String(),
+				"classification": string(h),
 			}).Inc()
 		}
 	}

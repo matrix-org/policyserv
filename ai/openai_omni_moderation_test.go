@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/stretchr/testify/assert"
@@ -38,35 +38,32 @@ func TestOpenAIOmniModeration(t *testing.T) {
 	spammyEvent1 := test.MustMakeKeywordEvent(test.KeywordSpammy)
 	ret, err := provider.CheckEvent(context.Background(), &OpenAIOmniModerationConfig{FailSecure: true}, &Input{Event: spammyEvent1})
 	assert.NoError(t, err)
-	assert.Equal(t, []classification.Classification{
-		classification.Spam,
-	}, ret)
+	test.AssertEqualContentInfo(t, harms.ProhibitedContent(harms.SpamGeneral), ret)
 
 	spammyEvent2 := test.MustMakeKeywordEvent(test.KeywordSpammyCSAM)
 	ret, err = provider.CheckEvent(context.Background(), &OpenAIOmniModerationConfig{FailSecure: true}, &Input{Event: spammyEvent2})
 	assert.NoError(t, err)
-	assert.Equal(t, []classification.Classification{
-		classification.Spam,
-		classification.CSAM, // should have been detected
-	}, ret)
+	test.AssertEqualContentInfo(t, harms.ProhibitedContent(
+		harms.SpamGeneral,
+		harms.ChildSafetyCSAM, // should have been detected
+	), ret)
 
 	neutralEvent := test.MustMakeKeywordEvent(test.KeywordNeutral)
 	ret, err = provider.CheckEvent(context.Background(), &OpenAIOmniModerationConfig{FailSecure: true}, &Input{Event: neutralEvent})
 	assert.NoError(t, err)
-	assert.Nil(t, ret) // no classifications
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), ret) // no classifications
 
 	failEvent := test.MustMakeKeywordEvent(test.KeywordIntentionalFail)
 
 	// First test that when FailSecure: true we return a spam classification
 	ret, err = provider.CheckEvent(context.Background(), &OpenAIOmniModerationConfig{FailSecure: true}, &Input{Event: failEvent})
 	assert.NoError(t, err)
-	assert.Equal(t, []classification.Classification{
-		classification.Spam,
-		classification.Frequency, // also added by the provider
-	}, ret)
+	test.AssertEqualContentInfo(t, harms.ProhibitedContent(
+		harms.OtherGeneral, // added by the provider
+	), ret)
 
 	// Now when FailSecure: false, we should get no classifications (but also no errors)
 	ret, err = provider.CheckEvent(context.Background(), &OpenAIOmniModerationConfig{FailSecure: false}, &Input{Event: failEvent})
 	assert.NoError(t, err)
-	assert.Nil(t, ret)
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), ret)
 }
