@@ -74,11 +74,6 @@ func NewSet(config *SetConfig, storage storage.PersistentStorage, pubsub pubsub.
 	return set, nil
 }
 
-// GetStorage - Accessor to the underlying PersistentStorage
-func (s *Set) GetStorage() storage.PersistentStorage {
-	return s.storage
-}
-
 // CheckEvent - Checks an event over all of the set groups in order. If a set group errors, execution stops there.
 // Note: the mediaDownloader may be nil to prevent parsing and downloading of media. This should only be done in test environments.
 func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, mediaDownloader media.Downloader) (confidence.Vectors, error) {
