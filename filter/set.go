@@ -134,10 +134,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 			return nil, errors.Join(fmt.Errorf("error at group %d", i), err)
 		}
 		vecs = s.combineVectors(vecs, v)
-
-		auditCtx.AppendSetGroupVectors(v)
 	}
-	auditCtx.FinalVectors = vecs
 	auditCtx.IsSpam = s.IsSpamResponse(ctx, vecs)
 	go func(auditCtx *auditContext, s *Set) { // run the audit publishing async to avoid blocking the hot path any more than required
 		err := auditCtx.Publish(s.queue)

@@ -12,20 +12,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/audit"
 	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
-	"github.com/matrix-org/gomatrixserverlib"
 )
 
 type auditContext struct {
-	Event              gomatrixserverlib.PDU
-	IsSpam             bool
-	FinalVectors       confidence.Vectors
-	IncrementalVectors []confidence.Vectors
-	FilterResponses    map[string][]classification.Classification
-	WebhookUrl         string
+	Event           gomatrixserverlib.PDU
+	IsSpam          bool
+	FilterResponses map[string][]classification.Classification
+	WebhookUrl      string
 
 	lock           sync.Mutex // use a lock instead of a sync.Map because sync.Map doesn't support generics (and library support appears lacking in quality)
 	instanceConfig *config.InstanceConfig
@@ -33,14 +30,12 @@ type auditContext struct {
 
 func newAuditContext(instanceConfig *config.InstanceConfig, event gomatrixserverlib.PDU, webhookUrl string) (*auditContext, error) {
 	return &auditContext{
-		Event:              event,
-		FilterResponses:    make(map[string][]classification.Classification),
-		IncrementalVectors: make([]confidence.Vectors, 0),
-		WebhookUrl:         webhookUrl,
+		Event:           event,
+		FilterResponses: make(map[string][]classification.Classification),
+		WebhookUrl:      webhookUrl,
 
 		// Populated later
-		IsSpam:       false,
-		FinalVectors: nil,
+		IsSpam: false,
 
 		// Internal
 		lock:           sync.Mutex{},
@@ -52,12 +47,6 @@ func (c *auditContext) AppendFilterResponse(filterName string, classifications [
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.FilterResponses[filterName] = classifications
-}
-
-func (c *auditContext) AppendSetGroupVectors(vectors confidence.Vectors) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.IncrementalVectors = append(c.IncrementalVectors, vectors)
 }
 
 func (c *auditContext) Publish(workQueue *audit.Queue) error {
