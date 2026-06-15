@@ -32,7 +32,7 @@ func TestMediaScanningFilter(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 	scanner := test.NewMemoryContentScanner(t)
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), scanner)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), scanner)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 

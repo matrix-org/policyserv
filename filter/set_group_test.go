@@ -5,7 +5,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
 	"github.com/matrix-org/policyserv/test"
@@ -19,7 +18,7 @@ func TestSetGroupCheck(t *testing.T) {
 		Type:    "m.room.message",
 		Content: make(map[string]any),
 	})
-	auditCtx, err := newAuditContext(&config.InstanceConfig{}, event, "")
+	auditCtx, err := newAuditContext(test.NewMatrixNotifier(t), "default", event)
 	assert.NoError(t, err)
 	assert.NotNil(t, auditCtx)
 	input := &EventInput{

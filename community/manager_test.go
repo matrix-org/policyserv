@@ -24,7 +24,7 @@ func makeManager(t *testing.T) *Manager {
 	assert.NoError(t, err)
 	assert.NotNil(t, cnf)
 
-	manager, err := NewManager(cnf, db, pubsubClient, test.MustMakeAuditQueue(5))
+	manager, err := NewManager(cnf, db, pubsubClient, test.NewMatrixNotifier(t))
 	assert.NoError(t, err)
 	assert.NotNil(t, manager)
 

@@ -30,7 +30,7 @@ func makeApi(t *testing.T) *Api {
 	pubsub := test.NewMemoryPubsub(t)
 	assert.NotNil(t, pubsub)
 
-	communityManager, err := community.NewManager(cnf, db, pubsub, test.MustMakeAuditQueue(5))
+	communityManager, err := community.NewManager(cnf, db, pubsub, test.NewMatrixNotifier(t))
 	assert.NoError(t, err)
 	assert.NotNil(t, communityManager)
 

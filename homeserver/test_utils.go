@@ -48,7 +48,7 @@ func NewMockServerForTest(t *testing.T, storage storage.PersistentStorage, confi
 	assert.NoError(t, err)
 	assert.NotNil(t, instanceCnf)
 	pubsub := test.NewMemoryPubsub(t)
-	communityManager, err := community.NewManager(instanceCnf, storage, pubsub, test.MustMakeAuditQueue(5))
+	communityManager, err := community.NewManager(instanceCnf, storage, pubsub, test.NewMatrixNotifier(t))
 	assert.NoError(t, err)
 	assert.NotNil(t, communityManager)
 	pool, err := queue.NewPool(&queue.PoolConfig{

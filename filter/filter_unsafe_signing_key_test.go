@@ -6,10 +6,10 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/test"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +28,7 @@ func TestUnsafeSigningKeyFilter(t *testing.T) {
 	defer memStorage.Close()
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
-	set, err := NewSet(cnf, memStorage, ps, test.MustMakeAuditQueue(5), nil)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
