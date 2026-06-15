@@ -24,7 +24,7 @@ func TestPool(t *testing.T) {
 	pubsub := test.NewMemoryPubsub(t)
 	defer pubsub.Close()
 
-	manager, err := community.NewManager(cnf, db, pubsub, test.MustMakeAuditQueue(5))
+	manager, err := community.NewManager(cnf, db, pubsub, test.NewMatrixNotifier(t))
 	assert.NoError(t, err)
 	assert.NotNil(t, manager)
 
@@ -79,7 +79,7 @@ func TestPoolHandlesErrors(t *testing.T) {
 	pubsub := test.NewMemoryPubsub(t)
 	defer pubsub.Close()
 
-	manager, err := community.NewManager(cnf, db, pubsub, test.MustMakeAuditQueue(5))
+	manager, err := community.NewManager(cnf, db, pubsub, test.NewMatrixNotifier(t))
 	assert.NoError(t, err)
 	assert.NotNil(t, manager)
 

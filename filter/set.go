@@ -11,11 +11,11 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/content"
-	"github.com/matrix-org/policyserv/filter/audit"
 	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/filter/confidence"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/media"
+	"github.com/matrix-org/policyserv/notifiers"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/storage"
 )
@@ -31,7 +31,7 @@ type SetConfig struct {
 type Set struct {
 	storage         storage.PersistentStorage
 	pubsub          pubsub.Client
-	queue           *audit.Queue
+	notifier        notifiers.MatrixNotifier
 	contentScanner  content.Scanner // may be nil if scanning not possible
 	groups          []*setGroup
 	communityConfig *config.CommunityConfig
@@ -39,11 +39,14 @@ type Set struct {
 	communityId     string
 }
 
-func NewSet(config *SetConfig, storage storage.PersistentStorage, pubsub pubsub.Client, queue *audit.Queue, contentScanner content.Scanner) (*Set, error) {
+func NewSet(config *SetConfig, storage storage.PersistentStorage, pubsub pubsub.Client, notifier notifiers.MatrixNotifier, contentScanner content.Scanner) (*Set, error) {
+	if config.CommunityId == "" {
+		config.CommunityId = "default"
+	}
 	set := &Set{
 		storage:         storage,
 		pubsub:          pubsub,
-		queue:           queue,
+		notifier:        notifier,
 		contentScanner:  contentScanner,
 		groups:          make([]*setGroup, len(config.Groups)),
 		communityConfig: config.CommunityConfig,
@@ -91,7 +94,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 
 	vecs := confidence.NewConfidenceVectors()
 	vecs.SetVector(classification.Spam, 0.5) // per docs elsewhere, start by assuming 50% likelihood of spam
-	auditCtx, err := newAuditContext(s.instanceConfig, event, internal.Dereference(s.communityConfig.WebhookUrl))
+	auditCtx, err := newAuditContext(s.notifier, s.communityId, event)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +140,7 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 	}
 	auditCtx.IsSpam = s.IsSpamResponse(ctx, vecs)
 	go func(auditCtx *auditContext, s *Set) { // run the audit publishing async to avoid blocking the hot path any more than required
-		err := auditCtx.Publish(s.queue)
+		err := auditCtx.Publish()
 		if err != nil {
 			log.Printf("[%s | %s] Non-fatal error publishing audit: %s", auditCtx.Event.EventID(), auditCtx.Event.RoomID().String(), err)
 		}
