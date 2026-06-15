@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 
-	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/metrics"
 )
 
@@ -15,26 +15,20 @@ type SetGroupConfig struct {
 	// The filter names this group enables. All filters within a group are executed concurrently.
 	EnabledNames []string
 
-	// The minimum vector value for classification.Spam required for this set group to process events.
-	// Note: The first set group will receive a classification.Spam vector value of 0.5
-	MinimumSpamVectorValue float64
-
-	// The maximum vector value for classification.Spam allowed for this set group to process events.
-	MaximumSpamVectorValue float64
+	// Which content classes are checked by this set group.
+	RunOnClasses []harms.ContentClass
 }
 
 type setGroup struct {
-	filters            []Instanced
-	minSpamVectorValue float64
-	maxSpamVectorValue float64
+	filters      []Instanced
+	runOnClasses []harms.ContentClass
 }
 
-// checkEvent - If the input's spam vector is within range, processes the event through the group's filters and returns
-// the confidence vectors of all filters combined. If the input's spam vector is out of range, returns empty confidence
-// vectors. Errors are collated into a single error. Filters are run concurrently.
-func (g *setGroup) checkEvent(ctx context.Context, input *EventInput) (confidence.Vectors, error) {
-	spamVec := input.IncrementalConfidenceVectors.GetVector(classification.Spam)
-	return g.runFilters(spamVec, func(unknownFilter Instanced, ch chan setGroupRet) {
+// checkEvent - If the group is meant to be run against the content class/info, processes the event through the group's
+// filters. The resulting content info is the "most severe" outcome of all filters combined. Errors are collated into a
+// single error. Filters are run concurrently.
+func (g *setGroup) checkEvent(ctx context.Context, infoSoFar *harms.ContentInfo, input *EventInput) (*harms.ContentInfo, error) {
+	return g.runFilters(infoSoFar, func(unknownFilter Instanced, ch chan setGroupRet) {
 		filter, ok := unknownFilter.(InstancedEventFilter)
 		if !ok {
 			log.Printf("[%s | %s] Filter %T is not an InstancedEventFilter - skipping", input.Event.EventID(), input.Event.RoomID().String(), unknownFilter)
@@ -45,18 +39,17 @@ func (g *setGroup) checkEvent(ctx context.Context, input *EventInput) (confidenc
 
 		log.Printf("[%s | %s] Running filter %T", input.Event.EventID(), input.Event.RoomID().String(), filter)
 		t := metrics.StartFilterTimer(input.Event.RoomID().String(), filter.Name())
-		classifications, err := filter.CheckEvent(ctx, input)
+		info, err := filter.CheckEvent(ctx, input)
 		t.ObserveDuration()
-		input.auditContext.AppendFilterResponse(filter.Name(), classifications)
-		g.logFilterClassifications(fmt.Sprintf("%s | %s", input.Event.EventID(), input.Event.RoomID().String()), filter, classifications, err)
-		ch <- setGroupRet{filter, classifications, err}
+		input.auditContext.AppendFilterResponse(filter.Name(), info)
+		g.logFilterClassifications(fmt.Sprintf("%s | %s", input.Event.EventID(), input.Event.RoomID().String()), filter, info, err)
+		ch <- setGroupRet{filter, info, err}
 	})
 }
 
 // checkText - The same as checkEvent, but for text content.
-func (g *setGroup) checkText(ctx context.Context, incrementalVectors confidence.Vectors, input string) (confidence.Vectors, error) {
-	spamVec := incrementalVectors.GetVector(classification.Spam)
-	return g.runFilters(spamVec, func(unknownFilter Instanced, ch chan setGroupRet) {
+func (g *setGroup) checkText(ctx context.Context, infoSoFar *harms.ContentInfo, input string) (*harms.ContentInfo, error) {
+	return g.runFilters(infoSoFar, func(unknownFilter Instanced, ch chan setGroupRet) {
 		filter, ok := unknownFilter.(InstancedTextFilter)
 		if !ok {
 			log.Printf("[CheckText] Filter %T is not an InstancedTextFilter - skipping", unknownFilter)
@@ -68,29 +61,24 @@ func (g *setGroup) checkText(ctx context.Context, incrementalVectors confidence.
 		log.Printf("[CheckText] Running filter %T", filter)
 		// TODO: Metrics
 		// TODO: Audit context/webhooks
-		classifications, err := filter.CheckText(ctx, input)
-		g.logFilterClassifications("CheckText", filter, classifications, err)
-		ch <- setGroupRet{filter, classifications, err}
+		info, err := filter.CheckText(ctx, input)
+		g.logFilterClassifications("CheckText", filter, info, err)
+		ch <- setGroupRet{filter, info, err}
 	})
 }
 
-func (g *setGroup) logFilterClassifications(prefix string, filter Instanced, classifications []classification.Classification, err error) {
-	strClassifications := make([]string, 0, len(classifications))
-	for _, cls := range classifications {
-		// We don't use .String() here because that will uninvert values, making logs harder to follow.
-		strClassifications = append(strClassifications, string(cls))
-	}
-	log.Printf("[%s] Filter %T returned %v", prefix, filter, strClassifications)
+func (g *setGroup) logFilterClassifications(prefix string, filter Instanced, info *harms.ContentInfo, err error) {
+	log.Printf("[%s] Filter %T returned %s %v", prefix, filter, info.Class(), info.Harms())
 	if err != nil {
 		log.Printf("[%s] Filter %T returned error: %s", prefix, filter, err)
 	}
 }
 
-func (g *setGroup) runFilters(spamVec float64, checkFn func(f Instanced, ch chan setGroupRet)) (confidence.Vectors, error) {
+func (g *setGroup) runFilters(infoSoFar *harms.ContentInfo, checkFn func(f Instanced, ch chan setGroupRet)) (*harms.ContentInfo, error) {
 	// First, are we within range to actually process anything?
-	if spamVec < g.minSpamVectorValue || spamVec > g.maxSpamVectorValue { // don't use equality here because it'll exclude "max: 1.0" configs
-		// No - return nothing
-		return confidence.NewConfidenceVectors(), nil
+	if !slices.Contains(g.runOnClasses, infoSoFar.Class()) {
+		// No - return nothing/neutral
+		return harms.NeutralContent(), nil
 	}
 
 	ch := make(chan setGroupRet, len(g.filters))
@@ -107,32 +95,29 @@ func (g *setGroup) runFilters(spamVec float64, checkFn func(f Instanced, ch chan
 		rets[i] = <-ch
 	}
 
-	// Scan for errors and prepare for a final confidence vectors result
-	vecs := confidence.NewConfidenceVectors()
+	// Scan for errors and prepare a merged content info result
+	contentClass := harms.ContentClassNeutral
+	harmIds := make([]harms.Harm, 0)
 	errs := make([]error, 0)
 	for _, r := range rets {
 		if r.Err != nil {
 			errs = append(errs, r.Err)
 			continue
 		}
-		for _, cls := range r.Classifications {
-			// If we've already flagged an event as spam, don't allow that to be un-flagged.
-			// Note: we compare using .String() because it returns the uninverted value, if inverted.
-			if cls.String() == classification.Spam.String() && vecs.GetVector(classification.Spam) > 0.5 {
-				continue
-			}
-			vecs.SetVector(cls, 1.0)
+		harmIds = append(harmIds, r.Info.Harms()...)
+		if contentClass < r.Info.Class() {
+			contentClass = r.Info.Class()
 		}
 	}
 	if len(errs) > 0 {
 		// explode
 		return nil, errors.Join(errs...)
 	}
-	return vecs, nil
+	return harms.NewContentInfo(contentClass, harmIds...), nil
 }
 
 type setGroupRet struct {
-	Filter          Instanced
-	Classifications []classification.Classification
-	Err             error
+	Filter Instanced
+	Info   *harms.ContentInfo
+	Err    error
 }

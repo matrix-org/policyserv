@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/notifiers"
 )
 
 type auditContext struct {
 	Event           gomatrixserverlib.PDU
 	IsSpam          bool
-	FilterResponses map[string][]classification.Classification
+	FilterResponses map[string][]string
 	CommunityId     string
 
 	lock     sync.Mutex // use a lock instead of a sync.Map because sync.Map doesn't support generics (and library support appears lacking in quality)
@@ -28,7 +28,7 @@ type auditContext struct {
 func newAuditContext(notifier notifiers.MatrixNotifier, communityId string, event gomatrixserverlib.PDU) (*auditContext, error) {
 	return &auditContext{
 		Event:           event,
-		FilterResponses: make(map[string][]classification.Classification),
+		FilterResponses: make(map[string][]string),
 		CommunityId:     communityId,
 
 		// Populated later
@@ -40,10 +40,13 @@ func newAuditContext(notifier notifiers.MatrixNotifier, communityId string, even
 	}, nil
 }
 
-func (c *auditContext) AppendFilterResponse(filterName string, classifications []classification.Classification) {
+func (c *auditContext) AppendFilterResponse(filterName string, contentInfo *harms.ContentInfo) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	c.FilterResponses[filterName] = classifications
+	c.FilterResponses[filterName] = []string{contentInfo.Class().String()}
+	for _, h := range contentInfo.Harms() {
+		c.FilterResponses[filterName] = append(c.FilterResponses[filterName], string(h))
+	}
 }
 
 func (c *auditContext) Publish() error {
@@ -69,7 +72,7 @@ func (c *auditContext) Publish() error {
 	}
 	contentJson := contentBuf.String()
 
-	wasHellban := c.FilterResponses[HellbanPrefilterName] != nil && slices.Contains(c.FilterResponses[HellbanPrefilterName], classification.Spam)
+	wasHellban := c.FilterResponses[HellbanPrefilterName] != nil && slices.Contains(c.FilterResponses[HellbanPrefilterName], string(harms.SpamGeneral))
 
 	htmlAudit := "A user has had an event of theirs flagged as spam by policyserv:<br/>"
 	htmlAudit += fmt.Sprintf("<b>User ID:</b> <code>%s</code><br/>", html.EscapeString(string(c.Event.SenderID())))
