@@ -9,6 +9,7 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
 )
@@ -86,7 +87,7 @@ func (h *Homeserver) queueLearnStateIfNeeded(ctx context.Context, basedOnResult 
 	if basedOnResult.Err != nil {
 		return // we're not interested in this result
 	}
-	if basedOnResult.IsProbablySpam {
+	if basedOnResult.ContentInfo.Class() == harms.ContentClassProhibited {
 		return // too spammy for us
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
@@ -137,7 +138,7 @@ func httpTransactionReceive(server *Homeserver, w http.ResponseWriter, r *http.R
 				return
 			}
 
-			if res.IsProbablySpam {
+			if res.ContentInfo.Class() == harms.ContentClassProhibited {
 				redactIfNeeded(ctx, server, "not_a_real_server_to_always_fail_the_included_sender_check", event)
 			}
 		}()
