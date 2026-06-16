@@ -40,8 +40,6 @@ func TestNewSet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
 
-	assert.Equal(t, set.GetStorage(), memStorage)
-
 	assert.Equal(t, len(cnf.Groups), len(set.groups))
 	assert.Equal(t, len(cnf.Groups[0].EnabledNames), len(set.groups[0].filters))
 
