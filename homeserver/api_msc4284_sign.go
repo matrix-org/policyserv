@@ -8,6 +8,7 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/queue"
 )
@@ -37,7 +38,7 @@ func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.
 	if room == nil {
 		// we must have a room_id to know if we should sign it.
 		// Notably the create event in v12 rooms will omit this.
-		refuseToSign(w, r, stable)
+		refuseToSign(w, r, stable, nil)
 		return
 	}
 
@@ -45,7 +46,7 @@ func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.
 	event, err := roomVersion.NewEventFromUntrustedJSON(fedReq.Content())
 	if err != nil {
 		log.Println("Error parsing event:", err)
-		refuseToSign(w, r, stable)
+		refuseToSign(w, r, stable, nil)
 		return
 	}
 
@@ -56,7 +57,7 @@ func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.
 	})
 	if err != nil {
 		log.Printf("Signature verification failed for %s: %s", event.EventID(), err)
-		refuseToSign(w, r, stable)
+		refuseToSign(w, r, stable, nil)
 		return
 	}
 
@@ -67,7 +68,7 @@ func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.
 	err = server.RunFilters(r.Context(), event, ch)
 	if err != nil {
 		log.Println("Error submitting event:", err)
-		refuseToSign(w, r, stable)
+		refuseToSign(w, r, stable, nil)
 		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 		return
 	}
@@ -85,14 +86,14 @@ func handlePolicySignRequest(server *Homeserver, w http.ResponseWriter, r *http.
 
 	if res.Err != nil {
 		log.Println("Error receiving event result:", err)
-		refuseToSign(w, r, stable)
+		refuseToSign(w, r, stable, nil)
 		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 		return
 	}
 
-	if res.IsProbablySpam {
+	if res.ContentInfo.Class() == harms.ContentClassProhibited {
 		log.Printf("🚫 [%s] refusing to sign in %s", event.EventID(), event.RoomID().String())
-		refuseToSign(w, r, stable)
+		refuseToSign(w, r, stable, res.ContentInfo.Harms())
 		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 		return
 	}
@@ -123,10 +124,23 @@ func redactIfNeeded(ctx context.Context, server *Homeserver, requestOrigin spec.
 	}
 }
 
-func refuseToSign(w http.ResponseWriter, r *http.Request, stable bool) {
+func refuseToSign(w http.ResponseWriter, r *http.Request, stable bool, harmIds []harms.Harm) {
 	// Stable endpoints allow us to return real errors, so we should do that.
 	if stable {
-		MatrixHttpError(w, http.StatusBadRequest, "M_FORBIDDEN", "This message is not allowed by the policy server")
+		if len(harmIds) > 0 {
+			// TODO: We should be using the api.errorResponder, but that needs extracting out of its package.
+			// For now we duplicate code.
+			MustServeError(w, &ClientError{
+				HttpCode: http.StatusBadRequest,
+				Errcode:  "M_FORBIDDEN",
+				Message:  "This message is not allowed by the policy server",
+				AdditionalFields: map[string]any{
+					"org.matrix.msc4387.harms": harmIds,
+				},
+			})
+		} else {
+			MatrixHttpError(w, http.StatusBadRequest, "M_FORBIDDEN", "This message is not allowed by the policy server")
+		}
 		return
 	}
 

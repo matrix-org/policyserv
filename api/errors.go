@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/metrics"
 )
@@ -12,10 +13,10 @@ type errorResponder struct {
 	action string
 	w      http.ResponseWriter
 	r      *http.Request
-	harms  []string
+	harms  []harms.Harm
 }
 
-func (e *errorResponder) addHarm(harm string) *errorResponder {
+func (e *errorResponder) addHarm(harm harms.Harm) *errorResponder {
 	e.harms = append(e.harms, harm)
 	return e
 }
@@ -49,6 +50,6 @@ func newErrorResponder(action string, w http.ResponseWriter, r *http.Request) *e
 		action: action,
 		w:      w,
 		r:      r,
-		harms:  make([]string, 0),
+		harms:  make([]harms.Harm, 0),
 	}
 }

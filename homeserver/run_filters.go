@@ -27,9 +27,8 @@ func (h *Homeserver) RunFilters(ctx context.Context, event gomatrixserverlib.PDU
 			}
 			log.Printf("[%s | %s] Request context cancelled, forcing error response: %s", event.EventID(), event.RoomID().String(), err)
 			res = &queue.PoolResult{
-				Vectors:        nil,
-				IsProbablySpam: false,
-				Err:            err,
+				ContentInfo: nil,
+				Err:         err,
 			}
 		}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/gomatrixserverlib/fclient"
 	"github.com/matrix-org/gomatrixserverlib/spec"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
@@ -82,13 +83,13 @@ func httpMSC4284Check(server *Homeserver, w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if res.IsProbablySpam {
+	if res.ContentInfo.Class() == harms.ContentClassProhibited {
 		redactIfNeeded(r.Context(), server, fedReq.Origin(), event)
 	}
 
 	defer metrics.RecordHttpResponse(r.Method, "httpMSC4284Check", http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	if res.IsProbablySpam {
+	if res.ContentInfo.Class() == harms.ContentClassProhibited {
 		_, _ = w.Write(msc4284SpamResponse)
 	} else {
 		_, _ = w.Write(msc4284NeutralResponse)
