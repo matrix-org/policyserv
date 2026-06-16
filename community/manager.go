@@ -11,6 +11,7 @@ import (
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/content"
 	"github.com/matrix-org/policyserv/filter"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/notifiers"
 	"github.com/matrix-org/policyserv/pubsub"
@@ -97,7 +98,7 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 	prefilters := []string{filter.ProtectLocalUserFilterName}
 	hellbanPrefilters := make([]string, 0) // these run after the prefilters, but before the other filters
 	filters := make([]string, 0)
-	postfilters := make([]string, 0)
+	postfilterSilences := make([]string, 0)
 	if len(internal.Dereference(communityConfig.KeywordFilterKeywords)) > 0 {
 		filters = append(filters, filter.KeywordFilterName)
 	}
@@ -139,7 +140,7 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 	}
 	if internal.Dereference(communityConfig.HellbanPostfilterMinutes) > 0 {
 		hellbanPrefilters = append(hellbanPrefilters, filter.HellbanPrefilterName)
-		postfilters = append(postfilters, filter.HellbanPostfilterName)
+		postfilterSilences = append(postfilterSilences, filter.HellbanPostfilterName)
 	}
 	if m.instanceConfig.OpenAIApiKey != "" {
 		// Access to this filter is gated by further instance config (namely, the room IDs allowed to use it)
@@ -180,34 +181,31 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 		InstanceConfig:  m.instanceConfig,
 		Groups: []*filter.SetGroupConfig{{
 			// The first set group replaces the concept of "prefilters". We want this group to capture all events,
-			// so we set the min and max to cover the full range.
-			EnabledNames:           prefilters,
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			// so we set the classes appropriately.
+			EnabledNames: prefilters,
+			// Micro optimization: Put neutral first so we can skip CPU cycles in a loop in the general case. We also
+			// probably don't need to specify allowed and prohibited here because we have no code which pushes such
+			// classes right away, but for safety we might as well.
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral, harms.ContentClassAllowed, harms.ContentClassProhibited},
 		}, {
 			// This set group is similar to prefilters, but only contains the hellban prefilters. This is to prevent
 			// users being denied abilities that are intended to be granted to them via other prefilters (like an
 			// ability to leave the room).
 			EnabledNames: hellbanPrefilters,
-			// We want the min/max values to catch "maybe spam" from the prefilters level, but explicitly not events
-			// that were flagged as not-spam by the same layer. This is why the minimum is not quite zero.
-			MinimumSpamVectorValue: 0.1,
-			MaximumSpamVectorValue: 1.0,
+			// We want to capture "maybe spam", but not events that were already flagged as (not) spam.
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral},
 		}, {
 			// The third set group is what was previously the middle layer for filters. This is where the bulk of
 			// the work happens. We only want it to run if the prefilters didn't already declare an event spammy or
 			// neutral though, so we narrow the min/max range a bit.
 			EnabledNames: filters,
-			// We want the min/max to be slightly less than the extremes to avoid doing work
-			// when the event is already flagged as (not) spam.
-			MinimumSpamVectorValue: 0.3,
-			MaximumSpamVectorValue: 0.7,
+			// Skip this group for events that are already (not) spam.
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral},
 		}, {
-			// The last set group replaces "postfilters", and should be run regardless of whether the previous groups
-			// flagged the event as spam. As such, we set the min/max to the widest possible range.
-			EnabledNames:           postfilters,
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			// The last set group is for telling the hellban postfilter if any previous filter flagged an event as
+			// spammy so it can put a silence in place.
+			EnabledNames: postfilterSilences,
+			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited},
 		}},
 	}
 	filterSet, err := filter.NewSet(setConfig, m.storage, m.pubsubClient, m.notifier, scanner)
