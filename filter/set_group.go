@@ -32,8 +32,8 @@ func (g *setGroup) checkEvent(ctx context.Context, infoSoFar *harms.ContentInfo,
 		filter, ok := unknownFilter.(InstancedEventFilter)
 		if !ok {
 			log.Printf("[%s | %s] Filter %T is not an InstancedEventFilter - skipping", input.Event.EventID(), input.Event.RoomID().String(), unknownFilter)
-			// we force a nil response rather than an error to ensure we simply skip it
-			ch <- setGroupRet{unknownFilter, nil, nil}
+			// we force a neutral response rather than an error to ensure we simply skip it
+			ch <- setGroupRet{unknownFilter, harms.NeutralContent(), nil}
 			return
 		}
 
@@ -41,6 +41,14 @@ func (g *setGroup) checkEvent(ctx context.Context, infoSoFar *harms.ContentInfo,
 		t := metrics.StartFilterTimer(input.Event.RoomID().String(), filter.Name())
 		info, err := filter.CheckEvent(ctx, input)
 		t.ObserveDuration()
+		// If the `info` is nil, the developer forgot to return a ContentInfo. We're only *really* concerned about this
+		// if the filter also didn't return an error as that indicates a lack of decision in the filter.
+		if info == nil {
+			info = harms.NeutralContent() // set so we don't fully explode with nil dereference errors
+			if err == nil {
+				err = fmt.Errorf("developer error: filter %s returned nil content info", filter.Name())
+			}
+		}
 		input.auditContext.AppendFilterResponse(filter.Name(), info)
 		g.logFilterClassifications(fmt.Sprintf("%s | %s", input.Event.EventID(), input.Event.RoomID().String()), filter, info, err)
 		ch <- setGroupRet{filter, info, err}
@@ -53,8 +61,8 @@ func (g *setGroup) checkText(ctx context.Context, infoSoFar *harms.ContentInfo, 
 		filter, ok := unknownFilter.(InstancedTextFilter)
 		if !ok {
 			log.Printf("[CheckText] Filter %T is not an InstancedTextFilter - skipping", unknownFilter)
-			// we force a nil response rather than an error to ensure we simply skip it
-			ch <- setGroupRet{unknownFilter, nil, nil}
+			// we force a neutral response rather than an error to ensure we simply skip it
+			ch <- setGroupRet{unknownFilter, harms.NeutralContent(), nil}
 			return
 		}
 
@@ -62,6 +70,14 @@ func (g *setGroup) checkText(ctx context.Context, infoSoFar *harms.ContentInfo, 
 		// TODO: Metrics
 		// TODO: Audit context/webhooks
 		info, err := filter.CheckText(ctx, input)
+		// If the `info` is nil, the developer forgot to return a ContentInfo. We're only *really* concerned about this
+		// if the filter also didn't return an error as that indicates a lack of decision in the filter.
+		if info == nil {
+			info = harms.NeutralContent() // set so we don't fully explode with nil dereference errors
+			if err == nil {
+				err = fmt.Errorf("developer error: filter %s returned nil content info", filter.Name())
+			}
+		}
 		g.logFilterClassifications("CheckText", filter, info, err)
 		ch <- setGroupRet{filter, info, err}
 	})
@@ -93,6 +109,11 @@ func (g *setGroup) runFilters(infoSoFar *harms.ContentInfo, checkFn func(f Insta
 	rets := make([]setGroupRet, len(g.filters))
 	for i := 0; i < len(g.filters); i++ {
 		rets[i] = <-ch
+
+		// the check functions also look for this, but they also have short circuits that can result in nil content info.
+		if rets[i].Err == nil && rets[i].Info == nil {
+			rets[i].Err = fmt.Errorf("developer error: filter %s (%d) returned no error and no content info", rets[i].Filter.Name(), i)
+		}
 	}
 
 	// Scan for errors and prepare a merged content info result
