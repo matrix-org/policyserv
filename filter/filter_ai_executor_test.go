@@ -7,7 +7,7 @@ import (
 
 	"github.com/matrix-org/policyserv/ai"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,11 +22,11 @@ type TestAIProvider[ConfigT any] struct {
 	T              *testing.T
 	Called         bool
 	ExpectedConfig ConfigT
-	Return         []classification.Classification
+	Return         *harms.ContentInfo
 	ReturnErr      error
 }
 
-func (p *TestAIProvider[ConfigT]) CheckEvent(ctx context.Context, cnf ConfigT, input *ai.Input) ([]classification.Classification, error) {
+func (p *TestAIProvider[ConfigT]) CheckEvent(ctx context.Context, cnf ConfigT, input *ai.Input) (*harms.ContentInfo, error) {
 	assert.NotNil(p.T, ctx, "context is required")
 	assert.NotNil(p.T, cnf, "config is required")
 	assert.NotNil(p.T, input, "input is required")
@@ -51,6 +51,7 @@ func TestInstancedAIExecutorFilter(t *testing.T) {
 	provider := &TestAIProvider[*arbitraryConfig]{
 		T:              t,
 		ExpectedConfig: &arbitraryConfig{SomeVal: true},
+		Return:         harms.NeutralContent(),
 	}
 	set := &Set{
 		communityConfig: &config.CommunityConfig{},
@@ -70,9 +71,9 @@ func TestInstancedAIExecutorFilter(t *testing.T) {
 			"msgtype": "m.text",
 		},
 	})
-	vecs, err := instance.CheckEvent(ctx, &EventInput{Event: event})
+	info, err := instance.CheckEvent(ctx, &EventInput{Event: event})
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(vecs))
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), info)
 	assert.False(t, provider.Called)
 
 	// Ensure the AI Provider is called for rooms it's supposed to
@@ -86,9 +87,9 @@ func TestInstancedAIExecutorFilter(t *testing.T) {
 			"msgtype": "m.text",
 		},
 	})
-	vecs, err = instance.CheckEvent(ctx, &EventInput{Event: event})
+	info, err = instance.CheckEvent(ctx, &EventInput{Event: event})
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(vecs))
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), info)
 	assert.True(t, provider.Called)
 
 	// Ensure errors are passed through
@@ -98,10 +99,10 @@ func TestInstancedAIExecutorFilter(t *testing.T) {
 	assert.Equal(t, retErr, err)
 
 	// Ensure classifications are passed through
-	ret := []classification.Classification{classification.Spam, classification.Volumetric}
+	ret := harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding)
 	provider.Return = ret
 	provider.ReturnErr = nil
-	vecs, err = instance.CheckEvent(ctx, &EventInput{Event: event})
+	info, err = instance.CheckEvent(ctx, &EventInput{Event: event})
 	assert.NoError(t, err)
-	assert.Equal(t, ret, vecs)
+	test.AssertEqualContentInfo(t, ret, info)
 }

@@ -7,7 +7,7 @@ import (
 
 	goSet "github.com/deckarep/golang-set"
 	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -105,20 +105,17 @@ func (f *InstancedMentionsFilter) CountMentionsToLimit(ctx context.Context, even
 	return numMentionedUserIds, nil
 }
 
-func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	numMentionedUserIds, err := f.CountMentionsToLimit(ctx, input.Event, f.maxMentions)
 	if err != nil {
 		return nil, err
 	}
 
 	if numMentionedUserIds >= f.maxMentions {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Mentions,
-		}, nil
+		return harms.ProhibitedContent(harms.SpamGeneral), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 type mentionsContent struct {

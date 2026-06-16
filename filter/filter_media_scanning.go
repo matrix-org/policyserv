@@ -11,7 +11,7 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/content"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/storage"
 )
@@ -46,16 +46,16 @@ func (f *InstancedMediaScanningFilter) Name() string {
 	return MediaScanningFilterName
 }
 
-func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if len(input.Medias) == 0 {
-		return nil, nil // return early to avoid doing work
+		return harms.NeutralContent(), nil // return early to avoid doing work
 	}
 
-	retChans := make([]chan []classification.Classification, len(input.Medias))
+	retChans := make([]chan *harms.ContentInfo, len(input.Medias))
 
 	// Create the channels & async the scanning work
 	for i, m := range input.Medias {
-		ch := make(chan []classification.Classification, 1)
+		ch := make(chan *harms.ContentInfo, 1)
 		retChans[i] = ch
 		// scanMedia will close the channel when it's done - we don't need to do it here
 		go f.scanMedia(ctx, input.Event, m, ch)
@@ -66,31 +66,37 @@ func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *Ev
 	defer cancel()
 
 	// Collect all of the scan results, up to a timeout
-	classifications := make([]classification.Classification, 0)
+	contentClass := harms.ContentClassNeutral
+	harmIds := make([]harms.Harm, 0)
 	for _, ch := range retChans {
 		select {
 		case <-readTimeout.Done():
 			log.Printf("[%s | %s] Media scanning timed out", input.Event.EventID(), input.Event.RoomID().String())
-			return []classification.Classification{classification.Spam, classification.Unsafe}, nil
-		case subClassifications := <-ch:
-			if subClassifications != nil {
-				classifications = append(classifications, subClassifications...)
+			return harms.ProhibitedContent(harms.SpamGeneral, harms.OtherGeneral), nil
+		case mediaInfo := <-ch:
+			if mediaInfo != nil {
+				if contentClass < mediaInfo.Class() {
+					contentClass = mediaInfo.Class()
+				}
+				for _, h := range mediaInfo.Harms() {
+					harmIds = append(harmIds, h)
+				}
 			}
 		}
 	}
 
 	// Return those results
-	return classifications, nil
+	return harms.NewContentInfo(contentClass, harmIds...), nil
 }
 
-func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event gomatrixserverlib.PDU, media *media.Item, ch chan<- []classification.Classification) {
+func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event gomatrixserverlib.PDU, media *media.Item, ch chan<- *harms.ContentInfo) {
 	cached, err := f.set.storage.GetMediaClassification(ctx, media.String(), f.set.communityId)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.Printf("[%s | %s] Non-fatal error getting cached media classification: %s", event.EventID(), event.RoomID().String(), err)
 	}
 	if err == nil {
 		log.Printf("[%s | %s] Using cached media classification for %s (%v)", event.EventID(), event.RoomID().String(), media, cached.Classifications)
-		ch <- cached.Classifications
+		ch <- cached.Classifications.ContentInfo
 		return
 	}
 
@@ -98,7 +104,7 @@ func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event goma
 	b, err := media.Download()
 	if err != nil {
 		log.Printf("[%s | %s] Error downloading media: %s", event.EventID(), event.RoomID().String(), err)
-		ch <- []classification.Classification{classification.Spam, classification.Unsafe} // Consider errors to be spam for now.
+		ch <- harms.ProhibitedContent(harms.SpamGeneral, harms.OtherGeneral) // Consider errors to be spam for now.
 		return
 	}
 
@@ -118,9 +124,11 @@ func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event goma
 	log.Printf("[%s | %s] Media scan result on %s: %v", event.EventID(), event.RoomID().String(), media, res)
 
 	err = f.set.storage.UpsertMediaClassification(ctx, &storage.StoredMediaClassification{
-		MxcUri:          media.String(),
-		CommunityId:     f.set.communityId,
-		Classifications: res,
+		MxcUri:      media.String(),
+		CommunityId: f.set.communityId,
+		Classifications: storage.StoredClassifications{
+			ContentInfo: res,
+		},
 	})
 	if err != nil {
 		log.Printf("[%s | %s] Non-fatal error caching media classification: %s", event.EventID(), event.RoomID().String(), err)

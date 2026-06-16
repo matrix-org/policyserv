@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -33,17 +33,14 @@ func (f *InstancedManyAtsFilter) Name() string {
 	return ManyAtsFilterName
 }
 
-func (f *InstancedManyAtsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedManyAtsFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	return f.CheckText(ctx, string(input.Event.Content()))
 }
 
-func (f *InstancedManyAtsFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *InstancedManyAtsFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	if strings.Count(text, "@") >= f.maxAts {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Mentions,
-		}, nil
+		return harms.ProhibitedContent(harms.SpamGeneral), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

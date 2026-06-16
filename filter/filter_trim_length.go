@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -34,10 +34,10 @@ func (f *InstancedTrimLengthFilter) Name() string {
 	return TrimLengthFilterName
 }
 
-func (f *InstancedTrimLengthFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedTrimLengthFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	// Return early on non-message events
 	if input.Event.Type() != "m.room.message" {
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	content := &bodyOnly{}
@@ -49,16 +49,13 @@ func (f *InstancedTrimLengthFilter) CheckEvent(ctx context.Context, input *Event
 	return f.CheckText(ctx, content.Body)
 }
 
-func (f *InstancedTrimLengthFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *InstancedTrimLengthFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	beforeTrim := len(text)
 	afterTrim := len(strings.TrimSpace(text))
 
 	if (beforeTrim - afterTrim) >= f.maxDifference {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Volumetric,
-		}, nil
+		return harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

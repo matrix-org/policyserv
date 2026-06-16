@@ -8,8 +8,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/frequency"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -57,7 +57,7 @@ func (f *InstancedMentionsFrequencyFilter) Close() error {
 	return f.counter.Close()
 }
 
-func (f *InstancedMentionsFrequencyFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedMentionsFrequencyFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	numMentions, err := f.mentionsFilter.CountMentionsToLimit(ctx, input.Event, f.mentionsFilter.maxMentions)
 	if err != nil {
 		return nil, err
@@ -82,12 +82,7 @@ func (f *InstancedMentionsFrequencyFilter) CheckEvent(ctx context.Context, input
 	rate := float64(eventsLastMinute+numMentions) / float64(60)
 	log.Printf("[%s | %s] Rate for user %s is %f (limit: %f)", input.Event.EventID(), input.Event.RoomID().String(), input.Event.SenderID(), rate, f.rateLimit)
 	if rate > f.rateLimit {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Frequency,
-			classification.Mentions,
-		}, nil
-	} else {
-		return nil, nil
+		return harms.ProhibitedContent(harms.SpamGeneral), nil
 	}
+	return harms.NeutralContent(), nil
 }

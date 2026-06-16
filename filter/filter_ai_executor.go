@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"github.com/matrix-org/policyserv/ai"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 )
 
 type InstancedAIExecutorFilter[ConfigT any] struct {
@@ -30,9 +30,9 @@ func (f *InstancedAIExecutorFilter[ConfigT]) Name() string {
 	return f.name
 }
 
-func (f *InstancedAIExecutorFilter[ConfigT]) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedAIExecutorFilter[ConfigT]) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if !slices.Contains(f.inRoomIds, input.Event.RoomID().String()) {
-		return nil, nil // this filter isn't allowed to execute in here
+		return harms.NeutralContent(), nil // this filter isn't allowed to execute in here
 	}
 	return f.aiProvider.CheckEvent(ctx, f.config, &ai.Input{
 		Event:  input.Event,

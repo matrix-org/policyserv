@@ -4,7 +4,7 @@ import (
 	"context"
 	"regexp"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/ryanuber/go-glob"
 )
@@ -40,15 +40,15 @@ func (f *InstancedLinkFilter) Name() string {
 	return LinkFilterName
 }
 
-func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedLinkFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	content := string(input.Event.Content())
 	return f.CheckText(ctx, content)
 }
 
-func (f *InstancedLinkFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *InstancedLinkFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	// If neither list is configured, this filter has no opinion.
 	if len(f.allowedUrlGlobs) == 0 && len(f.deniedUrlGlobs) == 0 {
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	// Find all of the URLs in the text
@@ -56,16 +56,16 @@ func (f *InstancedLinkFilter) CheckText(ctx context.Context, text string) ([]cla
 
 	// No URLs found, so nothing to check.
 	if len(urls) == 0 {
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	for _, url := range urls {
 		if !f.isUrlAllowed(url) {
-			return []classification.Classification{classification.Spam}, nil
+			return harms.ProhibitedContent(harms.SpamGeneral), nil
 		}
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 func (f *InstancedLinkFilter) isUrlAllowed(url string) bool {

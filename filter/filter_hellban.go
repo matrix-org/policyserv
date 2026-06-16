@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cache "github.com/Code-Hex/go-generics-cache"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pubsub"
 )
@@ -116,7 +116,7 @@ func (f *InstancedHellbanFilter) Name() string {
 	return mode
 }
 
-func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	mode := f.Name()
 
 	eventId := input.Event.EventID()
@@ -127,10 +127,7 @@ func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInp
 	if mode == HellbanPrefilterName {
 		if _, ok := f.userIdsCache.Get(senderUserId); ok {
 			log.Printf("[%s | %s | %s] Sender '%s' is hellbanned", eventId, roomId, mode, senderUserId)
-			return []classification.Classification{
-				classification.Spam,
-				classification.Frequency,
-			}, nil
+			return harms.ProhibitedContent(harms.SpamGeneral), nil
 		}
 	} else {
 		if f.set.IsSpamResponse(ctx, input.IncrementalConfidenceVectors) {
@@ -139,15 +136,12 @@ func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInp
 			if err != nil {
 				return nil, err
 			}
-			return []classification.Classification{
-				classification.Spam,
-				classification.Frequency,
-			}, nil
+			return harms.ProhibitedContent(harms.SpamGeneral), nil
 		}
 	}
 
 	// If we reached here, the sender isn't spammy by our metrics.
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 func (f *InstancedHellbanFilter) Close() error {

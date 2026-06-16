@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 )
 
 const StickyEventsFilterName = "StickyEventsFilter"
@@ -30,9 +30,9 @@ func (f *InstancedStickyEventsFilter) Name() string {
 	return StickyEventsFilterName
 }
 
-func (f *InstancedStickyEventsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedStickyEventsFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if input.Event.IsSticky(time.Now(), time.Now()) {
-		return []classification.Classification{classification.Spam, classification.Volumetric}, nil
+		return harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding), nil
 	}
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

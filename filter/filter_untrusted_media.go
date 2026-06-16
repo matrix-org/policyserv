@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/trust"
 )
@@ -74,7 +74,7 @@ func (f *InstancedUntrustedMediaFilter) Name() string {
 	return UntrustedMediaFilterName
 }
 
-func (f *InstancedUntrustedMediaFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedUntrustedMediaFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	userId := input.Event.SenderID().ToUserID().String()
 	isTrusted := false
 	for _, source := range f.trustSources {
@@ -97,7 +97,7 @@ func (f *InstancedUntrustedMediaFilter) CheckEvent(ctx context.Context, input *E
 	}
 
 	if isTrusted {
-		return nil, nil // no useful opinion on this event - the sender is trusted to send whatever we're about to check for
+		return harms.NeutralContent(), nil // no useful opinion on this event - the sender is trusted to send whatever we're about to check for
 	}
 
 	// copy logic from the regular media filter

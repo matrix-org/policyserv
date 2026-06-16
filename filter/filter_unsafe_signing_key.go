@@ -11,7 +11,7 @@ import (
 	"slices"
 
 	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 )
 
 const UnsafeSigningKeyFilterName = "UnsafeSigningKeyFilter"
@@ -54,7 +54,7 @@ func (f *InstancedUnsafeSigningKeyFilter) Name() string {
 	return UnsafeSigningKeyFilterName
 }
 
-func (f *InstancedUnsafeSigningKeyFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedUnsafeSigningKeyFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	// Start by generating our own signature for the event. This requires redaction, so do that first.
 	roomVer := gomatrixserverlib.MustGetRoomVersion(input.Event.Version())
 	redacted, err := roomVer.RedactEventJSON(input.Event.JSON())
@@ -97,14 +97,11 @@ func (f *InstancedUnsafeSigningKeyFilter) CheckEvent(ctx context.Context, input 
 
 				if slices.Equal(compareSignature, rawSignature) {
 					log.Printf("[%s | %s] Unsafe signing key used by %s as key ID %s", input.Event.EventID(), input.Event.RoomID().String(), serverName, keyId)
-					return []classification.Classification{
-						classification.Spam,
-						classification.Unsafe,
-					}, nil
+					return harms.ProhibitedContent(harms.SpamGeneral, harms.OtherGeneral), nil
 				}
 			}
 		}
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

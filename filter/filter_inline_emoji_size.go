@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/matrix-org/policyserv/event"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"golang.org/x/net/html"
 )
@@ -47,7 +47,7 @@ func (i *InstancedInlineEmojiSizeFilter) Name() string {
 	return InlineEmojiSizeFilterName
 }
 
-func (i *InstancedInlineEmojiSizeFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (i *InstancedInlineEmojiSizeFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	htmlRepresentations, err := event.ExtractHtmlRepresentations(input.Event)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (i *InstancedInlineEmojiSizeFilter) CheckEvent(ctx context.Context, input *
 					if strings.ToLower(string(key)) == "height" {
 						if alreadySawHeight {
 							log.Printf("[%s | %s] Multiple height attributes found on inline image", input.Event.EventID(), input.Event.RoomID().String())
-							return []classification.Classification{classification.Spam}, nil
+							return harms.ProhibitedContent(harms.SpamGeneral), nil
 						}
 						alreadySawHeight = true
 
@@ -104,7 +104,7 @@ func (i *InstancedInlineEmojiSizeFilter) CheckEvent(ctx context.Context, input *
 						if !sizeRegex.MatchString(size) {
 							// We don't log the size we saw because it's potentially spammy
 							log.Printf("[%s | %s] Invalid height attribute on inline image", input.Event.EventID(), input.Event.RoomID().String())
-							return []classification.Classification{classification.Spam}, nil
+							return harms.ProhibitedContent(harms.SpamGeneral), nil
 						}
 
 						// Parse the integer
@@ -112,13 +112,13 @@ func (i *InstancedInlineEmojiSizeFilter) CheckEvent(ctx context.Context, input *
 						if err != nil {
 							// Don't log the size we saw because it's potentially spammy
 							log.Printf("[%s | %s] Failed to parse height attribute on inline image", input.Event.EventID(), input.Event.RoomID().String())
-							return []classification.Classification{classification.Spam}, nil
+							return harms.ProhibitedContent(harms.SpamGeneral), nil
 						}
 
 						if height > i.maxHeightPixels {
 							// Don't log the size we saw because it's potentially spammy
 							log.Printf("[%s | %s] Height attribute on inline image is too large", input.Event.EventID(), input.Event.RoomID().String())
-							return []classification.Classification{classification.Spam}, nil
+							return harms.ProhibitedContent(harms.SpamGeneral), nil
 						}
 					}
 					if !moreAttrs {
@@ -128,11 +128,11 @@ func (i *InstancedInlineEmojiSizeFilter) CheckEvent(ctx context.Context, input *
 
 				// If the tag isn't an emoji or we didn't see a height attribute, flag as spam
 				if !isEmoticon || !alreadySawHeight {
-					return []classification.Classification{classification.Spam}, nil
+					return harms.ProhibitedContent(harms.SpamGeneral), nil
 				}
 			}
 		}
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
