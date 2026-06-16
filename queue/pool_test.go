@@ -6,8 +6,7 @@ import (
 
 	"github.com/matrix-org/policyserv/community"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -48,9 +47,9 @@ func TestPool(t *testing.T) {
 
 	// Cache a result to ensure the happy path works
 	res := &storage.StoredEventResult{
-		EventId:           event.EventID(),
-		IsProbablySpam:    true,
-		ConfidenceVectors: confidence.Vectors{classification.Spam: 0.5, classification.Mentions: 1.0},
+		EventId:        event.EventID(),
+		IsProbablySpam: true,
+		ContentInfo:    harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding),
 	}
 	err = db.UpsertEventResult(context.Background(), res)
 	assert.NoError(t, err)
@@ -62,10 +61,10 @@ func TestPool(t *testing.T) {
 	poolResult := <-ch
 	assert.NotNil(t, poolResult)
 	assert.Equal(t, &PoolResult{
-		Vectors:        res.ConfidenceVectors,
-		IsProbablySpam: res.IsProbablySpam,
-		Err:            nil,
+		ContentInfo: res.ContentInfo,
+		Err:         nil,
 	}, poolResult)
+	test.AssertEqualContentInfo(t, res.ContentInfo, poolResult.ContentInfo)
 }
 
 func TestPoolHandlesErrors(t *testing.T) {
@@ -110,8 +109,7 @@ func TestPoolHandlesErrors(t *testing.T) {
 	poolResult := <-ch
 	assert.NotNil(t, poolResult)
 	assert.Equal(t, &PoolResult{
-		Vectors:        nil,
-		IsProbablySpam: false,
-		Err:            test.SimulatedError,
+		ContentInfo: nil,
+		Err:         test.SimulatedError,
 	}, poolResult)
 }

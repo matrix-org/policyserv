@@ -11,8 +11,7 @@ import (
 	"testing"
 
 	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/homeserver"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/storage"
@@ -51,7 +50,7 @@ func TestHttpCheckTextCommunityApi(t *testing.T) {
 	httpCheckTextCommunityApi(api, serverCommunity, w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	test.AssertApiError(t, w, "ORG.MATRIX.MSC4387_SAFETY", "Text is probably spammy")
-	test.AssertApiErrorHarms(t, w, []string{"org.matrix.msc4387.spam"})
+	test.AssertApiErrorHarms(t, w, []string{string(harms.SpamGeneral)})
 
 	// Then test a non-match
 	w = httptest.NewRecorder()
@@ -81,15 +80,15 @@ func TestHttpCheckEventIdCommunityApiWithKnownEvent(t *testing.T) {
 
 	// For this test, cache a couple event results to ensure we can avoid federation calls
 	err := api.storage.UpsertEventResult(context.Background(), &storage.StoredEventResult{
-		EventId:           "$spam",
-		IsProbablySpam:    true,
-		ConfidenceVectors: confidence.Vectors{classification.Spam: 1.0},
+		EventId:        "$spam",
+		IsProbablySpam: true,
+		ContentInfo:    harms.ProhibitedContent(harms.SpamGeneral),
 	})
 	assert.NoError(t, err)
 	err = api.storage.UpsertEventResult(context.Background(), &storage.StoredEventResult{
-		EventId:           "$neutral",
-		IsProbablySpam:    false,
-		ConfidenceVectors: confidence.NewConfidenceVectors(),
+		EventId:        "$neutral",
+		IsProbablySpam: false,
+		ContentInfo:    harms.NeutralContent(),
 	})
 	assert.NoError(t, err)
 
