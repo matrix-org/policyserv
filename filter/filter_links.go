@@ -61,6 +61,8 @@ func (f *InstancedLinkFilter) CheckText(ctx context.Context, text string) (*harm
 
 	for _, url := range urls {
 		if !f.isUrlAllowed(url) {
+			// Links are probably phishing (SpamFraud), but we don't *really* know how people are using this filter
+			// to be confident enough to *always* return that.
 			return harms.ProhibitedContent(harms.SpamGeneral), nil
 		}
 	}

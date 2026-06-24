@@ -43,7 +43,7 @@ func (f *InstancedMjolnirFilter) CheckEvent(ctx context.Context, input *EventInp
 	}
 
 	if banned {
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.OtherGeneral), nil
 	}
 
 	return harms.NeutralContent(), nil

@@ -44,7 +44,7 @@ func (p *InstancedProtectLocalUserFilter) CheckEvent(ctx context.Context, input 
 		// XXX: This also denies invites, but we don't support them yet anyway - https://github.com/matrix-org/policyserv/issues/91
 		if input.Event.StateKeyEquals(p.localUserId.String()) && input.Event.SenderID().ToUserID().String() != p.localUserId.String() {
 			log.Printf("[%s | %s] %s tried to add/remove policyserv user improperly", input.Event.EventID(), input.Event.RoomID(), input.Event.SenderID())
-			return harms.ProhibitedContent(harms.SpamGeneral), nil
+			return harms.ProhibitedContent(harms.OtherGeneral), nil
 		}
 	}
 	return harms.NeutralContent(), nil

@@ -82,7 +82,7 @@ func (f *InstancedMentionsFrequencyFilter) CheckEvent(ctx context.Context, input
 	rate := float64(eventsLastMinute+numMentions) / float64(60)
 	log.Printf("[%s | %s] Rate for user %s is %f (limit: %f)", input.Event.EventID(), input.Event.RoomID().String(), input.Event.SenderID(), rate, f.rateLimit)
 	if rate > f.rateLimit {
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 	return harms.NeutralContent(), nil
 }

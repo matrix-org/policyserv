@@ -72,7 +72,7 @@ func (f *InstancedMediaScanningFilter) CheckEvent(ctx context.Context, input *Ev
 		select {
 		case <-readTimeout.Done():
 			log.Printf("[%s | %s] Media scanning timed out", input.Event.EventID(), input.Event.RoomID().String())
-			return harms.ProhibitedContent(harms.SpamGeneral, harms.OtherGeneral), nil
+			return harms.ProhibitedContent(harms.OtherGeneral), nil
 		case mediaInfo := <-ch:
 			if mediaInfo != nil {
 				if contentClass < mediaInfo.Class() {
@@ -104,7 +104,7 @@ func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event goma
 	b, err := media.Download()
 	if err != nil {
 		log.Printf("[%s | %s] Error downloading media: %s", event.EventID(), event.RoomID().String(), err)
-		ch <- harms.ProhibitedContent(harms.SpamGeneral, harms.OtherGeneral) // Consider errors to be spam for now.
+		ch <- harms.ProhibitedContent(harms.OtherGeneral) // Consider errors to be spam for now.
 		return
 	}
 

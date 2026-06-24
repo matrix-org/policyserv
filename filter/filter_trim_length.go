@@ -54,7 +54,7 @@ func (f *InstancedTrimLengthFilter) CheckText(ctx context.Context, text string) 
 	afterTrim := len(strings.TrimSpace(text))
 
 	if (beforeTrim - afterTrim) >= f.maxDifference {
-		return harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	return harms.NeutralContent(), nil

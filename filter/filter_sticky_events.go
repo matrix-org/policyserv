@@ -32,7 +32,7 @@ func (f *InstancedStickyEventsFilter) Name() string {
 
 func (f *InstancedStickyEventsFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if input.Event.IsSticky(time.Now(), time.Now()) {
-		return harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding), nil
+		return harms.ProhibitedContent(harms.OtherGeneral), nil
 	}
 	return harms.NeutralContent(), nil
 }

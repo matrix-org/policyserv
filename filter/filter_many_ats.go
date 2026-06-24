@@ -39,7 +39,7 @@ func (f *InstancedManyAtsFilter) CheckEvent(ctx context.Context, input *EventInp
 
 func (f *InstancedManyAtsFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	if strings.Count(text, "@") >= f.maxAts {
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	return harms.NeutralContent(), nil

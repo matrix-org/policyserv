@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/storage"
 	"github.com/matrix-org/policyserv/test"
@@ -23,9 +23,8 @@ func TestMentionsFrequencyFilter(t *testing.T) {
 			MentionFrequencyFilterRateLimit:          internal.Pointer(5.0 / 60.0), // 5 mentions per minute
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{MentionsFrequencyFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames: []string{MentionsFrequencyFilterName},
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -80,29 +79,17 @@ func TestMentionsFrequencyFilter(t *testing.T) {
 
 	// No-op events shouldn't affect frequency. Because our rate limit is a single event, if this is handled improperly
 	// then the next event will fail its test.
-	vecs, err := set.CheckEvent(context.Background(), noopEvent1, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam)) // original value survives due to "no opinion"
-	assert.Equal(t, 0.0, vecs.GetVector(classification.Frequency))
-	assert.Equal(t, 0.0, vecs.GetVector(classification.Mentions))
+	AssertCheckEvent(t, set, noopEvent1, harms.NeutralContent())
 
 	// Now we send an event that's in scope, but is technically going to be neutral. This is because we increment at a
 	// different point, so we might "miss" the first spammy event.
-	vecs, err = set.CheckEvent(context.Background(), spammyEvent1, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam)) // original value survives due to "no opinion"
-	assert.Equal(t, 0.0, vecs.GetVector(classification.Frequency))
-	assert.Equal(t, 0.0, vecs.GetVector(classification.Mentions))
+	AssertCheckEvent(t, set, spammyEvent1, harms.NeutralContent())
 
 	// Give a little bit of time for the notifier to settle
 	time.Sleep(100 * time.Millisecond)
 
 	// Now try to send another event that's in scope. This time it should exceed the rate limit as spam.
-	vecs, err = set.CheckEvent(context.Background(), spammyEvent2, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Frequency))
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Mentions))
+	AssertCheckEvent(t, set, spammyEvent2, harms.ProhibitedContent(harms.SpamFlooding))
 
 	// Allow the goroutines to settle before concluding the test
 	time.Sleep(100 * time.Millisecond)

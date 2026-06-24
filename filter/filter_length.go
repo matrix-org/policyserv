@@ -44,7 +44,7 @@ func (f *InstancedLengthFilter) CheckEvent(ctx context.Context, input *EventInpu
 
 func (f *InstancedLengthFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	if len(text) > f.maxLength {
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	return harms.NeutralContent(), nil

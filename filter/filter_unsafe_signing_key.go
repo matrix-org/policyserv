@@ -97,7 +97,7 @@ func (f *InstancedUnsafeSigningKeyFilter) CheckEvent(ctx context.Context, input 
 
 				if slices.Equal(compareSignature, rawSignature) {
 					log.Printf("[%s | %s] Unsafe signing key used by %s as key ID %s", input.Event.EventID(), input.Event.RoomID().String(), serverName, keyId)
-					return harms.ProhibitedContent(harms.SpamGeneral, harms.OtherGeneral), nil
+					return harms.ProhibitedContent(harms.OtherGeneral), nil
 				}
 			}
 		}

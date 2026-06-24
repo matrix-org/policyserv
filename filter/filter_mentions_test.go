@@ -2,13 +2,12 @@ package filter
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"strings"
 	"testing"
 
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -39,9 +38,8 @@ func TestMentionsFilter(t *testing.T) {
 			MentionFilterMinPlaintextLength: internal.Pointer(5),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{MentionsFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames: []string{MentionsFilterName},
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -149,36 +147,33 @@ func TestMentionsFilter(t *testing.T) {
 
 	roomId := "!foo:example.org"
 	for _, tc := range testCases {
-		event := test.MustMakePDU(&test.BaseClientEvent{
-			EventId: "$testcase",
-			RoomId:  roomId,
-			Type:    tc.EventType,
-			Content: map[string]any{
-				"m.mentions": map[string]any{
-					"user_ids": tc.Members.UserIds,
+		t.Run(tc.TestName, func(t *testing.T) {
+			event := test.MustMakePDU(&test.BaseClientEvent{
+				EventId: "$testcase",
+				RoomId:  roomId,
+				Type:    tc.EventType,
+				Content: map[string]any{
+					"m.mentions": map[string]any{
+						"user_ids": tc.Members.UserIds,
+					},
+					"body":           tc.Body,
+					"formatted_body": tc.FormattedBody,
 				},
-				"body":           tc.Body,
-				"formatted_body": tc.FormattedBody,
-			},
+			})
+			err = memStorage.SetUserIdsAndDisplayNamesByRoomId(ctx, roomId, tc.Members.UserIds, tc.Members.DisplayNames)
+			assert.NoError(t, err)
+
+			mentionsFilter, ok := set.groups[0].filters[0].(*InstancedMentionsFilter)
+			assert.True(t, ok)
+			numMentions, err := mentionsFilter.CountMentionsToLimit(context.Background(), event, math.MaxInt)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.MentionsCount, numMentions)
+
+			if tc.WantNeutral {
+				AssertCheckEvent(t, set, event, harms.NeutralContent())
+			} else {
+				AssertCheckEvent(t, set, event, harms.ProhibitedContent(harms.SpamFlooding))
+			}
 		})
-		err = memStorage.SetUserIdsAndDisplayNamesByRoomId(ctx, roomId, tc.Members.UserIds, tc.Members.DisplayNames)
-		assert.NoError(t, err, fmt.Sprintf("%s => wanted no error", tc.TestName))
-
-		mentionsFilter, ok := set.groups[0].filters[0].(*InstancedMentionsFilter)
-		assert.True(t, ok)
-		numMentions, err := mentionsFilter.CountMentionsToLimit(context.Background(), event, math.MaxInt)
-		assert.NoError(t, err)
-		assert.Equal(t, tc.MentionsCount, numMentions, fmt.Sprintf("%s => wanted %d mentions", tc.TestName, tc.MentionsCount))
-
-		vecs, err := set.CheckEvent(ctx, event, nil)
-		assert.NoError(t, err)
-		if tc.WantNeutral {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam), fmt.Sprintf("%s => wanted spam vector of 0.5", tc.TestName))
-			assert.Equal(t, 0.0, vecs.GetVector(classification.Mentions), fmt.Sprintf("%s => wanted mentions vector of 0.0", tc.TestName))
-		} else {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam), fmt.Sprintf("%s => wanted spam vector of 1.0", tc.TestName))
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Mentions), fmt.Sprintf("%s => wanted mentions vector of 0.0", tc.TestName))
-		}
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
 	"github.com/matrix-org/policyserv/content"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -22,9 +22,8 @@ func TestMediaScanningFilter(t *testing.T) {
 			MediaFilterMediaTypes: &[]string{"m.sticker", "m.image"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{MediaScanningFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames: []string{MediaScanningFilterName},
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -41,8 +40,8 @@ func TestMediaScanningFilter(t *testing.T) {
 
 	// Note: we set the CSAM classification in both expectations so we can detect that the filter actually ran the scanner.
 	// Only the first will result in a spam response though because it sets the spam classification.
-	scanner.Expect(content.TypePhoto, spammyBytes, []classification.Classification{classification.CSAM, classification.Spam}, nil)
-	scanner.Expect(content.TypePhoto, neutralBytes, []classification.Classification{classification.CSAM}, nil)
+	scanner.Expect(content.TypePhoto, spammyBytes, harms.ProhibitedContent(harms.ChildSafetyCSAM, harms.SpamGeneral), nil)
+	scanner.Expect(content.TypePhoto, neutralBytes, harms.ProhibitedContent(harms.ChildSafetyCSAM), nil)
 
 	spammyMxcUri1 := "mxc://example.org/spam1"
 	spammyMxcUri2 := "mxc://example.org/spam2"
@@ -98,24 +97,26 @@ func TestMediaScanningFilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool, expectedDownloadCalls int) {
-		before := downloader.DownloadCalls
-		vecs, err := set.CheckEvent(context.Background(), event, downloader)
+	// We can't use AssertCheckEvent here because we need to give it a downloader to use.
+	assertCheckEvent := func(event gomatrixserverlib.PDU, expected *harms.ContentInfo) {
+		info, err := set.CheckEvent(context.Background(), event, downloader)
 		assert.NoError(t, err)
-		assert.Equal(t, before+expectedDownloadCalls, downloader.DownloadCalls)
-		assert.Equal(t, 1.0, vecs.GetVector(classification.CSAM)) // always set regardless of spam/neutral
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		}
+		test.AssertEqualContentInfo(t, expected, info)
 	}
-	assertSpamVector(spammyEvent1, true, 1)
-	assertSpamVector(spammyEvent2, true, 1)
-	assertSpamVector(spammyEvent3, true, 0) // should have cached the result in spammyEvent2
-	assertSpamVector(neutralEvent1, false, 1)
-	assertSpamVector(neutralEvent2, false, 0) // should have been cached above too
+
+	assertCheckEvent(spammyEvent1, harms.ProhibitedContent(harms.ChildSafetyCSAM, harms.SpamGeneral))
+	assert.Equal(t, 1, downloader.DownloadCalls)
+	assertCheckEvent(spammyEvent2, harms.ProhibitedContent(harms.ChildSafetyCSAM, harms.SpamGeneral))
+	assert.Equal(t, 2, downloader.DownloadCalls) // +1 call
+	assertCheckEvent(spammyEvent3, harms.ProhibitedContent(harms.ChildSafetyCSAM, harms.SpamGeneral))
+	assert.Equal(t, 2, downloader.DownloadCalls) // should have already cached the result
+
+	// We always return a CSAM harm for testing, even on neutral media
+
+	assertCheckEvent(neutralEvent1, harms.ProhibitedContent(harms.ChildSafetyCSAM))
+	assert.Equal(t, 3, downloader.DownloadCalls) // +1 call
+	assertCheckEvent(neutralEvent2, harms.ProhibitedContent(harms.ChildSafetyCSAM))
+	assert.Equal(t, 3, downloader.DownloadCalls) // should have already cached the result too
 }
 
 func TestMediaScanningFilterGracefullyHandlesDownloadTimeouts(t *testing.T) {
@@ -145,17 +146,16 @@ func TestMediaScanningFilterGracefullyHandlesDownloadTimeouts(t *testing.T) {
 			},
 		})
 
-		before := downloader.DownloadCalls
 		mediaItem, err := media.NewItem("mxc://example.org/media", downloader)
 		assert.NoError(t, err)
 		assert.NotNil(t, mediaItem)
-		vecs, err := f.CheckEvent(context.Background(), &EventInput{
+		info, err := f.CheckEvent(context.Background(), &EventInput{
 			Event:  event,
 			Medias: []*media.Item{mediaItem},
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, []classification.Classification{classification.Spam, classification.Unsafe}, vecs)
-		assert.Equal(t, before+1, downloader.DownloadCalls)
+		test.AssertEqualContentInfo(t, harms.ProhibitedContent(harms.OtherGeneral), info)
+		assert.Equal(t, 1, downloader.DownloadCalls)
 		synctest.Wait()
 	})
 }

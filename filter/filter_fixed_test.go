@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,19 +30,19 @@ func (f *FixedCanBeInstancedFilter) MakeFor(set *Set) (Instanced, error) {
 
 // FixedInstancedFilter - An Instanced filter which exists for testing purposes
 type FixedInstancedFilter struct {
-	T             *testing.T
-	Set           *Set
-	Expect        *EventInput
-	ExpectText    string
-	ReturnClasses []classification.Classification
-	ReturnErr     error
+	T          *testing.T
+	Set        *Set
+	Expect     *EventInput
+	ExpectText string
+	ReturnInfo *harms.ContentInfo
+	ReturnErr  error
 }
 
 func (f *FixedInstancedFilter) Name() string {
 	return FixedFilterName
 }
 
-func (f *FixedInstancedFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *FixedInstancedFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	assert.NotNil(f.T, ctx, "context is required")
 
 	if f.Expect != nil {
@@ -59,17 +59,17 @@ func (f *FixedInstancedFilter) CheckEvent(ctx context.Context, input *EventInput
 		assert.Equal(f.T, f.Expect, input)
 	}
 
-	return f.ReturnClasses, f.ReturnErr
+	return f.ReturnInfo, f.ReturnErr
 }
 
-func (f *FixedInstancedFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *FixedInstancedFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	assert.NotNil(f.T, ctx, "context is required")
 
 	if f.ExpectText != "" {
 		assert.Equal(f.T, f.ExpectText, text)
 	}
 
-	return f.ReturnClasses, f.ReturnErr
+	return f.ReturnInfo, f.ReturnErr
 }
 
 type ErrorFilter struct {

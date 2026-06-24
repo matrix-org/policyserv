@@ -4,9 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/matrix-org/policyserv/trust"
@@ -23,9 +22,8 @@ func TestUntrustedMediaFilter(t *testing.T) {
 			UntrustedMediaFilterUseMuninn:      internal.Pointer(true),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{UntrustedMediaFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames: []string{UntrustedMediaFilterName},
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -138,21 +136,11 @@ func TestUntrustedMediaFilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		}
-	}
-	assertSpamVector(spammyEvent1, true)
-	assertSpamVector(spammyEvent2, true)
-	assertSpamVector(neutralEvent1, false)
-	assertSpamVector(neutralEvent2, false)
-	assertSpamVector(neutralEvent3, false)
-	assertSpamVector(neutralEvent4, false)
-	assertSpamVector(noopEvent1, false)
+	AssertCheckEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamGeneral, harms.PolicyservMedia))
+	AssertCheckEvent(t, set, spammyEvent2, harms.ProhibitedContent(harms.SpamGeneral, harms.PolicyservMedia))
+	AssertCheckEvent(t, set, neutralEvent1, harms.NeutralContent())
+	AssertCheckEvent(t, set, neutralEvent2, harms.NeutralContent())
+	AssertCheckEvent(t, set, neutralEvent3, harms.NeutralContent())
+	AssertCheckEvent(t, set, neutralEvent4, harms.NeutralContent())
+	AssertCheckEvent(t, set, noopEvent1, harms.NeutralContent())
 }

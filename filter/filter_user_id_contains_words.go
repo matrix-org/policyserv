@@ -48,7 +48,7 @@ func (f *InstancedUserIdContainsWordsFilter) CheckEvent(ctx context.Context, inp
 	}
 
 	if len(nonEmptyWords) > f.maxWords {
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	return harms.NeutralContent(), nil

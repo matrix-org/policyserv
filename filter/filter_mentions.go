@@ -112,7 +112,7 @@ func (f *InstancedMentionsFilter) CheckEvent(ctx context.Context, input *EventIn
 	}
 
 	if numMentionedUserIds >= f.maxMentions {
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	return harms.NeutralContent(), nil

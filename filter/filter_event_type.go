@@ -46,5 +46,5 @@ func (f *InstancedEventTypeFilter) CheckEvent(ctx context.Context, input *EventI
 		}
 	}
 
-	return harms.NeutralContent(), nil // no opinions when allow-listed
+	return harms.NeutralContent(), nil // no opinions when not explicitly allowed
 }

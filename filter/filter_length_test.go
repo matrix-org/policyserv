@@ -1,17 +1,14 @@
 package filter
 
 import (
-	"context"
 	"strings"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tidwall/gjson"
 )
 
 func TestLengthFilter(t *testing.T) {
@@ -22,9 +19,8 @@ func TestLengthFilter(t *testing.T) {
 			LengthFilterMaxLength: internal.Pointer(300),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{LengthFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames: []string{LengthFilterName},
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -60,37 +56,7 @@ func TestLengthFilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Volumetric))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 0.0, vecs.GetVector(classification.Volumetric))
-		}
-	}
-	assertSpamVector(spammyEvent1, true)
-	assertSpamVector(neutralEvent1, false)
-	assertSpamVector(noopEvent1, false)
-
-	// Also test the text filter implementation
-	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		body := gjson.Get(string(event.Content()), "body").String()
-		vecs, err := set.CheckText(context.Background(), body)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Volumetric))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 0.0, vecs.GetVector(classification.Volumetric))
-		}
-	}
-	assertTextSpamVector(spammyEvent1, true)
-	assertTextSpamVector(neutralEvent1, false)
-	//assertTextSpamVector(noopEvent1, false) // text doesn't have a concept of event types, so skip this one
+	AssertCheckTextAndEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamFlooding))
+	AssertCheckTextAndEvent(t, set, neutralEvent1, harms.NeutralContent())
+	AssertCheckEvent(t, set, noopEvent1, harms.NeutralContent()) // text doesn't have a concept of event types, so only check events
 }

@@ -75,7 +75,7 @@ func (f *InstancedDensityFilter) checkTextWithLogging(ctx context.Context, text 
 	log.Printf("[%s] Density is %f", logPrefix, density)
 
 	if density >= f.maxDensity {
-		return harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	return harms.NeutralContent(), nil

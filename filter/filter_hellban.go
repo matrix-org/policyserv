@@ -127,7 +127,7 @@ func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInp
 	if mode == HellbanPrefilterName {
 		if _, ok := f.userIdsCache.Get(senderUserId); ok {
 			log.Printf("[%s | %s | %s] Sender '%s' is hellbanned", eventId, roomId, mode, senderUserId)
-			return harms.ProhibitedContent(harms.SpamGeneral), nil
+			return harms.ProhibitedContent(harms.SpamFlooding), nil
 		}
 	} else {
 		// The community manager/filter set group will only call this filter if the event was prohibited, so we can
@@ -137,7 +137,7 @@ func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInp
 		if err != nil {
 			return nil, err
 		}
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	// If we reached here, the sender isn't spammy by our metrics.

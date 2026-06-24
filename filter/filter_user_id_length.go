@@ -34,7 +34,7 @@ func (f *InstancedUserIdLengthFilter) Name() string {
 
 func (f *InstancedUserIdLengthFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if len(input.Event.SenderID()) > f.maxLength {
-		return harms.ProhibitedContent(harms.SpamGeneral), nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 	return harms.NeutralContent(), nil
 }
