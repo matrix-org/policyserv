@@ -166,10 +166,8 @@ func TestHellbanPostfilter(t *testing.T) {
 	ctx := context.Background()
 
 	cnf := &SetConfig{
-		CommunityId: "TestHellbanPostfilter",
-		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: internal.Pointer(0.8), // set to a value where the hellban filter will detect the fixed filter's output as spam
-		},
+		CommunityId:     "TestHellbanPostfilter",
+		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{FixedFilterName},
 			MinimumSpamVectorValue: 0.0,
@@ -264,7 +262,6 @@ func TestHellbanFiltersCombined(t *testing.T) {
 		CommunityId: "TestHellbanFiltersCombined",
 		CommunityConfig: &config.CommunityConfig{
 			HellbanPostfilterMinutes: internal.Pointer(10),
-			SpamThreshold:            internal.Pointer(0.1),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{HellbanPrefilterName},

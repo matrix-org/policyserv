@@ -310,38 +310,6 @@ func TestSetCheckTextWithErrorInGroup(t *testing.T) {
 	assert.Nil(t, vecs)
 }
 
-func TestSetSpamThreshold(t *testing.T) {
-	cnf := &SetConfig{
-		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: internal.Pointer(0.6),
-		},
-	}
-	memStorage := test.NewMemoryStorage(t)
-	defer memStorage.Close()
-	ps := test.NewMemoryPubsub(t)
-	defer ps.Close()
-
-	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, set)
-
-	assert.Equal(t, true, set.IsSpamResponse(context.Background(), confidence.Vectors{
-		classification.Spam: 0.6, // exact match
-	}))
-	assert.Equal(t, true, set.IsSpamResponse(context.Background(), confidence.Vectors{
-		classification.Spam: 0.7, // just above
-	}))
-	assert.Equal(t, false, set.IsSpamResponse(context.Background(), confidence.Vectors{
-		classification.Spam: 0.5, // just below
-	}))
-	assert.Equal(t, false, set.IsSpamResponse(context.Background(), confidence.Vectors{
-		classification.Spam: 0.0, // very much below
-	}))
-	assert.Equal(t, true, set.IsSpamResponse(context.Background(), confidence.Vectors{
-		classification.Spam: 1.0, // very much above
-	}))
-}
-
 func TestCallsWebhook(t *testing.T) {
 	t.Parallel()
 
@@ -373,8 +341,7 @@ func TestCallsWebhook(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: internal.Pointer(0.6),
-			WebhookUrl:    internal.Pointer(server.URL + "/webhook"),
+			WebhookUrl: internal.Pointer(server.URL + "/webhook"),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{FixedFilterName},
@@ -467,8 +434,7 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: internal.Pointer(0.6),
-			WebhookUrl:    internal.Pointer(server.URL + "/webhook"),
+			WebhookUrl: internal.Pointer(server.URL + "/webhook"),
 		},
 		Groups: []*SetGroupConfig{{
 			EnabledNames:           []string{FixedFilterName},

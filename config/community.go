@@ -37,7 +37,6 @@ type CommunityConfig struct {
 	EventTypePrefilterAllowedStateEventTypes *[]string `json:"event_type_prefilter_allowed_state_event_types,omitempty" envconfig:"event_type_prefilter_allowed_state_event_types" default:"m.room.power_levels,m.room.avatar,m.room.name,m.room.topic,m.room.join_rules,m.room.history_visibility,m.room.create,m.room.server_acl,m.room.tombstone,m.room.encryption,m.room.canonical_alias"`
 	HellbanPostfilterMinutes                 *int      `json:"hellban_postfilter_minutes,omitempty" envconfig:"hellban_postfilter_minutes" default:"60"`
 	MjolnirFilterEnabled                     *bool     `json:"mjolnir_filter_enabled,omitempty" envconfig:"mjolnir_filter_enabled" default:"true"`
-	SpamThreshold                            *float64  `json:"spam_threshold,omitempty" envconfig:"spam_threshold" default:"0.8"`
 	WebhookUrl                               *string   `json:"webhook_url,omitempty" envconfig:"webhook_url" default:""`
 	OpenAIFilterFailSecure                   *bool     `json:"openai_filter_fail_secure,omitempty" envconfig:"openai_filter_fail_secure" default:"true"`
 	StickyEventsFilterAllowStickyEvents      *bool     `json:"sticky_events_filter_allow_sticky_events,omitempty" envconfig:"sticky_events_filter_allow_sticky_events" default:"true"`
