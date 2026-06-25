@@ -159,3 +159,46 @@ func TestMediaScanningFilterGracefullyHandlesDownloadTimeouts(t *testing.T) {
 		synctest.Wait()
 	})
 }
+
+func TestMediaScanningFilterGracefullyHandlesScannerError(t *testing.T) {
+	t.Parallel()
+
+	cnf := &SetConfig{
+		Groups: []*SetGroupConfig{{
+			EnabledNames: []string{MediaScanningFilterName},
+			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral},
+		}},
+	}
+	memStorage := test.NewMemoryStorage(t)
+	defer memStorage.Close()
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+	scanner := test.NewMemoryContentScanner(t)
+	set, err := NewSet(cnf, memStorage, ps, test.NewMatrixNotifier(t), scanner)
+	assert.NoError(t, err)
+
+	mediaBytes := []byte("some media")
+	mxcUri := "mxc://example.org/error"
+	downloader := test.MustMakeMediaDownloader(t).Set("example.org", "error", mediaBytes)
+
+	event := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$error1",
+		RoomId:  "!foo:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{"url": mxcUri},
+	})
+
+	// Simulate scanner error
+	scanner.Expect(content.TypePhoto, mediaBytes, nil, assert.AnError)
+
+	info, err := set.CheckEvent(context.Background(), event, downloader)
+	assert.NoError(t, err)
+
+	// Failed scanning should present as prohibited content (with general harm)
+	test.AssertEqualContentInfo(t, harms.ProhibitedContent(harms.OtherGeneral), info)
+
+	// Ensure it didn't cache the nil result
+	cached, err := memStorage.GetMediaClassification(context.Background(), mxcUri, "")
+	assert.Error(t, err)
+	assert.Nil(t, cached)
+}

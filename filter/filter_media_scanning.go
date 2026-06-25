@@ -119,6 +119,8 @@ func (f *InstancedMediaScanningFilter) scanMedia(ctx context.Context, event goma
 	res, err := f.scanner.Scan(ctx, contentType, b)
 	if err != nil {
 		log.Printf("[%s | %s] Error scanning media: %s", event.EventID(), event.RoomID().String(), err)
+		ch <- harms.ProhibitedContent(harms.OtherGeneral) // Consider errors to be spam for now.
+		return
 	}
 
 	log.Printf("[%s | %s] Media scan result on %s: %v", event.EventID(), event.RoomID().String(), media, res)
