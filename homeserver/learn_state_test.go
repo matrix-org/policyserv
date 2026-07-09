@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
@@ -183,8 +184,8 @@ func TestQueueLearnStateIfNeeded(t *testing.T) {
 
 	// Spammy or errored results should *not* lead to a queued state learn attempt
 	res := &queue.PoolResult{
-		Err:            errors.New("should fail"),
-		IsProbablySpam: true,
+		Err:         errors.New("should fail"),
+		ContentInfo: harms.ProhibitedContent(),
 	}
 	hs.queueLearnStateIfNeeded(context.Background(), res, event)
 	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount)
@@ -222,7 +223,7 @@ func TestQueueLearnStateIfNeeded(t *testing.T) {
 
 	// If shouldLearnState throws an error, the room's state should not be learned. We simulate this by not
 	// creating a known room for the event, so the function should fail.
-	res.IsProbablySpam = false // flag the event as not spam
+	res.ContentInfo = harms.NeutralContent() // flag the event as not spam
 	hs.queueLearnStateIfNeeded(context.Background(), res, event)
 	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).canLearnCallCount)
 	assert.Equal(t, 0, hs.stateLearner.(*expectCreateEventLearner).doLearnCallCount)

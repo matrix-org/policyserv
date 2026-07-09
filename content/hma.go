@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/metrics"
 )
 
@@ -34,7 +34,7 @@ func NewHMAScanner(apiBaseUrl string, apiKey string, enabledBankNames []string) 
 	}, nil
 }
 
-func (s *HMAScanner) Scan(ctx context.Context, contentType Type, content []byte) ([]classification.Classification, error) {
+func (s *HMAScanner) Scan(ctx context.Context, contentType Type, content []byte) (*harms.ContentInfo, error) {
 	hash, err := s.hash(contentType, content)
 	if err != nil {
 		return nil, err
@@ -63,10 +63,10 @@ func (s *HMAScanner) Scan(ctx context.Context, contentType Type, content []byte)
 
 	if hadMatch {
 		// TODO: Support labeling the banks rather than assuming it's always CSAM
-		return []classification.Classification{classification.Spam, classification.CSAM}, nil
+		return harms.ProhibitedContent(harms.SpamGeneral, harms.ChildSafetyCSAM, harms.PolicyservMedia), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 func (s *HMAScanner) hash(contentType Type, content []byte) (hashResponse, error) {

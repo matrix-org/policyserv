@@ -5,10 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/pubsub"
@@ -44,9 +42,8 @@ func TestHellbanPrefilterDoesntEternallyExtend(t *testing.T) {
 		CommunityId:     "TestHellbanPrefilterDoesntEternallyExtend",
 		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{fastHellbanPrefilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{fastHellbanPrefilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -83,10 +80,7 @@ func TestHellbanPrefilterDoesntEternallyExtend(t *testing.T) {
 		},
 	})
 
-	vecs, err := set.CheckEvent(context.Background(), neutralEvent1, nil)
-	assert.NoError(t, err)
-	// Because the filter doesn't flag things as "not spam", the seed value should survive
-	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+	AssertCheckEvent(t, set, neutralEvent1, harms.NeutralContent())
 }
 
 func TestHellbanPrefilter(t *testing.T) {
@@ -98,9 +92,8 @@ func TestHellbanPrefilter(t *testing.T) {
 			HellbanPostfilterMinutes: internal.Pointer(10),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{HellbanPrefilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{HellbanPrefilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -147,37 +140,22 @@ func TestHellbanPrefilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Frequency))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		}
-	}
-	assertSpamVector(spammyEvent1, true)
-	assertSpamVector(neutralEvent1, false)
+	AssertCheckEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamFlooding))
+	AssertCheckEvent(t, set, neutralEvent1, harms.NeutralContent())
 }
 
 func TestHellbanPostfilter(t *testing.T) {
 	ctx := context.Background()
 
 	cnf := &SetConfig{
-		CommunityId: "TestHellbanPostfilter",
-		CommunityConfig: &config.CommunityConfig{
-			SpamThreshold: internal.Pointer(0.8), // set to a value where the hellban filter will detect the fixed filter's output as spam
-		},
+		CommunityId:     "TestHellbanPostfilter",
+		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{FixedFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
 		}, {
-			EnabledNames:           []string{HellbanPostfilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{HellbanPostfilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // but we only want to detect spam for the postfilter test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -216,45 +194,30 @@ func TestHellbanPostfilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		fixedFilter.Expect = &EventInput{
-			Event:                        event,
-			Medias:                       make([]*media.Item, 0),
-			IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
-		}
-		if isSpam {
-			fixedFilter.ReturnClasses = []classification.Classification{classification.Spam}
-		} else {
-			fixedFilter.ReturnClasses = []classification.Classification{classification.Spam.Invert()}
-		}
-
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Frequency))
-		} else {
-			assert.Equal(t, 0.0, vecs.GetVector(classification.Spam))
-		}
-
-		if isSpam {
-			select {
-			case recv := <-subCh:
-				assert.Equal(t, mustEncodeHellban(cnf.CommunityId, spammerUserId), recv)
-			case <-time.After(5 * time.Second): // if after a little bit we haven't heard anything, fail
-				assert.Fail(t, "didn't receive a subscription event")
-			}
-		} else {
-			select {
-			case <-subCh:
-				assert.Fail(t, "should not have received a subscription event")
-			case <-time.After(1 * time.Second): // we use 1 second for the same reason as the prefilter above
-				// passing case - we want this to happen
-			}
-		}
+	// Check the spammy event first (should cause a hellban)
+	fixedFilter.Expect = &EventInput{
+		Event:  spammyEvent1,
+		Medias: make([]*media.Item, 0),
 	}
-	assertSpamVector(spammyEvent1, true)
-	assertSpamVector(neutralEvent1, false)
+	fixedFilter.ReturnInfo = harms.ProhibitedContent(harms.SpamGeneral)
+	AssertCheckEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding))
+	select {
+	case recv := <-subCh:
+		assert.Equal(t, mustEncodeHellban(cnf.CommunityId, spammerUserId), recv)
+	case <-time.After(5 * time.Second): // if after a little bit we haven't heard anything, fail
+		assert.Fail(t, "didn't receive a subscription event")
+	}
+
+	// Neutral events shouldn't cause a hellban
+	fixedFilter.Expect.Event = neutralEvent1
+	fixedFilter.ReturnInfo = harms.NeutralContent()
+	AssertCheckEvent(t, set, neutralEvent1, harms.NeutralContent())
+	select {
+	case <-subCh:
+		assert.Fail(t, "should not have received a subscription event")
+	case <-time.After(1 * time.Second): // we use 1 second for the same reason as the prefilter above
+		// passing case - we want this to happen
+	}
 }
 
 func TestHellbanFiltersCombined(t *testing.T) {
@@ -264,20 +227,16 @@ func TestHellbanFiltersCombined(t *testing.T) {
 		CommunityId: "TestHellbanFiltersCombined",
 		CommunityConfig: &config.CommunityConfig{
 			HellbanPostfilterMinutes: internal.Pointer(10),
-			SpamThreshold:            internal.Pointer(0.1),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{HellbanPrefilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{HellbanPrefilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
 		}, {
-			EnabledNames:           []string{FixedFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // for later: don't run on spammy events
 		}, {
-			EnabledNames:           []string{HellbanPostfilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{HellbanPostfilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // *only* run on spammy events
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -323,18 +282,14 @@ func TestHellbanFiltersCombined(t *testing.T) {
 
 	// Step 2 prep
 	fixedFilter.Expect = &EventInput{
-		Event:                        spammyEvent1,
-		Medias:                       make([]*media.Item, 0),
-		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5}, // just the starting value
+		Event:  spammyEvent1,
+		Medias: make([]*media.Item, 0),
 	}
-	// We set a Mentions classification so we can detect that the filter ran
-	fixedFilter.ReturnClasses = []classification.Classification{classification.Spam, classification.Mentions}
+	// We set a media harm so we can detect that the filter ran
+	fixedFilter.ReturnInfo = harms.ProhibitedContent(harms.SpamGeneral, harms.PolicyservMedia)
 
 	// Invoke steps 1 through 3
-	vecs, err := set.CheckEvent(ctx, spammyEvent1, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Mentions))
+	AssertCheckEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding, harms.PolicyservMedia))
 	select {
 	case recv := <-subCh:
 		assert.Equal(t, mustEncodeHellban(cnf.CommunityId, spammerUserId), recv)
@@ -349,16 +304,11 @@ func TestHellbanFiltersCombined(t *testing.T) {
 	fixedFilter.Expect = &EventInput{
 		Event:  spammyEvent1,
 		Medias: make([]*media.Item, 0),
-		IncrementalConfidenceVectors: confidence.Vectors{
-			classification.Spam:      1.0,
-			classification.Frequency: 1.0,
-		},
 	}
 
 	// Invoke steps 5 and 6 (step 4 is implied by the high spam figure)
-	vecs, err = set.CheckEvent(ctx, spammyEvent1, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+	// Note: "media" shouldn't appear here because of the RunOnClasses config. We expect Flooding from the prefilter.
+	AssertCheckEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamFlooding))
 
 	// Step 7 states that we should (probably) get a subscription event
 	select {

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/queue"
 	"github.com/matrix-org/policyserv/storage"
@@ -36,16 +36,15 @@ func httpCheckTextCommunityApi(api *Api, community *storage.StoredCommunity, w h
 	}
 	textToCheck := string(b)
 
-	vecs, err := set.CheckText(r.Context(), textToCheck)
+	info, err := set.CheckText(r.Context(), textToCheck)
 	if err != nil {
 		errs.err(http.StatusInternalServerError, "M_UNKNOWN", err)
 		return
 	}
 
-	if set.IsSpamResponse(r.Context(), vecs) {
-		errs.addHarm("org.matrix.msc4387.spam")
-		if vecs.GetVector(classification.CSAM) > 0.5 {
-			errs.addHarm("org.matrix.msc4387.child_safety.csam")
+	if info.Class() == harms.ContentClassProhibited {
+		for _, h := range info.Harms() {
+			errs.addHarm(h)
 		}
 		errs.text(http.StatusBadRequest, "ORG.MATRIX.MSC4387_SAFETY", "Text is probably spammy")
 	} else {
@@ -87,7 +86,7 @@ func httpCheckEventIdCommunityApi(api *Api, community *storage.StoredCommunity, 
 		return
 	}
 	if event != nil {
-		renderEventResult(event.IsProbablySpam, w, r, errs)
+		renderEventResult(event.ContentInfo, w, r, errs)
 		return
 	}
 
@@ -122,11 +121,14 @@ func httpCheckEventIdCommunityApi(api *Api, community *storage.StoredCommunity, 
 		errs.err(http.StatusInternalServerError, "M_UNKNOWN", res.Err)
 		return
 	}
-	renderEventResult(res.IsProbablySpam, w, r, errs)
+	renderEventResult(res.ContentInfo, w, r, errs)
 }
 
-func renderEventResult(isProbablySpam bool, w http.ResponseWriter, r *http.Request, errs *errorResponder) {
-	if isProbablySpam {
+func renderEventResult(info *harms.ContentInfo, w http.ResponseWriter, r *http.Request, errs *errorResponder) {
+	if info.Class() == harms.ContentClassProhibited {
+		for _, h := range info.Harms() {
+			errs.addHarm(h)
+		}
 		errs.text(http.StatusBadRequest, "M_FORBIDDEN", "This message is not allowed by the policy server")
 	} else {
 		err := respondJson("httpCheckEventIdCommunityApi", r, w, map[string]any{})

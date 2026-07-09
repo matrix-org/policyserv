@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/policyserv/event"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pslib"
 )
@@ -64,10 +64,9 @@ func (f *InstancedKeywordTemplateFilter) Name() string {
 	return KeywordTemplateFilterName
 }
 
-func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if input.Event.Type() != "m.room.message" {
-		// no-op and return the same vectors
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	var toScan string
@@ -87,12 +86,12 @@ func (f *InstancedKeywordTemplateFilter) CheckEvent(ctx context.Context, input *
 	return f.checkTextWithLogging(ctx, toScan, fmt.Sprintf("%s | %s", input.Event.EventID(), input.Event.RoomID().String()))
 }
 
-func (f *InstancedKeywordTemplateFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *InstancedKeywordTemplateFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	return f.checkTextWithLogging(ctx, text, "CheckText")
 }
 
-func (f *InstancedKeywordTemplateFilter) checkTextWithLogging(ctx context.Context, text string, logPrefix string) ([]classification.Classification, error) {
-	harms := make([]string, 0)
+func (f *InstancedKeywordTemplateFilter) checkTextWithLogging(ctx context.Context, text string, logPrefix string) (*harms.ContentInfo, error) {
+	harmIds := make([]harms.Harm, 0)
 	for _, tmpl := range f.templates {
 		log.Printf("[%s] Checking template '%s'", logPrefix, tmpl.Name)
 		returnedHarms, err := tmpl.IdentifyHarms(text)
@@ -101,15 +100,16 @@ func (f *InstancedKeywordTemplateFilter) checkTextWithLogging(ctx context.Contex
 		}
 		if len(returnedHarms) > 0 {
 			log.Printf("[%s] Template '%s' matched: %v", logPrefix, tmpl.Name, returnedHarms)
-			harms = append(harms, returnedHarms...)
+			for _, id := range returnedHarms {
+				harmIds = append(harmIds, harms.Harm(id))
+			}
 		} else {
 			log.Printf("[%s] Template '%s' matched nothing", logPrefix, tmpl.Name)
 		}
 	}
 
-	if len(harms) > 0 {
-		// Our classification system doesn't (yet?) support MSC4387 harms, so just return "spam"
-		return []classification.Classification{classification.Spam}, nil
+	if len(harmIds) > 0 {
+		return harms.ProhibitedContent(harmIds...), nil
 	}
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

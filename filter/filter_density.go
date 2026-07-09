@@ -7,7 +7,7 @@ import (
 	"log"
 	"regexp"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -40,13 +40,12 @@ func (f *InstancedDensityFilter) Name() string {
 	return DensityFilterName
 }
 
-func (f *InstancedDensityFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedDensityFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	eventId := input.Event.EventID()
 	roomId := input.Event.RoomID().String()
 
 	if input.Event.Type() != "m.room.message" {
-		// no-op and return the same vectors
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	content := &bodyOnly{}
@@ -59,14 +58,14 @@ func (f *InstancedDensityFilter) CheckEvent(ctx context.Context, input *EventInp
 	return f.checkTextWithLogging(ctx, content.Body, fmt.Sprintf("%s | %s", eventId, roomId))
 }
 
-func (f *InstancedDensityFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *InstancedDensityFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	return f.checkTextWithLogging(ctx, text, "CheckText")
 }
 
-func (f *InstancedDensityFilter) checkTextWithLogging(ctx context.Context, text string, logPrefix string) ([]classification.Classification, error) {
+func (f *InstancedDensityFilter) checkTextWithLogging(ctx context.Context, text string, logPrefix string) (*harms.ContentInfo, error) {
 	if len(text) < f.minTriggerLength {
 		// no-op
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	beforeTrim := float64(len(text))
@@ -76,13 +75,10 @@ func (f *InstancedDensityFilter) checkTextWithLogging(ctx context.Context, text 
 	log.Printf("[%s] Density is %f", logPrefix, density)
 
 	if density >= f.maxDensity {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Volumetric,
-		}, nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 type bodyOnly struct {

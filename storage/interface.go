@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 )
 
 type StoredRoom struct {
@@ -20,9 +20,9 @@ type StoredRoom struct {
 }
 
 type StoredEventResult struct {
-	EventId           string             `json:"event_id"`
-	IsProbablySpam    bool               `json:"is_probably_spam"`
-	ConfidenceVectors confidence.Vectors `json:"confidence_vectors"`
+	EventId        string             `json:"event_id"`
+	IsProbablySpam bool               `json:"is_probably_spam"`
+	ContentInfo    *harms.ContentInfo `json:"-"` // can't be exported to/imported from JSON
 }
 
 type StoredCommunity struct {
@@ -62,15 +62,22 @@ type MatrixTransaction struct {
 	Edus          []gomatrixserverlib.EDU
 }
 
-// StoredClassifications implements the SQL driver interface for scanning/setting values. Note that the
-// Value() and Scan() functions are on different receivers - this is because the Value() is not going to
-// be on a pointer (see StoredMediaClassification), but Scan() will always be called on a pointer. If Scan()
-// was changed to use a value (non-pointer) receiver instead, the value we read from the database would never
-// actually leave the function call, confusing the calling code.
-type StoredClassifications []classification.Classification
+// StoredClassifications implements the SQL driver interface for scanning/setting values. Note that this used to
+// be a []classification.Classification type, but was modernized to use harms instead. Legacy data is still possible
+// and we need to maintain backwards compatibility, so we go out of our way to reinterpret the simple array into a
+// harms.ContentInfo struct.
+// Note that difference receivers are used for Value and Scan - this is because Go's pointers are expecting certain
+// values depending on whether it's being read or written.
+type StoredClassifications struct {
+	*harms.ContentInfo
+}
 
 func (c StoredClassifications) Value() (driver.Value, error) {
-	return json.Marshal(c)
+	strArray := []string{c.ContentInfo.Class().String()} // put the content class first for easy decoding
+	for _, h := range c.ContentInfo.Harms() {
+		strArray = append(strArray, string(h))
+	}
+	return json.Marshal(strArray)
 }
 
 func (c *StoredClassifications) Scan(src interface{}) error {
@@ -78,7 +85,37 @@ func (c *StoredClassifications) Scan(src interface{}) error {
 	if !ok {
 		return nil
 	}
-	return json.Unmarshal(b, &c)
+	strArray := make([]string, 0)
+	err := json.Unmarshal(b, &strArray)
+	if err != nil {
+		return err
+	}
+	if len(strArray) > 0 {
+		if strArray[0] == harms.ContentClassNeutral.String() {
+			if len(strArray) != 1 {
+				return fmt.Errorf("invalid neutral content classification: %v", strArray)
+			}
+			c.ContentInfo = harms.NeutralContent()
+		} else if strArray[0] == harms.ContentClassAllowed.String() {
+			if len(strArray) != 1 {
+				return fmt.Errorf("invalid allowed content classification: %v", strArray)
+			}
+			c.ContentInfo = harms.AllowedContent()
+		} else {
+			// Assume it's prohibited content
+			if strArray[0] == harms.ContentClassProhibited.String() {
+				strArray = strArray[1:] // remove the content class if it was specified
+			}
+			harmIds := make([]harms.Harm, 0)
+			for _, h := range strArray {
+				harmIds = append(harmIds, harms.Harm(h))
+			}
+			c.ContentInfo = harms.ProhibitedContent(harmIds...)
+		}
+	} else {
+		c.ContentInfo = harms.NeutralContent()
+	}
+	return nil
 }
 
 type Transaction interface { // mirror of sql.Tx interface for ease of compatibility

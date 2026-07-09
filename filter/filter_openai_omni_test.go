@@ -5,6 +5,7 @@ import (
 
 	"github.com/matrix-org/policyserv/ai"
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -30,9 +31,8 @@ func TestOpenAIOmniFilter(t *testing.T) {
 			OpenAIFilterFailSecure: internal.Pointer(true),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{OpenAIOmniFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{OpenAIOmniFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -50,7 +50,7 @@ func TestOpenAIOmniFilter(t *testing.T) {
 	assert.NotNil(t, instanced)
 
 	// Verify that the config/setup of the executor are carried through correctly
-	assert.Equal(t, set, instanced.set) // should have been set during filter creation
+	assert.Equal(t, set, instanced.set)                     // should have been set during filter creation
 	assert.Equal(t, OpenAIOmniFilterName, instanced.Name()) // should have been set during filter creation
 	assert.Equal(t, &ai.OpenAIOmniModerationConfig{
 		FailSecure: true, // should have been set by pulling in the community config above

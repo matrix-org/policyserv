@@ -1,16 +1,13 @@
 package filter
 
 import (
-	"context"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tidwall/gjson"
 )
 
 func TestKeywordsFilter(t *testing.T) {
@@ -21,9 +18,8 @@ func TestKeywordsFilter(t *testing.T) {
 			KeywordFilterKeywords: &[]string{"spammy spam", "example"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{KeywordFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{KeywordFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -59,35 +55,9 @@ func TestKeywordsFilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		}
-	}
-	assertSpamVector(spammyEvent1, true)
-	assertSpamVector(spammyEvent2, true)
-	assertSpamVector(neutralEvent, false)
-
-	// Also test the text filter implementation
-	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		body := gjson.Get(string(event.Content()), "body").String()
-		vecs, err := set.CheckText(context.Background(), body)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		}
-	}
-	assertTextSpamVector(spammyEvent1, true)
-	assertTextSpamVector(spammyEvent2, true)
-	assertTextSpamVector(neutralEvent, false)
+	AssertCheckTextAndEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamGeneral))
+	AssertCheckTextAndEvent(t, set, spammyEvent2, harms.ProhibitedContent(harms.SpamGeneral))
+	AssertCheckTextAndEvent(t, set, neutralEvent, harms.NeutralContent())
 }
 
 func TestKeywordsFilterWithFullEvent(t *testing.T) {
@@ -97,9 +67,8 @@ func TestKeywordsFilterWithFullEvent(t *testing.T) {
 			KeywordFilterUseFullEvent: internal.Pointer(true), // this is what we're testing
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{KeywordFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{KeywordFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -120,7 +89,5 @@ func TestKeywordsFilterWithFullEvent(t *testing.T) {
 		},
 	})
 
-	vecs, err := set.CheckEvent(context.Background(), spammyEvent, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
+	AssertCheckEvent(t, set, spammyEvent, harms.ProhibitedContent(harms.SpamGeneral))
 }

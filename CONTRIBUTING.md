@@ -56,8 +56,9 @@ Policyserv is written to:
 
 ## Definitions / Architecture
 
-**Filter**: Code which analyzes an event in isolation from other filters, producing a series of classifications and a
-"neutral" or "spammy" determination.
+**Filter**: Code which analyzes an event in isolation from other filters, producing a series of harm identifiers/content
+classifications. The content classifications are used to determine whether an event is "spammy", neutral, or not spammy.
+Content is by default classified as "neutral".
 
 **Set Group**: The precise filters to run on an event for a given stage. All filters in a set group are executed
 concurrently. Can be used to "pre" and "post" process events. For example, within a filter set, the first set group may
@@ -68,11 +69,12 @@ group may inspect the result from the prior set groups to have future events be 
 or room into the filters that community would like to run against events. Internally, the set groups which make up the
 filter set are ordered to provide some priority filtering and efficient processing.
 
-**Confidence Vector**: A float value between 0 and 1 to carry confidence information about a classification. Zero is low/no
-confidence that the classification applies while 1 is high/total confidence.
+**Harm** (Identifier): A specific classification of prohibited content. Using a harm identifier implies the content is 
+not allowed (spammy). Most harm identifiers are defined by [MSC4456](https://github.com/matrix-org/matrix-spec-proposals/pull/4456),
+though some are policyserv-specific. 
 
-**Classification**: A measurable and useful datum about an event. The most common being "spam". Events may have multiple
-classifications through confidence vectors.
+**Content Class**: Whether the content is allowed, neutral, or prohibited (spammy). A neutral designation does not mean
+that the content is spam-free, but rather that the content doesn't trip any flags (positive or negative).
 
 ## PR review process
 

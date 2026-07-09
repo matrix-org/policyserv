@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/media"
 )
 
@@ -13,9 +12,6 @@ import (
 type EventInput struct {
 	// The event to process/check.
 	Event gomatrixserverlib.PDU
-
-	// The confidence.Vectors so far. Note that the first set group will receive a classification.Spam vector of 0.5
-	IncrementalConfidenceVectors confidence.Vectors
 
 	// Extracted media items from the event.
 	Medias []*media.Item
@@ -42,16 +38,16 @@ type CanBeInstanced interface {
 type InstancedEventFilter interface {
 	Instanced // parent type
 
-	// CheckEvent - Processes the given event, returning classifications about it. If an error occurred, the classifications
-	// array will be nil/empty.
-	CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error)
+	// CheckEvent - Processes the given content, returning harm/content classification. The content info may be nil
+	// if there was an error.
+	CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error)
 }
 
 type InstancedTextFilter interface {
 	Instanced // parent type
 
-	// CheckText - Processes the given text, returning classifications about it. If an error occurred, the classifications
-	// array will be nil/empty. The input text string is assumed to be user-generated (message body, search query, etc)
-	// rather than structured (JSON, CSV, etc).
-	CheckText(ctx context.Context, input string) ([]classification.Classification, error)
+	// CheckText - Processes the given text, returning harm/content classification. The content info may be nil if there
+	// was an error. The input text string is assumed to be user-generated (message body, search query, etc) rather than
+	// structured (JSON, CSV, etc).
+	CheckText(ctx context.Context, input string) (*harms.ContentInfo, error)
 }

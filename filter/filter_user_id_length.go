@@ -3,7 +3,7 @@ package filter
 import (
 	"context"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -32,9 +32,9 @@ func (f *InstancedUserIdLengthFilter) Name() string {
 	return UserIdLengthFilterName
 }
 
-func (f *InstancedUserIdLengthFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedUserIdLengthFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if len(input.Event.SenderID()) > f.maxLength {
-		return []classification.Classification{classification.Spam}, nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

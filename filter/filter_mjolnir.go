@@ -3,7 +3,7 @@ package filter
 import (
 	"context"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 )
 
 const MjolnirFilterName = "MjolnirFilter"
@@ -31,10 +31,10 @@ func (f *InstancedMjolnirFilter) Name() string {
 	return MjolnirFilterName
 }
 
-func (f *InstancedMjolnirFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedMjolnirFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	// Return early on non-message events
 	if input.Event.Type() != "m.room.message" {
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	banned, err := f.set.storage.IsUserBannedInList(ctx, f.policyRoomId, string(input.Event.SenderID()))
@@ -43,8 +43,8 @@ func (f *InstancedMjolnirFilter) CheckEvent(ctx context.Context, input *EventInp
 	}
 
 	if banned {
-		return []classification.Classification{classification.Spam}, nil
+		return harms.ProhibitedContent(harms.OtherGeneral), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	cache "github.com/Code-Hex/go-generics-cache"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pubsub"
 )
@@ -116,7 +116,7 @@ func (f *InstancedHellbanFilter) Name() string {
 	return mode
 }
 
-func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	mode := f.Name()
 
 	eventId := input.Event.EventID()
@@ -127,27 +127,21 @@ func (f *InstancedHellbanFilter) CheckEvent(ctx context.Context, input *EventInp
 	if mode == HellbanPrefilterName {
 		if _, ok := f.userIdsCache.Get(senderUserId); ok {
 			log.Printf("[%s | %s | %s] Sender '%s' is hellbanned", eventId, roomId, mode, senderUserId)
-			return []classification.Classification{
-				classification.Spam,
-				classification.Frequency,
-			}, nil
+			return harms.ProhibitedContent(harms.SpamFlooding), nil
 		}
 	} else {
-		if f.set.IsSpamResponse(ctx, input.IncrementalConfidenceVectors) {
-			log.Printf("[%s | %s | %s] Sender '%s' sent a spammy event", eventId, roomId, mode, senderUserId)
-			err := f.set.pubsub.Publish(ctx, pubsub.TopicHellban, mustEncodeHellban(f.set.communityId, senderUserId))
-			if err != nil {
-				return nil, err
-			}
-			return []classification.Classification{
-				classification.Spam,
-				classification.Frequency,
-			}, nil
+		// The community manager/filter set group will only call this filter if the event was prohibited, so we can
+		// safely make the assumption that the event is spammy.
+		log.Printf("[%s | %s | %s] Sender '%s' sent a spammy event", eventId, roomId, mode, senderUserId)
+		err := f.set.pubsub.Publish(ctx, pubsub.TopicHellban, mustEncodeHellban(f.set.communityId, senderUserId))
+		if err != nil {
+			return nil, err
 		}
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
 	// If we reached here, the sender isn't spammy by our metrics.
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 func (f *InstancedHellbanFilter) Close() error {

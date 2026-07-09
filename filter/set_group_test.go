@@ -2,11 +2,9 @@ package filter
 
 import (
 	"context"
-	"slices"
 	"testing"
 
-	"github.com/matrix-org/policyserv/filter/classification"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,67 +20,42 @@ func TestSetGroupCheck(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, auditCtx)
 	input := &EventInput{
-		Event:                        event,
-		IncrementalConfidenceVectors: confidence.Vectors{classification.Spam: 0.5},
-		auditContext:                 auditCtx,
+		Event:        event,
+		auditContext: auditCtx,
 	}
 	sg := &setGroup{
 		filters: []Instanced{&FixedInstancedFilter{
-			T:             t,
-			Expect:        input,
-			ExpectText:    "hello world",
-			ReturnClasses: []classification.Classification{classification.Spam, classification.Volumetric},
-			ReturnErr:     nil,
+			T:          t,
+			Expect:     input,
+			ExpectText: "hello world",
+			ReturnInfo: harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding),
+			ReturnErr:  nil,
 		}},
-		minSpamVectorValue: 0.3,
-		maxSpamVectorValue: 0.8,
+		checkedContentClasses: []harms.ContentClass{harms.ContentClassAllowed}, // we only want to capture a specific class of events
 	}
 
-	// Does it no-op when the spam vector is out of range?
-	input.IncrementalConfidenceVectors.SetVector(classification.Spam, 0.1)
-	vecs, err := sg.checkEvent(context.Background(), input)
+	// Note: we test text and events at the same time
+
+	// Does it no-op when the content class is wrong?
+	info, err := sg.checkEvent(context.Background(), harms.NeutralContent(), input) // runOnClasses uses ContentClassAllowed
 	assert.NoError(t, err)
-	assert.Equal(t, confidence.NewConfidenceVectors(), vecs) // no-op is to return a zero value
-	input.IncrementalConfidenceVectors.SetVector(classification.Spam, 0.9)
-	vecs, err = sg.checkEvent(context.Background(), input)
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), info) // no-op is neutral
+	info, err = sg.checkText(context.Background(), harms.NeutralContent(), "hello world")
 	assert.NoError(t, err)
-	assert.Equal(t, confidence.NewConfidenceVectors(), vecs) // no-op is to return a zero value
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), info) // no-op is neutral
+
+	info, err = sg.checkEvent(context.Background(), harms.ProhibitedContent(harms.SpamFraud), input)
+	assert.NoError(t, err)
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), info) // no-op is neutral
+	info, err = sg.checkText(context.Background(), harms.ProhibitedContent(harms.SpamFraud), "hello world")
+	assert.NoError(t, err)
+	test.AssertEqualContentInfo(t, harms.NeutralContent(), info) // no-op is neutral
 
 	// Does it process the event through the filter?
-	input.IncrementalConfidenceVectors.SetVector(classification.Spam, 0.5)
-	vecs, err = sg.checkEvent(context.Background(), input)
+	info, err = sg.checkEvent(context.Background(), harms.AllowedContent(), input) // runOnClasses uses ContentClassAllowed
 	assert.NoError(t, err)
-	classes := make([]classification.Classification, 0)
-	for cls, _ := range vecs {
-		classes = append(classes, cls)
-	}
-	expectClasses := sg.filters[0].(*FixedInstancedFilter).ReturnClasses
-	// Note: we sort because the order of values is not guaranteed on our custom types.
-	slices.Sort(classes)
-	slices.Sort(expectClasses)
-	assert.Equal(t, expectClasses, classes)
-
-	// Repeat the above tests, except for checkText instead
-
-	// no-op when out of range
-	textIncrementalVectors := confidence.Vectors{classification.Spam: 0.1}
-	vecs, err = sg.checkText(context.Background(), textIncrementalVectors, "hello world")
+	test.AssertEqualContentInfo(t, harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding), info)
+	info, err = sg.checkText(context.Background(), harms.AllowedContent(), "hello world") // runOnClasses uses ContentClassAllowed
 	assert.NoError(t, err)
-	assert.Equal(t, confidence.NewConfidenceVectors(), vecs) // no-op is to return a zero value
-	textIncrementalVectors.SetVector(classification.Spam, 0.9)
-	vecs, err = sg.checkText(context.Background(), textIncrementalVectors, "hello world")
-	assert.NoError(t, err)
-	assert.Equal(t, confidence.NewConfidenceVectors(), vecs) // no-op is to return a zero value
-
-	// does it actually work
-	textIncrementalVectors.SetVector(classification.Spam, 0.5)
-	vecs, err = sg.checkText(context.Background(), textIncrementalVectors, "hello world")
-	assert.NoError(t, err)
-	classes = make([]classification.Classification, 0)
-	for cls, _ := range vecs {
-		classes = append(classes, cls)
-	}
-	slices.Sort(classes)
-	slices.Sort(expectClasses)
-	assert.Equal(t, expectClasses, classes)
+	test.AssertEqualContentInfo(t, harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding), info)
 }

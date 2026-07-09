@@ -4,7 +4,7 @@ import (
 	"context"
 	"regexp"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -35,7 +35,7 @@ func (f *InstancedUserIdContainsWordsFilter) Name() string {
 	return UserIdContainsWordsFilterName
 }
 
-func (f *InstancedUserIdContainsWordsFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedUserIdContainsWordsFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	localpart := input.Event.SenderID().ToUserID().Local()
 	words := findWordsInLocalpartRegex.FindAllString(localpart, -1)
 
@@ -48,8 +48,8 @@ func (f *InstancedUserIdContainsWordsFilter) CheckEvent(ctx context.Context, inp
 	}
 
 	if len(nonEmptyWords) > f.maxWords {
-		return []classification.Classification{classification.Spam}, nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

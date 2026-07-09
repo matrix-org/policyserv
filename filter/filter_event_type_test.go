@@ -1,12 +1,10 @@
 package filter
 
 import (
-	"context"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,9 +16,8 @@ func TestEventTypeFilter(t *testing.T) {
 			EventTypePrefilterAllowedStateEventTypes: &[]string{"m.room.topic"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{EventTypeFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{EventTypeFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -68,18 +65,9 @@ func TestEventTypeFilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			// Because the filter doesn't flag things as "spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		} else {
-			assert.Equal(t, 0.0, vecs.GetVector(classification.Spam))
-		}
-	}
-	assertSpamVector(spammyEvent1, true)
-	assertSpamVector(spammyEvent2, true)
-	assertSpamVector(neutralEvent1, false)
-	assertSpamVector(neutralEvent2, false)
+	// This filter emits either Neutral or Allowed, so spam becomes Neutral
+	AssertCheckEvent(t, set, spammyEvent1, harms.NeutralContent())
+	AssertCheckEvent(t, set, spammyEvent2, harms.NeutralContent())
+	AssertCheckEvent(t, set, neutralEvent1, harms.AllowedContent())
+	AssertCheckEvent(t, set, neutralEvent2, harms.AllowedContent())
 }

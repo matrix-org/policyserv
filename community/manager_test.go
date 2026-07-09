@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/policyserv/config"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/storage"
@@ -83,10 +84,10 @@ func TestGetFilterSetForRoomId(t *testing.T) {
 			"body": "keyword1",
 		},
 	})
-	vecs, err := set.CheckEvent(ctx, keyword1Event, nil)
+	info, err := set.CheckEvent(ctx, keyword1Event, nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, vecs)
-	assert.True(t, set.IsSpamResponse(ctx, vecs))
+	assert.NotNil(t, info)
+	assert.Equal(t, harms.ContentClassProhibited, info.Class())
 
 	// Now, create a second room and community and ensure that the keyword1 event above
 	// is *not* spam, but a new keyword *is* spam (proving we can have independent configs)
@@ -112,9 +113,9 @@ func TestGetFilterSetForRoomId(t *testing.T) {
 	set, err = manager.GetFilterSetForRoomId(ctx, roomId2)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
-	vecs, err = set.CheckEvent(ctx, keyword1Event, nil)
+	info, err = set.CheckEvent(ctx, keyword1Event, nil)
 	assert.NoError(t, err)
-	assert.False(t, set.IsSpamResponse(ctx, vecs))
+	assert.NotEqual(t, harms.ContentClassProhibited, info.Class())
 	keyword2Event := test.MustMakePDU(&test.BaseClientEvent{
 		EventId: "$event2",
 		RoomId:  roomId,
@@ -124,9 +125,9 @@ func TestGetFilterSetForRoomId(t *testing.T) {
 			"body": "keyword2",
 		},
 	})
-	vecs, err = set.CheckEvent(ctx, keyword2Event, nil)
+	info, err = set.CheckEvent(ctx, keyword2Event, nil)
 	assert.NoError(t, err)
-	assert.True(t, set.IsSpamResponse(ctx, vecs))
+	assert.Equal(t, harms.ContentClassProhibited, info.Class())
 }
 
 func TestCommunityManagerCacheInvalidation(t *testing.T) {
@@ -176,10 +177,10 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 			"body": "keyword1",
 		},
 	})
-	vecs, err := set.CheckEvent(ctx, keyword1Event, nil)
+	info, err := set.CheckEvent(ctx, keyword1Event, nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, vecs)
-	assert.True(t, set.IsSpamResponse(ctx, vecs))
+	assert.NotNil(t, info)
+	assert.Equal(t, harms.ContentClassProhibited, info.Class())
 
 	// Now, change the config but *don't* notify the manager about it to prove the cache is working
 	cnf.KeywordFilterKeywords = &[]string{"keyword2"}
@@ -192,10 +193,10 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 	set, err = manager.GetFilterSetForRoomId(ctx, roomId)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
-	vecs, err = set.CheckEvent(ctx, keyword1Event, nil)
+	info, err = set.CheckEvent(ctx, keyword1Event, nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, vecs)
-	assert.True(t, set.IsSpamResponse(ctx, vecs)) // should still be spam
+	assert.NotNil(t, info)
+	assert.Equal(t, harms.ContentClassProhibited, info.Class()) // should still be spam
 
 	// Now, notify the manager and re-test
 	err = manager.pubsubClient.Publish(ctx, pubsub.TopicCommunityConfig, communityId)
@@ -204,10 +205,10 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 	set, err = manager.GetFilterSetForRoomId(ctx, roomId)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
-	vecs, err = set.CheckEvent(ctx, keyword1Event, nil)
+	info, err = set.CheckEvent(ctx, keyword1Event, nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, vecs)
-	assert.False(t, set.IsSpamResponse(ctx, vecs)) // should not be spam
+	assert.NotNil(t, info)
+	assert.NotEqual(t, harms.ContentClassProhibited, info.Class()) // should not be spam
 
 	// Create a second community and assign the existing room to it, but again: don't
 	// notify the manager of that room ID to community ID change
@@ -241,10 +242,10 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 	set, err = manager.GetFilterSetForRoomId(ctx, roomId)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
-	vecs, err = set.CheckEvent(ctx, keyword3Event, nil)
+	info, err = set.CheckEvent(ctx, keyword3Event, nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, vecs)
-	assert.False(t, set.IsSpamResponse(ctx, vecs))
+	assert.NotNil(t, info)
+	assert.NotEqual(t, harms.ContentClassProhibited, info.Class())
 
 	// Now notify the manager and re-check the event (which should now be spam)
 	err = manager.pubsubClient.Publish(ctx, pubsub.TopicRoomCommunityId, roomId)
@@ -253,8 +254,8 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 	set, err = manager.GetFilterSetForRoomId(ctx, roomId)
 	assert.NoError(t, err)
 	assert.NotNil(t, set)
-	vecs, err = set.CheckEvent(ctx, keyword3Event, nil)
+	info, err = set.CheckEvent(ctx, keyword3Event, nil)
 	assert.NoError(t, err)
-	assert.NotNil(t, vecs)
-	assert.True(t, set.IsSpamResponse(ctx, vecs)) // now it's spam
+	assert.NotNil(t, info)
+	assert.Equal(t, harms.ContentClassProhibited, info.Class()) // now it's spam
 }

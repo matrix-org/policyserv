@@ -3,7 +3,7 @@ package filter
 import (
 	"context"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -34,7 +34,7 @@ func (f *InstancedEventTypeFilter) Name() string {
 	return EventTypeFilterName
 }
 
-func (f *InstancedEventTypeFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedEventTypeFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	eventTypeSet := f.allowedEventTypes
 	if input.Event.StateKey() != nil {
 		eventTypeSet = f.allowedStateEventTypes
@@ -42,9 +42,9 @@ func (f *InstancedEventTypeFilter) CheckEvent(ctx context.Context, input *EventI
 
 	for _, allowedType := range eventTypeSet {
 		if allowedType == input.Event.Type() {
-			return []classification.Classification{classification.Spam.Invert()}, nil // we expect to be run as a prefilter, so explicitly return not spam
+			return harms.AllowedContent(), nil
 		}
 	}
 
-	return nil, nil // no opinions when allow-listed
+	return harms.NeutralContent(), nil // no opinions when not explicitly allowed
 }

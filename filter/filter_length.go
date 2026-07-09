@@ -3,7 +3,7 @@ package filter
 import (
 	"context"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -32,23 +32,20 @@ func (f *InstancedLengthFilter) Name() string {
 	return LengthFilterName
 }
 
-func (f *InstancedLengthFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedLengthFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	if input.Event.Type() != "m.room.message" {
 		// not an event we're interested in
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	b := input.Event.JSON()
 	return f.CheckText(ctx, string(b))
 }
 
-func (f *InstancedLengthFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *InstancedLengthFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	if len(text) > f.maxLength {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Volumetric,
-		}, nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

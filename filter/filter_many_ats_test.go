@@ -1,12 +1,10 @@
 package filter
 
 import (
-	"context"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
@@ -15,12 +13,11 @@ import (
 func TestManyAtsFilter(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{
-			ManyAtsFilterMaxAts: internal.Pointer(5),
+			ManyAtsFilterMaxAts: internal.Pointer(2),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{ManyAtsFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{ManyAtsFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -36,7 +33,20 @@ func TestManyAtsFilter(t *testing.T) {
 		RoomId:  "!foo:example.org",
 		Type:    "m.room.message",
 		Content: map[string]any{
-			"body": "@_@", // 2 ats
+			"body": "@_@", // 2 ats (enough to trip the text test)
+			"m.mentions": []string{ // 3 ats
+				"@user1:example.org",
+				"@user2:example.org",
+				"@user3:example.org",
+			},
+		},
+	})
+	spammyEvent2 := test.MustMakePDU(&test.BaseClientEvent{
+		EventId: "$spam1",
+		RoomId:  "!foo:example.org",
+		Type:    "m.room.message",
+		Content: map[string]any{
+			"body": "test m.mentions",
 			"m.mentions": []string{ // 3 ats
 				"@user1:example.org",
 				"@user2:example.org",
@@ -49,39 +59,11 @@ func TestManyAtsFilter(t *testing.T) {
 		RoomId:  "!foo:example.org",
 		Type:    "m.room.message",
 		Content: map[string]any{
-			"body": "no ats",
+			"body": "one @", // 1 is less than 2
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Mentions))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 0.0, vecs.GetVector(classification.Mentions))
-		}
-	}
-	assertSpamVector(spammyEvent1, true)
-	assertSpamVector(neutralEvent1, false)
-
-	// Also test the text filter implementation
-	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		body := string(event.Content()) // ideally we'd pull just the `body`, but our test uses `m.mentions` too
-		vecs, err := set.CheckText(context.Background(), body)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Mentions))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-			assert.Equal(t, 0.0, vecs.GetVector(classification.Mentions))
-		}
-	}
-	assertTextSpamVector(spammyEvent1, true)
-	assertTextSpamVector(neutralEvent1, false)
+	AssertCheckTextAndEvent(t, set, spammyEvent1, harms.ProhibitedContent(harms.SpamFlooding))
+	AssertCheckEvent(t, set, spammyEvent2, harms.ProhibitedContent(harms.SpamFlooding)) // `m.mentions` isn't checked by text, so check event only
+	AssertCheckTextAndEvent(t, set, neutralEvent1, harms.NeutralContent())
 }

@@ -1,15 +1,12 @@
 package filter
 
 import (
-	"context"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/tidwall/gjson"
 )
 
 func TestLinkFilter(t *testing.T) {
@@ -21,9 +18,8 @@ func TestLinkFilter(t *testing.T) {
 			LinkFilterDeniedUrlGlobs:  &[]string{"https://allowed.example.org/blocked/*"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{LinkFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{LinkFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -94,40 +90,11 @@ func TestLinkFilter(t *testing.T) {
 		},
 	})
 
-	assertSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		vecs, err := set.CheckEvent(context.Background(), event, nil)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		}
-	}
-
-	assertSpamVector(allowedEvent, false)
-	assertSpamVector(deniedEvent, true) // deny wins over allow
-	assertSpamVector(notAllowedEvent, true)
-	assertSpamVector(noUrlEvent, false)
-	assertSpamVector(mixedEvent, true) //contains a default-denied URL.
-
-	// Also test the text filter implementation
-	assertTextSpamVector := func(event gomatrixserverlib.PDU, isSpam bool) {
-		body := gjson.Get(string(event.Content()), "body").String()
-		vecs, err := set.CheckText(context.Background(), body)
-		assert.NoError(t, err)
-		if isSpam {
-			assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-		} else {
-			// Because the filter doesn't flag things as "not spam", the seed value should survive
-			assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-		}
-	}
-	assertTextSpamVector(allowedEvent, false)
-	assertTextSpamVector(deniedEvent, true) // deny wins over allow
-	assertTextSpamVector(notAllowedEvent, true)
-	assertTextSpamVector(noUrlEvent, false)
-	assertTextSpamVector(mixedEvent, true) //contains a default-denied URL.
+	AssertCheckTextAndEvent(t, set, allowedEvent, harms.NeutralContent())
+	AssertCheckTextAndEvent(t, set, deniedEvent, harms.ProhibitedContent(harms.SpamGeneral)) // deny wins over allow
+	AssertCheckTextAndEvent(t, set, notAllowedEvent, harms.ProhibitedContent(harms.SpamGeneral))
+	AssertCheckTextAndEvent(t, set, noUrlEvent, harms.NeutralContent())
+	AssertCheckTextAndEvent(t, set, mixedEvent, harms.ProhibitedContent(harms.SpamGeneral)) // contains a default-denied URL.
 }
 
 func TestLinkFilterDenyListOnly(t *testing.T) {
@@ -139,9 +106,8 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 			LinkFilterDeniedUrlGlobs: &[]string{"*denied.example.org/path*"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames:           []string{LinkFilterName},
-			MinimumSpamVectorValue: 0.0,
-			MaximumSpamVectorValue: 1.0,
+			EnabledNames:          []string{LinkFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -174,23 +140,6 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 		},
 	})
 
-	vecs, err := set.CheckEvent(context.Background(), deniedEvent, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-
-	vecs, err = set.CheckEvent(context.Background(), allowedEvent, nil)
-	assert.NoError(t, err)
-	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
-
-	// Also test the text filter implementation
-
-	body := gjson.Get(string(deniedEvent.Content()), "body").String()
-	vecs, err = set.CheckText(context.Background(), body)
-	assert.NoError(t, err)
-	assert.Equal(t, 1.0, vecs.GetVector(classification.Spam))
-
-	body = gjson.Get(string(allowedEvent.Content()), "body").String()
-	vecs, err = set.CheckText(context.Background(), body)
-	assert.NoError(t, err)
-	assert.Equal(t, 0.5, vecs.GetVector(classification.Spam))
+	AssertCheckTextAndEvent(t, set, deniedEvent, harms.ProhibitedContent(harms.SpamGeneral))
+	AssertCheckTextAndEvent(t, set, allowedEvent, harms.NeutralContent())
 }

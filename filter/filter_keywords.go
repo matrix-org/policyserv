@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -35,7 +35,7 @@ func (f *InstancedKeywordFilter) Name() string {
 	return KeywordFilterName
 }
 
-func (f *InstancedKeywordFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedKeywordFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	toScan := string(input.Event.Content())
 	if f.useFullEvent {
 		toScan = string(input.Event.JSON())
@@ -43,12 +43,12 @@ func (f *InstancedKeywordFilter) CheckEvent(ctx context.Context, input *EventInp
 	return f.CheckText(ctx, toScan)
 }
 
-func (f *InstancedKeywordFilter) CheckText(ctx context.Context, text string) ([]classification.Classification, error) {
+func (f *InstancedKeywordFilter) CheckText(ctx context.Context, text string) (*harms.ContentInfo, error) {
 	for _, k := range f.keywords {
 		if strings.Contains(text, k) {
-			return []classification.Classification{classification.Spam}, nil
+			return harms.ProhibitedContent(harms.SpamGeneral), nil
 		}
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }

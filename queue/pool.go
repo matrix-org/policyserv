@@ -7,33 +7,28 @@ import (
 	"log"
 	"time"
 
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/community"
-	"github.com/matrix-org/policyserv/filter/confidence"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/media"
 	"github.com/matrix-org/policyserv/metrics"
 	"github.com/matrix-org/policyserv/storage"
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/panjf2000/ants/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	typedsf "github.com/t2bot/go-typed-singleflight"
 )
 
 type PoolResult struct {
-	// Nil if there was an error. Otherwise, contains filter results.
-	Vectors confidence.Vectors
-
-	// True when the event is considered spam. False indicates neutrality or not-spam.
-	// False if there was an error.
-	IsProbablySpam bool
+	// Nil if there was an error.
+	ContentInfo *harms.ContentInfo
 
 	// The error processing the event, if any.
 	Err error
 }
 
 type sfResult struct {
-	firstTimeSeen  bool
-	vecs           confidence.Vectors
-	isProbablySpam bool
+	firstTimeSeen bool
+	contentInfo   *harms.ContentInfo
 }
 
 type PoolConfig struct {
@@ -80,7 +75,7 @@ func (p *Pool) Submit(ctx context.Context, event gomatrixserverlib.PDU, mediaDow
 	t := metrics.StartQueueTimer()
 
 	// Note: waitCh might be nil or unbuffered, so we spawn this in a goroutine later on.
-	notifyResult := func(vecs confidence.Vectors, isSpam bool, err error) {
+	notifyResult := func(info *harms.ContentInfo, err error) {
 		if err == nil {
 			t.ObserveDurationWithExemplar(prometheus.Labels{"waitedUntil": "result"})
 		} else if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
@@ -91,9 +86,8 @@ func (p *Pool) Submit(ctx context.Context, event gomatrixserverlib.PDU, mediaDow
 
 		if waitCh != nil {
 			res := &PoolResult{
-				Vectors:        vecs,
-				IsProbablySpam: isSpam,
-				Err:            err,
+				ContentInfo: info,
+				Err:         err,
 			}
 
 			// First, check to see if the channel is likely going to be closed already
@@ -116,7 +110,7 @@ func (p *Pool) Submit(ctx context.Context, event gomatrixserverlib.PDU, mediaDow
 		// If the context is cancelled, save CPU and don't bother checking
 		if err := ctx.Err(); err != nil {
 			defer metrics.RecordFailedEventCheck(event.RoomID().String())
-			go notifyResult(nil, false, err)
+			go notifyResult(nil, err)
 			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				log.Printf("Not checking %s because context was cancelled/timed out", event.EventID())
 				return
@@ -139,7 +133,7 @@ func (p *Pool) Submit(ctx context.Context, event gomatrixserverlib.PDU, mediaDow
 			if err != nil {
 				defer metrics.RecordFailedEventCheck(event.RoomID().String())
 			} else {
-				defer metrics.RecordSuccessfulEventCheck(event.RoomID().String(), res.firstTimeSeen, res.vecs)
+				defer metrics.RecordSuccessfulEventCheck(event.RoomID().String(), res.firstTimeSeen, res.contentInfo)
 			}
 			return res, err
 		})
@@ -149,9 +143,9 @@ func (p *Pool) Submit(ctx context.Context, event gomatrixserverlib.PDU, mediaDow
 				// "should never happen"
 				err = errors.New("nil result")
 			}
-			go notifyResult(nil, false, err)
+			go notifyResult(nil, err)
 		} else {
-			go notifyResult(res.vecs, res.isProbablySpam, err)
+			go notifyResult(res.contentInfo, err)
 		}
 	}
 
@@ -166,9 +160,8 @@ func (p *Pool) doFilter(ctx context.Context, event gomatrixserverlib.PDU, mediaD
 	}
 	if res != nil {
 		return &sfResult{
-			firstTimeSeen:  false,
-			isProbablySpam: res.IsProbablySpam,
-			vecs:           res.ConfidenceVectors,
+			firstTimeSeen: false,
+			contentInfo:   res.ContentInfo,
 		}, nil
 	}
 
@@ -182,23 +175,19 @@ func (p *Pool) doFilter(ctx context.Context, event gomatrixserverlib.PDU, mediaD
 	}
 
 	// Run the event through the filters
-	vecs, err := set.CheckEvent(ctx, event, mediaDownloader)
+	info, err := set.CheckEvent(ctx, event, mediaDownloader)
 	if err != nil {
 		return nil, err
 	}
 
-	isSpam := set.IsSpamResponse(ctx, vecs)
-	if isSpam {
-		log.Printf("%s in %s is spam", event.EventID(), event.RoomID().String())
-	} else {
-		log.Printf("%s in %s is neutral", event.EventID(), event.RoomID().String())
-	}
+	isSpam := info.Class() == harms.ContentClassProhibited
+	log.Printf("%s in %s is %s", event.EventID(), event.RoomID().String(), info.Class().String())
 
 	// Persist results
 	err = p.storage.UpsertEventResult(ctx, &storage.StoredEventResult{
-		EventId:           event.EventID(),
-		IsProbablySpam:    isSpam,
-		ConfidenceVectors: vecs,
+		EventId:        event.EventID(),
+		IsProbablySpam: isSpam,
+		ContentInfo:    info,
 	})
 	if err != nil {
 		return nil, err
@@ -206,8 +195,7 @@ func (p *Pool) doFilter(ctx context.Context, event gomatrixserverlib.PDU, mediaD
 
 	// Finally, return
 	return &sfResult{
-		firstTimeSeen:  true,
-		isProbablySpam: isSpam,
-		vecs:           vecs,
+		firstTimeSeen: true,
+		contentInfo:   info,
 	}, nil
 }

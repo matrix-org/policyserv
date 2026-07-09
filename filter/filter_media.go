@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -33,17 +33,17 @@ func (f *InstancedMediaFilter) Name() string {
 	return MediaFilterName
 }
 
-func (f *InstancedMediaFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedMediaFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	// Check event type (for stickers) first
 	for _, mediaType := range f.mediaTypes {
 		if mediaType == input.Event.Type() {
-			return []classification.Classification{classification.Spam}, nil
+			return harms.ProhibitedContent(harms.SpamGeneral, harms.PolicyservMedia), nil
 		}
 	}
 
 	// the msgtype check only applies to regular room messages, so return early if we can
 	if input.Event.Type() != "m.room.message" {
-		return nil, nil
+		return harms.NeutralContent(), nil
 	}
 
 	content := &msgtypeOnly{}
@@ -55,13 +55,11 @@ func (f *InstancedMediaFilter) CheckEvent(ctx context.Context, input *EventInput
 
 	for _, mediaType := range f.mediaTypes {
 		if mediaType == content.Msgtype {
-			return []classification.Classification{
-				classification.Spam,
-			}, nil
+			return harms.ProhibitedContent(harms.SpamGeneral, harms.PolicyservMedia), nil
 		}
 	}
 
-	return nil, nil
+	return harms.NeutralContent(), nil
 }
 
 type msgtypeOnly struct {

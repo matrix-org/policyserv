@@ -7,8 +7,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/matrix-org/policyserv/filter/classification"
 	"github.com/matrix-org/policyserv/frequency"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -50,7 +50,7 @@ func (f *InstancedFrequencyFilter) Close() error {
 	return f.counter.Close()
 }
 
-func (f *InstancedFrequencyFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedFrequencyFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	doProcess := false
 	for _, t := range f.eventTypes {
 		if t == input.Event.Type() {
@@ -59,7 +59,7 @@ func (f *InstancedFrequencyFilter) CheckEvent(ctx context.Context, input *EventI
 		}
 	}
 	if !doProcess {
-		return nil, nil // no opinion
+		return harms.NeutralContent(), nil // no opinion
 	}
 
 	// First, increment the counter for this user
@@ -76,11 +76,7 @@ func (f *InstancedFrequencyFilter) CheckEvent(ctx context.Context, input *EventI
 	rate := float64(eventsLastMinute+1) / float64(60)
 	log.Printf("[%s | %s] Rate for user %s is %f (limit: %f)", input.Event.EventID(), input.Event.RoomID().String(), input.Event.SenderID(), rate, f.rateLimit)
 	if rate > f.rateLimit {
-		return []classification.Classification{
-			classification.Spam,
-			classification.Frequency,
-		}, nil
-	} else {
-		return nil, nil
+		return harms.ProhibitedContent(harms.SpamFlooding), nil
 	}
+	return harms.NeutralContent(), nil
 }

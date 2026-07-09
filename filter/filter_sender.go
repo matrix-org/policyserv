@@ -3,7 +3,7 @@ package filter
 import (
 	"context"
 
-	"github.com/matrix-org/policyserv/filter/classification"
+	"github.com/matrix-org/policyserv/harms"
 	"github.com/matrix-org/policyserv/internal"
 )
 
@@ -32,14 +32,12 @@ func (f *InstancedSenderFilter) Name() string {
 	return SenderFilterName
 }
 
-func (f *InstancedSenderFilter) CheckEvent(ctx context.Context, input *EventInput) ([]classification.Classification, error) {
+func (f *InstancedSenderFilter) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
 	for _, s := range f.allowedUserIds {
 		if s == string(input.Event.SenderID()) {
-			return []classification.Classification{
-				classification.Spam.Invert(), // we expect to be run as a prefilter, so explicitly return not spam
-			}, nil
+			return harms.AllowedContent(), nil
 		}
 	}
 
-	return nil, nil // no opinions when not allow-listed
+	return harms.NeutralContent(), nil // no opinions when not allow-listed
 }
