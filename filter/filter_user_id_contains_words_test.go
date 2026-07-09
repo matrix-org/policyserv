@@ -16,8 +16,8 @@ func TestUserIdContainsWordsFilter(t *testing.T) {
 			UserIdContainsWordsFilterMaxWords: internal.Pointer(3),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{UserIdContainsWordsFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{UserIdContainsWordsFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

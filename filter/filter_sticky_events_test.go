@@ -17,8 +17,8 @@ func TestStickyEventsFilter(t *testing.T) {
 			StickyEventsFilterAllowStickyEvents: internal.Pointer(false),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{StickyEventsFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{StickyEventsFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 

@@ -18,8 +18,8 @@ func TestKeywordsFilter(t *testing.T) {
 			KeywordFilterKeywords: &[]string{"spammy spam", "example"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{KeywordFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{KeywordFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -67,8 +67,8 @@ func TestKeywordsFilterWithFullEvent(t *testing.T) {
 			KeywordFilterUseFullEvent: internal.Pointer(true), // this is what we're testing
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{KeywordFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{KeywordFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

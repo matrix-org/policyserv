@@ -23,8 +23,8 @@ func TestMjolnirFilter(t *testing.T) {
 			MjolnirFilterRoomID: mjolnirRoomId,
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{MjolnirFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{MjolnirFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

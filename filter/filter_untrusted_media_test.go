@@ -22,8 +22,8 @@ func TestUntrustedMediaFilter(t *testing.T) {
 			UntrustedMediaFilterUseMuninn:      internal.Pointer(true),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{UntrustedMediaFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{UntrustedMediaFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

@@ -16,8 +16,8 @@ func TestUserIdLengthFilter(t *testing.T) {
 			UserIdLengthFilterMaxLength: internal.Pointer(40),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{UserIdLengthFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{UserIdLengthFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

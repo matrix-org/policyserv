@@ -39,16 +39,16 @@ func TestMatrixFoundationIntents(t *testing.T) {
 		CommunityConfig: communityConfig,
 		Groups: []*SetGroupConfig{{
 			// Prefilters
-			EnabledNames: []string{HellbanPrefilterName, SenderFilterName, EventTypeFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
+			EnabledNames:          []string{HellbanPrefilterName, SenderFilterName, EventTypeFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
 		}, {
 			// Normal filters
-			EnabledNames: []string{DensityFilterName, LengthFilterName, ManyAtsFilterName, MediaFilterName, MentionsFilterName, MjolnirFilterName, TrimLengthFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // only run on still-neutral events
+			EnabledNames:          []string{DensityFilterName, LengthFilterName, ManyAtsFilterName, MediaFilterName, MentionsFilterName, MjolnirFilterName, TrimLengthFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // only run on still-neutral events
 		}, {
 			// Postfilters
-			EnabledNames: []string{HellbanPostfilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // only run hellban on spammy events
+			EnabledNames:          []string{HellbanPostfilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // only run hellban on spammy events
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

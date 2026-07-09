@@ -22,8 +22,8 @@ func TestMediaScanningFilter(t *testing.T) {
 			MediaFilterMediaTypes: &[]string{"m.sticker", "m.image"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{MediaScanningFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{MediaScanningFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -165,8 +165,8 @@ func TestMediaScanningFilterGracefullyHandlesScannerError(t *testing.T) {
 
 	cnf := &SetConfig{
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{MediaScanningFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral},
+			EnabledNames:          []string{MediaScanningFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral},
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

@@ -38,8 +38,8 @@ func TestMentionsFilter(t *testing.T) {
 			MentionFilterMinPlaintextLength: internal.Pointer(5),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{MentionsFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{MentionsFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

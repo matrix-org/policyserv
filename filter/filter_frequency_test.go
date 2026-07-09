@@ -22,8 +22,8 @@ func TestFrequencyFilter(t *testing.T) {
 			FrequencyFilterRateLimit:  internal.Pointer(1.0 / 60.0), // 1 message per minute
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FrequencyFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{FrequencyFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

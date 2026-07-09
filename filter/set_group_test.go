@@ -31,7 +31,7 @@ func TestSetGroupCheck(t *testing.T) {
 			ReturnInfo: harms.ProhibitedContent(harms.SpamGeneral, harms.SpamFlooding),
 			ReturnErr:  nil,
 		}},
-		runOnClasses: []harms.ContentClass{harms.ContentClassAllowed}, // we only want to capture a specific class of events
+		checkedContentClasses: []harms.ContentClass{harms.ContentClassAllowed}, // we only want to capture a specific class of events
 	}
 
 	// Note: we test text and events at the same time

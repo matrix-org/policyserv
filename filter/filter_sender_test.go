@@ -15,8 +15,8 @@ func TestSenderFilter(t *testing.T) {
 			SenderPrefilterAllowedSenders: &[]string{"@alice:example.org"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{SenderFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{SenderFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

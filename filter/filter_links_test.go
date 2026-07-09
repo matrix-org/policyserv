@@ -18,8 +18,8 @@ func TestLinkFilter(t *testing.T) {
 			LinkFilterDeniedUrlGlobs:  &[]string{"https://allowed.example.org/blocked/*"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{LinkFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{LinkFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -106,8 +106,8 @@ func TestLinkFilterDenyListOnly(t *testing.T) {
 			LinkFilterDeniedUrlGlobs: &[]string{"*denied.example.org/path*"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{LinkFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{LinkFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

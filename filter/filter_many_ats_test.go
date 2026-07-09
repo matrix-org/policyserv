@@ -16,8 +16,8 @@ func TestManyAtsFilter(t *testing.T) {
 			ManyAtsFilterMaxAts: internal.Pointer(2),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{ManyAtsFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{ManyAtsFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

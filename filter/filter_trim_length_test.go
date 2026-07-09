@@ -16,8 +16,8 @@ func TestTrimLengthFilter(t *testing.T) {
 			TrimLengthFilterMaxDifference: internal.Pointer(5),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{TrimLengthFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{TrimLengthFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

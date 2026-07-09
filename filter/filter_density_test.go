@@ -17,8 +17,8 @@ func TestDensityFilter(t *testing.T) {
 			DensityFilterMinTriggerLength: internal.Pointer(10),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{DensityFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{DensityFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

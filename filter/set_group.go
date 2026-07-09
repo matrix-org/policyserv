@@ -16,12 +16,12 @@ type SetGroupConfig struct {
 	EnabledNames []string
 
 	// Which content classes are checked by this set group.
-	RunOnClasses []harms.ContentClass
+	CheckedContentClasses []harms.ContentClass
 }
 
 type setGroup struct {
-	filters      []Instanced
-	runOnClasses []harms.ContentClass
+	filters               []Instanced
+	checkedContentClasses []harms.ContentClass
 }
 
 // checkEvent - If the group is meant to be run against the content class/info, processes the event through the group's
@@ -92,7 +92,7 @@ func (g *setGroup) logFilterClassifications(prefix string, filter Instanced, inf
 
 func (g *setGroup) runFilters(infoSoFar *harms.ContentInfo, checkFn func(f Instanced, ch chan setGroupRet)) (*harms.ContentInfo, error) {
 	// First, are we within range to actually process anything?
-	if !slices.Contains(g.runOnClasses, infoSoFar.Class()) {
+	if !slices.Contains(g.checkedContentClasses, infoSoFar.Class()) {
 		// No - return nothing/neutral
 		return harms.NeutralContent(), nil
 	}

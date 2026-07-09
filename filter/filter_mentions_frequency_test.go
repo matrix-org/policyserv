@@ -23,8 +23,8 @@ func TestMentionsFrequencyFilter(t *testing.T) {
 			MentionFrequencyFilterRateLimit:          internal.Pointer(5.0 / 60.0), // 5 mentions per minute
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{MentionsFrequencyFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{MentionsFrequencyFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

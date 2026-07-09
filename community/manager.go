@@ -186,26 +186,26 @@ func (m *Manager) GetFilterSetForCommunityId(ctx context.Context, communityId st
 			// Micro optimization: Put neutral first so we can skip CPU cycles in a loop in the general case. We also
 			// probably don't need to specify allowed and prohibited here because we have no code which pushes such
 			// classes right away, but for safety we might as well.
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral, harms.ContentClassAllowed, harms.ContentClassProhibited},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral, harms.ContentClassAllowed, harms.ContentClassProhibited},
 		}, {
 			// This set group is similar to prefilters, but only contains the hellban prefilters. This is to prevent
 			// users being denied abilities that are intended to be granted to them via other prefilters (like an
 			// ability to leave the room).
 			EnabledNames: hellbanPrefilters,
 			// We want to capture "maybe spam", but not events that were already flagged as (not) spam.
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral},
 		}, {
 			// The third set group is what was previously the middle layer for filters. This is where the bulk of
 			// the work happens. We only want it to run if the prefilters didn't already declare an event spammy or
 			// neutral though, so we narrow the min/max range a bit.
 			EnabledNames: filters,
 			// Skip this group for events that are already (not) spam.
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral},
 		}, {
 			// The last set group is for telling the hellban postfilter if any previous filter flagged an event as
 			// spammy so it can put a silence in place.
-			EnabledNames: postfilterSilences,
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited},
+			EnabledNames:          postfilterSilences,
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited},
 		}},
 	}
 	filterSet, err := filter.NewSet(setConfig, m.storage, m.pubsubClient, m.notifier, scanner)

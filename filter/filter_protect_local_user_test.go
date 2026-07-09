@@ -21,8 +21,8 @@ func TestProtectLocalUserFilter(t *testing.T) {
 		},
 		Groups: []*SetGroupConfig{{
 			// The filter is force-enabled in the community manager, which we need to mimic here
-			EnabledNames: []string{ProtectLocalUserFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{ProtectLocalUserFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

@@ -53,8 +53,8 @@ func NewSet(config *SetConfig, storage storage.PersistentStorage, pubsub pubsub.
 	}
 	for i, groupCnf := range config.Groups {
 		set.groups[i] = &setGroup{
-			filters:      make([]Instanced, 0),
-			runOnClasses: groupCnf.RunOnClasses,
+			filters:               make([]Instanced, 0),
+			checkedContentClasses: groupCnf.CheckedContentClasses,
 		}
 		for _, name := range groupCnf.EnabledNames {
 			f, err := findByName(name)

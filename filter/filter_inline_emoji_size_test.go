@@ -212,8 +212,8 @@ func TestInlineEmojiSizeFilter(t *testing.T) {
 			InlineEmojiSizeFilterMaxHeightPixels: internal.Pointer(inlineEmojiSizeFilterMaxPixels),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{InlineEmojiSizeFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{InlineEmojiSizeFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -254,8 +254,8 @@ func TestInlineEmojiSizeFilterRejectsInvalidHtml(t *testing.T) {
 			InlineEmojiSizeFilterMaxHeightPixels: internal.Pointer(inlineEmojiSizeFilterMaxPixels),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{InlineEmojiSizeFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{InlineEmojiSizeFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

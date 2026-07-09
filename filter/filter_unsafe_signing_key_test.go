@@ -17,8 +17,8 @@ func TestUnsafeSigningKeyFilter(t *testing.T) {
 			UnsafeSigningKeyFilterEnabled: true,
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{UnsafeSigningKeyFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{UnsafeSigningKeyFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

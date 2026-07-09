@@ -22,8 +22,8 @@ func TestKeywordTemplateFilter(t *testing.T) {
 			KeywordTemplateFilterTemplateNames: &[]string{"example", "this_one_doesnt_exist_but_thats_okay"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{KeywordTemplateFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{KeywordTemplateFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -119,8 +119,8 @@ func TestKeywordTemplateFilterWithFullEvent(t *testing.T) {
 			KeywordTemplateFilterUseFullEvent:  internal.Pointer(true), // this is what we're testing
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{KeywordTemplateFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{KeywordTemplateFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

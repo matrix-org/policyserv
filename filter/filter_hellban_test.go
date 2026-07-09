@@ -42,8 +42,8 @@ func TestHellbanPrefilterDoesntEternallyExtend(t *testing.T) {
 		CommunityId:     "TestHellbanPrefilterDoesntEternallyExtend",
 		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{fastHellbanPrefilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{fastHellbanPrefilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -92,8 +92,8 @@ func TestHellbanPrefilter(t *testing.T) {
 			HellbanPostfilterMinutes: internal.Pointer(10),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{HellbanPrefilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{HellbanPrefilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -151,11 +151,11 @@ func TestHellbanPostfilter(t *testing.T) {
 		CommunityId:     "TestHellbanPostfilter",
 		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
 		}, {
-			EnabledNames: []string{HellbanPostfilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // but we only want to detect spam for the postfilter test
+			EnabledNames:          []string{HellbanPostfilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // but we only want to detect spam for the postfilter test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -229,14 +229,14 @@ func TestHellbanFiltersCombined(t *testing.T) {
 			HellbanPostfilterMinutes: internal.Pointer(10),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{HellbanPrefilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
+			EnabledNames:          []string{HellbanPrefilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral by default in the test
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // for later: don't run on spammy events
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // for later: don't run on spammy events
 		}, {
-			EnabledNames: []string{HellbanPostfilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // *only* run on spammy events
+			EnabledNames:          []string{HellbanPostfilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // *only* run on spammy events
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

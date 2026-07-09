@@ -31,8 +31,8 @@ func TestOpenAIOmniFilter(t *testing.T) {
 			OpenAIFilterFailSecure: internal.Pointer(true),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{OpenAIOmniFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{OpenAIOmniFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

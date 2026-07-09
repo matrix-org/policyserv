@@ -15,8 +15,8 @@ func TestMediaFilter(t *testing.T) {
 			MediaFilterMediaTypes: &[]string{"m.sticker", "m.image"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{MediaFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{MediaFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

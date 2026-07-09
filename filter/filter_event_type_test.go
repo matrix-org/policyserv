@@ -16,8 +16,8 @@ func TestEventTypeFilter(t *testing.T) {
 			EventTypePrefilterAllowedStateEventTypes: &[]string{"m.room.topic"},
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{EventTypeFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{EventTypeFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)

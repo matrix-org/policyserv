@@ -45,8 +45,8 @@ func AssertCheckTextAndEvent(t *testing.T, set *Set, eventWithBody gomatrixserve
 func TestNewSet(t *testing.T) {
 	cnf := &SetConfig{
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -70,8 +70,8 @@ func TestNewSet(t *testing.T) {
 func TestNewSetUnknownFilter(t *testing.T) {
 	cnf := &SetConfig{
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{"this_is_not_a_real_filter_name"},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{"this_is_not_a_real_filter_name"},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -87,8 +87,8 @@ func TestNewSetUnknownFilter(t *testing.T) {
 func TestNewSetErrorMaking(t *testing.T) {
 	cnf := &SetConfig{
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{ErrorFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
+			EnabledNames:          []string{ErrorFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything is neutral by default in the test
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -106,11 +106,11 @@ func TestSetCheckEvent(t *testing.T) {
 		CommunityConfig: &config.CommunityConfig{},
 		// We want to ensure we call *all* groups, so specify 2 to call
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // events start off neutral by default
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // events start off neutral by default
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // we're going to test that harms are added
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // we're going to test that harms are added
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -146,14 +146,14 @@ func TestCheckEventWithErrorInGroup(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // events start off neutral by default
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // events start off neutral by default
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -203,11 +203,11 @@ func TestSetCheckText(t *testing.T) {
 		CommunityConfig: &config.CommunityConfig{},
 		// We want to ensure we call *all* groups, so specify 2 to call
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // content start off neutral by default
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // content start off neutral by default
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // we're going to test that harms are added
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // we're going to test that harms are added
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -239,14 +239,14 @@ func TestSetCheckTextWithErrorInGroup(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // events start off neutral by default
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // events start off neutral by default
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassProhibited}, // our fixed filter sets everything as prohibited
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -313,11 +313,11 @@ func TestCallsWebhook(t *testing.T) {
 			WebhookUrl: internal.Pointer(server.URL + "/webhook"),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // starts as neutral, stays neutral until the next filter runs
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // starts as neutral, stays neutral until the next filter runs
 		}, {
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral},
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral},
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -402,8 +402,8 @@ func TestCallsWebhookErrorNonFatal(t *testing.T) {
 			WebhookUrl: internal.Pointer(server.URL + "/webhook"),
 		},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
@@ -464,8 +464,8 @@ func TestExtractsMedia(t *testing.T) {
 	cnf := &SetConfig{
 		CommunityConfig: &config.CommunityConfig{},
 		Groups: []*SetGroupConfig{{
-			EnabledNames: []string{FixedFilterName},
-			RunOnClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral
+			EnabledNames:          []string{FixedFilterName},
+			CheckedContentClasses: []harms.ContentClass{harms.ContentClassNeutral}, // everything starts as neutral
 		}},
 	}
 	memStorage := test.NewMemoryStorage(t)
