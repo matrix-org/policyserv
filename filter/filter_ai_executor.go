@@ -2,9 +2,9 @@ package filter
 
 import (
 	"context"
-	"slices"
 
 	"github.com/matrix-org/policyserv/ai"
+	"github.com/matrix-org/policyserv/filter/condition"
 	"github.com/matrix-org/policyserv/harms"
 )
 
@@ -13,17 +13,16 @@ type InstancedAIExecutorFilter[ConfigT any] struct {
 	set        *Set
 	config     ConfigT
 	aiProvider ai.Provider[ConfigT]
-	inRoomIds  []string
 }
 
-func NewInstancedAIExecutorFilter[ConfigT any](name string, set *Set, config ConfigT, aiProvider ai.Provider[ConfigT], inRoomIds []string) *InstancedAIExecutorFilter[ConfigT] {
-	return &InstancedAIExecutorFilter[ConfigT]{
+func NewInstancedAIExecutorFilter[ConfigT any](name string, set *Set, config ConfigT, aiProvider ai.Provider[ConfigT], inRoomIds []string) InstancedEventFilter {
+	instanced := &InstancedAIExecutorFilter[ConfigT]{
 		name:       name,
 		set:        set,
 		config:     config,
 		aiProvider: aiProvider,
-		inRoomIds:  inRoomIds,
 	}
+	return NewConditionalFilter(set, instanced, condition.AnyIn(condition.RoomId, inRoomIds))
 }
 
 func (f *InstancedAIExecutorFilter[ConfigT]) Name() string {
@@ -31,9 +30,6 @@ func (f *InstancedAIExecutorFilter[ConfigT]) Name() string {
 }
 
 func (f *InstancedAIExecutorFilter[ConfigT]) CheckEvent(ctx context.Context, input *EventInput) (*harms.ContentInfo, error) {
-	if !slices.Contains(f.inRoomIds, input.Event.RoomID().String()) {
-		return harms.NeutralContent(), nil // this filter isn't allowed to execute in here
-	}
 	return f.aiProvider.CheckEvent(ctx, f.config, &ai.Input{
 		Event:  input.Event,
 		Medias: input.Medias,

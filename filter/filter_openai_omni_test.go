@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"testing"
 
 	"github.com/matrix-org/policyserv/ai"
@@ -45,7 +46,10 @@ func TestOpenAIOmniFilter(t *testing.T) {
 
 	// Pull the filter out of the set to inspect its type & config.
 	// If this for some reason isn't "ok", then the filter created the very wrong thing.
-	instanced, ok := set.groups[0].filters[0].(*InstancedAIExecutorFilter[*ai.OpenAIOmniModerationConfig])
+	conditional, ok := set.groups[0].filters[0].(*ConditionalFilter)
+	assert.True(t, ok)
+	assert.NotNil(t, conditional)
+	instanced, ok := conditional.downstream.(*InstancedAIExecutorFilter[*ai.OpenAIOmniModerationConfig])
 	assert.True(t, ok)
 	assert.NotNil(t, instanced)
 
@@ -55,7 +59,10 @@ func TestOpenAIOmniFilter(t *testing.T) {
 	assert.Equal(t, &ai.OpenAIOmniModerationConfig{
 		FailSecure: true, // should have been set by pulling in the community config above
 	}, instanced.config)
-	assert.Equal(t, []string{"!allowed:example.org"}, instanced.inRoomIds) // should have been pulled from instance config
+
+	// Verify the conditional filter got set up correctly, and is using the instance config
+	assert.True(t, conditional.condition.Matches(context.Background(), "whatever", "!allowed:example.org", "whatever"))
+	assert.False(t, conditional.condition.Matches(context.Background(), "whatever", "!wrong:example.org", "whatever"))
 
 	// Verify that the provider is correct. Note that the provider verifies it got a non-empty API key, so this also
 	// tests that we got *something* resembling an API key as far as the provider. We can't really test that the exact
