@@ -10,9 +10,9 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.12.3
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20260202113659-20c9de33969e
-	github.com/openai/openai-go/v3 v3.44.0
+	github.com/openai/openai-go/v3 v3.47.0
 	github.com/panjf2000/ants/v2 v2.12.1
-	github.com/prometheus/client_golang v1.24.0
+	github.com/prometheus/client_golang v1.24.1
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/segmentio/ksuid v1.0.4
 	github.com/stretchr/testify v1.11.1
@@ -40,7 +40,7 @@ require (
 	github.com/oleiade/lane/v2 v2.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.70.0 // indirect
+	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
