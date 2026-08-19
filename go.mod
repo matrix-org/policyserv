@@ -10,12 +10,12 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.12.3
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20260202113659-20c9de33969e
-	github.com/openai/openai-go/v3 v3.47.0
+	github.com/openai/openai-go/v3 v3.50.0
 	github.com/panjf2000/ants/v2 v2.12.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/segmentio/ksuid v1.0.4
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/t2bot/go-matrix-signing-key v0.0.0-20250823035654-ee2c984dd0ca
 	github.com/t2bot/go-typed-singleflight v0.0.3
 	github.com/tidwall/gjson v1.19.0
@@ -27,7 +27,6 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/go-set/v3 v3.0.1 // indirect
@@ -38,7 +37,6 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oleiade/lane/v2 v2.0.0 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
