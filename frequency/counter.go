@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/matrix-org/policyserv/pubsub"
-	"github.com/matrix-org/policyserv/storage"
 )
 
 type record struct {
@@ -27,17 +26,16 @@ type Counter struct {
 	ticker     *time.Ticker
 }
 
-// NewCounter creates a new cross-process counter. The `name` must be less than 31 characters.
+// NewCounter creates a new cross-process counter. The `name` must be less than 60 characters.
 func NewCounter(pubsub pubsub.Client, name string, window time.Duration) (*Counter, error) {
-	if len(name) >= 31 {
-		return nil, fmt.Errorf("name must be less than 31 characters")
+	if len(name) >= 60 {
+		return nil, fmt.Errorf("name must be less than 60 characters")
 	}
 	// This must be less than 64 characters.
-	// 	+30 from caller-supplied name
-	// 	+27 from KSUID (storage.NextId())
-	//  +5  from our other templating
-	//  =61
-	pubsubId := fmt.Sprintf("ctr.%s.%s", name, storage.NextId())
+	// 	+59 from caller-supplied name
+	//  +4  from our other templating
+	//  =63
+	pubsubId := fmt.Sprintf("ctr.%s", name)
 	if len(pubsubId) > 63 {
 		return nil, fmt.Errorf("developer error: pubsub counter ID must be 63 characters or less: %s", pubsubId)
 	}

@@ -17,9 +17,55 @@ func TestCounterLongName(t *testing.T) {
 	ps := test.NewMemoryPubsub(t)
 	defer ps.Close()
 
-	c, err := NewCounter(ps, strings.Repeat("x", 32), 60*time.Second)
+	c, err := NewCounter(ps, strings.Repeat("x", 60), 60*time.Second)
 	assert.Nil(t, c)
-	assert.ErrorContains(t, err, "name must be less than 31 characters")
+	assert.ErrorContains(t, err, "name must be less than 60 characters")
+}
+
+func TestCounterCrossProcess(t *testing.T) {
+	t.Parallel()
+
+	ps := test.NewMemoryPubsub(t)
+	defer ps.Close()
+
+	c1, err := NewCounter(ps, "TestCounter_Shared", 60*time.Second)
+	assert.NoError(t, err)
+	assert.NotNil(t, c1)
+	defer c1.Close()
+
+	c2, err := NewCounter(ps, "TestCounter_Shared", 60*time.Second)
+	assert.NoError(t, err)
+	assert.NotNil(t, c2)
+	defer c2.Close()
+
+	// Test that c2 increments at the same time as c1
+	user := "@user1:example.org"
+	err = c1.Increment(user)
+	assert.NoError(t, err)
+
+	time.Sleep(250 * time.Millisecond) // give time to settle
+
+	rate1, err := c1.Get(user)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, rate1)
+
+	rate2, err := c2.Get(user)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, rate2)
+
+	// Now test the other direction (c1 updates when c2 does)
+	err = c2.Increment(user)
+	assert.NoError(t, err)
+
+	time.Sleep(250 * time.Millisecond) // give time to settle
+
+	rate1, err = c1.Get(user)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, rate1)
+
+	rate2, err = c2.Get(user)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, rate2)
 }
 
 func TestCounter(t *testing.T) {
