@@ -10,7 +10,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.12.3
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20260202113659-20c9de33969e
-	github.com/openai/openai-go/v3 v3.61.0
+	github.com/openai/openai-go/v3 v3.66.0
 	github.com/panjf2000/ants/v2 v2.12.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/ryanuber/go-glob v1.0.0
@@ -27,6 +27,7 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/coder/websocket v1.8.15 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/go-set/v3 v3.0.1 // indirect
