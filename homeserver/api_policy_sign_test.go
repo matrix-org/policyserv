@@ -43,7 +43,8 @@ func TestHttpPolicySign(t *testing.T) {
 				Type:   "m.room.message",
 				Sender: "@spam:" + originName,
 				Content: map[string]any{
-					"body": "body doesn't matter",
+					"body":    "body doesn't matter",
+					"msgtype": "m.text",
 				},
 			}),
 			IsSpam: true,
@@ -56,7 +57,8 @@ func TestHttpPolicySign(t *testing.T) {
 				Type:   "m.room.message",
 				Sender: "@not_spam:" + originName,
 				Content: map[string]any{
-					"body": "body doesn't matter",
+					"body":    "body doesn't matter",
+					"msgtype": "m.text",
 				},
 			}),
 			IsSpam: false,

@@ -81,7 +81,8 @@ func TestGetFilterSetForRoomId(t *testing.T) {
 		Type:    "m.room.message",
 		Sender:  "@test1:example.org",
 		Content: map[string]interface{}{
-			"body": "keyword1",
+			"body":    "keyword1",
+			"msgtype": "m.text",
 		},
 	})
 	info, err := set.CheckEvent(ctx, keyword1Event, nil)
@@ -122,7 +123,8 @@ func TestGetFilterSetForRoomId(t *testing.T) {
 		Type:    "m.room.message",
 		Sender:  "@test2:example.org",
 		Content: map[string]interface{}{
-			"body": "keyword2",
+			"body":    "keyword2",
+			"msgtype": "m.text",
 		},
 	})
 	info, err = set.CheckEvent(ctx, keyword2Event, nil)
@@ -174,7 +176,8 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 		Type:    "m.room.message",
 		Sender:  "@test1:example.org",
 		Content: map[string]interface{}{
-			"body": "keyword1",
+			"body":    "keyword1",
+			"msgtype": "m.text",
 		},
 	})
 	info, err := set.CheckEvent(ctx, keyword1Event, nil)
@@ -236,7 +239,8 @@ func TestCommunityManagerCacheInvalidation(t *testing.T) {
 		Type:    "m.room.message",
 		Sender:  "@test3:example.org",
 		Content: map[string]interface{}{
-			"body": "keyword3",
+			"body":    "keyword3",
+			"msgtype": "m.text",
 		},
 	})
 	set, err = manager.GetFilterSetForRoomId(ctx, roomId)

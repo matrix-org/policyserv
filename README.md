@@ -464,6 +464,18 @@ events might not have been scanned by policyserv yet, so history may get conside
 * `PS_UNSAFE_SIGNING_KEY_FILTER_ENABLED` (default `true`) - Whether events signed with known-unsafe signing keys are 
   considered spam.
 
+### Unknown message types filter
+
+Matrix room messages use "message types" to distinguish content like text, emotes, images, and locations. Some experimental
+message types may not be rendered correctly in all clients, or may include content that policyserv or other tools can't 
+effectively handle. This filter blocks unknown message types, but doesn't block redacted message events. 
+
+* `PS_KNOWN_MESSAGE_TYPES` (default `m.text,m.emote,m.notice,m.image,m.video,m.audio,m.file,m.location`) - The *known* 
+  message types to allow. If empty, all message types are allowed.
+
+**Note**: Messages may still be blocked by other filters, even if they have a known message type. For example, filters
+which handle media or images can cause a message to be considered spam even though `m.image` is a known message type.
+
 ## Contributing
 
 We're always happy to accept new features and bug fixes! Please see our [contributing guide](./CONTRIBUTING.md) for more 
