@@ -483,8 +483,13 @@ func TestExtractsMedia(t *testing.T) {
 
 	downloader := test.MustMakeMediaDownloader(t)
 
-	origin1 := "one.example.org"
-	origin2 := "two.example.org"
+	origins := []string{
+		"0.example.org",
+		"1.example.org",
+		"2.example.org",
+		"3.example.org",
+		"4.example.org",
+	}
 	id1 := "abc"
 	id2 := "def"
 
@@ -494,10 +499,19 @@ func TestExtractsMedia(t *testing.T) {
 		Type:    "org.example.event_type_doesnt_matter_in_this_test",
 		Sender:  "@alice:example.org",
 		Content: map[string]any{
-			"url": fmt.Sprintf("mxc://%s/%s", origin1, id1),
+			"url": fmt.Sprintf("mxc://%s/%s", origins[0], id1),
 			"info": map[string]any{
-				"thumbnail_url": fmt.Sprintf("mxc://%s/%s", origin2, id2),
+				"thumbnail_url": fmt.Sprintf("mxc://%s/%s", origins[1], id2),
 			},
+			"itemtypes": []map[string]any{
+				{
+					"url": fmt.Sprintf("mxc://%s/%s", origins[2], id1),
+					"info": map[string]any{
+						"thumbnail_url": fmt.Sprintf("mxc://%s/%s", origins[3], id2),
+					},
+				},
+			},
+			"formatted_body": fmt.Sprintf(`This is an example message with <div attr-val="mxc://%s/%s">some media</div>`, origins[4], id1),
 		},
 	})
 
@@ -508,12 +522,24 @@ func TestExtractsMedia(t *testing.T) {
 		Event: event,
 		Medias: []*media.Item{
 			{
-				Origin:  origin1,
+				Origin:  origins[0],
 				MediaId: id1,
 			},
 			{
-				Origin:  origin2,
+				Origin:  origins[1],
 				MediaId: id2,
+			},
+			{
+				Origin:  origins[2],
+				MediaId: id1,
+			},
+			{
+				Origin:  origins[3],
+				MediaId: id2,
+			},
+			{
+				Origin:  origins[4],
+				MediaId: id1,
 			},
 		},
 	}

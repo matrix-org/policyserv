@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 
 	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/matrix-org/policyserv/config"
@@ -16,6 +17,7 @@ import (
 	"github.com/matrix-org/policyserv/notifiers"
 	"github.com/matrix-org/policyserv/pubsub"
 	"github.com/matrix-org/policyserv/storage"
+	"golang.org/x/net/html"
 )
 
 type SetConfig struct {
@@ -81,6 +83,11 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 		return harms.ProhibitedContent(harms.SpamGeneral, harms.PolicyservSpecNonCompliance), nil
 	}
 
+	if len(event.JSON()) > 65535 {
+		log.Printf("[%s | %s] The event is too large to be compliant", event.EventID(), event.RoomID().String())
+		return harms.ProhibitedContent(harms.PolicyservSpecNonCompliance), nil
+	}
+
 	contentClass := harms.ContentClassNeutral
 	harmIds := make([]harms.Harm, 0)
 	auditCtx, err := newAuditContext(s.notifier, s.communityId, event)
@@ -95,8 +102,8 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 		}
 
 		if mediaDownloader != nil {
-			// Extract media items from event, if possible.
-			// TODO: In future, we'll also want to capture custom emoji and similar
+			// Extract media items from event, if possible. We look at not only the common URL placement, but also for
+			// emoji in the HTML of a message event.
 			eventContent := &mediaUrlsOnly{}
 			err = json.Unmarshal(input.Event.Content(), &eventContent)
 			if err != nil {
@@ -117,6 +124,27 @@ func (s *Set) CheckEvent(ctx context.Context, event gomatrixserverlib.PDU, media
 			}
 			tryAppendMedia(eventContent.Url)
 			tryAppendMedia(eventContent.Info.ThumbnailUrl)
+			for _, item := range eventContent.MSC4274ItemTypes {
+				tryAppendMedia(item.Url)
+				tryAppendMedia(item.Info.ThumbnailUrl)
+			}
+
+			// Extract HTML content
+			htmlContent := &formattedBodyOnly{}
+			err = json.Unmarshal(input.Event.Content(), &htmlContent)
+			if err != nil {
+				// Probably not a string
+				return nil, err
+			}
+			// Note: technically, we should be verifying the `format` in the event is actually HTML as it may be possible
+			// for someone to post non-HTML formatted messages, however the spec only defines HTML and a client might
+			// make the assumption that it's always HTML. Therefore, we make the same assumption to protect those clients.
+			doc, err := html.Parse(strings.NewReader(htmlContent.FormattedBody))
+			if err != nil {
+				// Either not HTML or malformed HTML
+				return nil, err
+			}
+			walkHtmlAttributesForMedia(doc, tryAppendMedia)
 		} else {
 			log.Printf("[%s | %s] Skipping media extraction as mediaDownloader is nil", event.EventID(), event.RoomID().String())
 		}
@@ -178,9 +206,30 @@ func (s *Set) Close() error {
 	return nil
 }
 
+func walkHtmlAttributesForMedia(node *html.Node, addMediaUrl func(url string)) {
+	if node.Type == html.ElementNode {
+		for _, attr := range node.Attr {
+			if strings.HasPrefix(attr.Val, "mxc:") {
+				addMediaUrl(attr.Val)
+			}
+		}
+	}
+	for c := node.FirstChild; c != nil; c = c.NextSibling {
+		walkHtmlAttributesForMedia(c, addMediaUrl)
+	}
+}
+
 type mediaUrlsOnly struct {
 	Url  string `json:"url"`
 	Info struct {
 		ThumbnailUrl string `json:"thumbnail_url"`
 	}
+
+	// MSC4274ItemTypes is as per https://github.com/matrix-org/matrix-spec-proposals/pull/4274, though we don't
+	// limit usage to the (unstable) `msgtype` to scan this property.
+	MSC4274ItemTypes []*mediaUrlsOnly `json:"itemtypes"`
+}
+
+type formattedBodyOnly struct {
+	FormattedBody string `json:"formatted_body"`
 }
