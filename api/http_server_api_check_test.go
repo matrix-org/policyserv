@@ -139,14 +139,14 @@ func TestHttpCheckEventIdCommunityApiWithUnknownEvent(t *testing.T) {
 				RoomId:  roomId,
 				Type:    "m.room.message",
 				Sender:  "@alice:example.org",
-				Content: map[string]any{"body": "spammy spam"},
+				Content: map[string]any{"body": "spammy spam", "msgtype": "m.text"},
 			})
 		} else {
 			pdu = homeserver.MakeSignedPDUForTest(t, hs, &test.BaseClientEvent{
 				RoomId:  roomId,
 				Type:    "m.room.message",
 				Sender:  "@alice:example.org",
-				Content: map[string]any{"body": "this is a neutral event"},
+				Content: map[string]any{"body": "this is a neutral event", "msgtype": "m.text"},
 			})
 		}
 
