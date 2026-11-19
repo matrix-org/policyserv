@@ -203,7 +203,7 @@ func init() {
 				Sender:  "@user_length_1:example.org",
 				Content: map[string]any{
 					"msgtype": "m.text",
-					"body":    strings.Repeat("spammy spam", 10000),
+					"body":    strings.Repeat("spammy spam", 5000),
 				},
 			}),
 			Expected: harms.ProhibitedContent(harms.SpamFlooding),
